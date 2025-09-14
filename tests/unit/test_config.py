@@ -1,0 +1,1272 @@
+import dataclasses
+import functools
+import inspect
+import json
+import os
+import pathlib
+import tempfile
+from unittest import mock
+
+import pytest
+import yaml
+
+from soliplex import config
+
+AUTHSYSTEM_ID = "testing"
+AUTHSYSTEM_TITLE = "Testing OIDC"
+AUTHSYSTEM_SERVER_URL = "https://example.com/auth/realms/sso"
+AUTHSYSTEM_TOKEN_VALIDATION_PEM = """\
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlXYDp/ux5839pPyhRAjq
+RZTeyv6fKZqgvJS2cvrNzjfttYni7/++nU2uywAiKRnxfVIf6TWKaC4/oy0VkLpW
+mkC4oyj0ArST9OYWI9mqxqdweEHrzXf8CjU7Q88LVY/9JUmHAiKjOH17m5hLY+q9
+cmIs33SMq9g7GMgPfABNsgh57Xei1sVPSzzSzTd80AguMF7B9hrNg6eTr69CN+3s
+3535wDD7tBgPzhz1qJ+lhaBSWrht9mjYpX5S0/7IQOV9M7YVBsFYztpD4Ht9TQc0
+jbVPyMXk2bi6vmfpfjCtio7RjDqi38wTf38RuD7mhPYyDOzGFcfSr4yNnORRKyYH
+9QIDAQAB
+-----END PUBLIC KEY-----
+"""
+AUTHSYSTEM_CLIENT_ID = "testing-oidc"
+
+BARE_AUTHSYSTEM_CONFIG_KW = {
+    "id": AUTHSYSTEM_ID,
+    "title": AUTHSYSTEM_TITLE,
+    "server_url": AUTHSYSTEM_SERVER_URL,
+    "token_validation_pem": AUTHSYSTEM_TOKEN_VALIDATION_PEM,
+    "client_id": AUTHSYSTEM_CLIENT_ID,
+}
+BARE_AUTHSYSTEM_CONFIG_YAML=f"""
+auth_systems:
+  - id: "{AUTHSYSTEM_ID}"
+    title: "{AUTHSYSTEM_TITLE}"
+    server_url: "{AUTHSYSTEM_SERVER_URL}"
+    token_validation_pem: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAlXYDp/ux5839pPyhRAjq
+        RZTeyv6fKZqgvJS2cvrNzjfttYni7/++nU2uywAiKRnxfVIf6TWKaC4/oy0VkLpW
+        mkC4oyj0ArST9OYWI9mqxqdweEHrzXf8CjU7Q88LVY/9JUmHAiKjOH17m5hLY+q9
+        cmIs33SMq9g7GMgPfABNsgh57Xei1sVPSzzSzTd80AguMF7B9hrNg6eTr69CN+3s
+        3535wDD7tBgPzhz1qJ+lhaBSWrht9mjYpX5S0/7IQOV9M7YVBsFYztpD4Ht9TQc0
+        jbVPyMXk2bi6vmfpfjCtio7RjDqi38wTf38RuD7mhPYyDOzGFcfSr4yNnORRKyYH
+        9QIDAQAB
+        -----END PUBLIC KEY-----
+    client_id: "{AUTHSYSTEM_CLIENT_ID}"
+"""
+
+AUTHSYSTEM_SCOPE = "test one two three"
+W_SCOPE_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
+W_SCOPE_AUTHSYSTEM_CONFIG_KW["scope"] = AUTHSYSTEM_SCOPE
+W_SCOPE_AUTHSYSTEM_CONFIG_YAML=f"""
+{BARE_AUTHSYSTEM_CONFIG_YAML}
+    scope: "{AUTHSYSTEM_SCOPE}"
+"""
+
+AUTHSYSTEM_CLIENT_SECRET_LIT = "REALLY BIG SECRET"
+W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
+W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW["client_secret"] = (
+    AUTHSYSTEM_CLIENT_SECRET_LIT
+)
+W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_YAML=f"""
+{BARE_AUTHSYSTEM_CONFIG_YAML}
+    client_secret: "{AUTHSYSTEM_CLIENT_SECRET_LIT}"
+"""
+
+AUTHSYSTEM_CLIENT_SECRET_ENV = "env:{CLIENT_SECRET_ENV}"
+W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
+W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW["client_secret"] = (
+    AUTHSYSTEM_CLIENT_SECRET_ENV
+)
+W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_YAML=f"""
+{BARE_AUTHSYSTEM_CONFIG_YAML}
+    client_secret: "{AUTHSYSTEM_CLIENT_SECRET_ENV}"
+"""
+
+AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_REL_NAME = "cacert.pem"
+AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_REL = "./cacert.pem"
+W_OIDC_CPP_REL_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
+W_OIDC_CPP_REL_KW["oidc_client_pem_path"] = AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_REL
+W_OIDC_CPP_REL_CONFIG_YAML=f"""
+{BARE_AUTHSYSTEM_CONFIG_YAML}
+    oidc_client_pem_path: "{AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_REL}"
+"""
+
+AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS = "/path/to/cacert.pem"
+W_OIDC_CPP_ABS_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
+W_OIDC_CPP_ABS_KW["oidc_client_pem_path"] = AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS
+W_OIDC_CPP_ABS_CONFIG_YAML=f"""
+{BARE_AUTHSYSTEM_CONFIG_YAML}
+    oidc_client_pem_path: "{AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS}"
+"""
+
+
+AGENT_ID = "testing"
+SYSTEM_PROMPT = "You are a test"
+MODEL_NAME = "test-model"
+PROVIDER_BASE_URL = "https://provider.example.com/api"
+PROVIDER_KEY_ENVVAR = "TEST_API_KEY"
+PROVIDER_KEY_VALUE = "DEADBEEF"
+OLLAMA_BASE_URL = "https://example.com:12345"
+
+TEST_QUIZ_ID = "test_quiz"
+TEST_QUIZ_TITLE = "Test Quiz"
+TEST_QUIZ_STEM = "question_file"
+TEST_QUIZ_OVR = "/path/to/question_file.json"
+INPUTS = "What color is the sky"
+EXPECTED_ANSWER = "Blue"
+QA_QUESTION_UUID = "DEADBEEF"
+MC_QUESTION_UUID = "FACEDACE"
+QUESTION_TYPE_QA = "qa"
+QUESTION_TYPE_MC = "multiple-choice"
+MC_OPTIONS = ["orange", "blue", "purple"]
+
+TEST_QUIZ_W_STEM_KW = {
+    "id": TEST_QUIZ_ID,
+    "title": TEST_QUIZ_TITLE,
+    "question_file": TEST_QUIZ_STEM,
+    "randomize": True,
+    "max_questions": 3,
+}
+TEST_QUIZ_W_STEM_YAML = f"""
+id: "{TEST_QUIZ_ID}"
+title: "{TEST_QUIZ_TITLE}"
+question_file: "{TEST_QUIZ_STEM}"
+randomize: true
+max_questions: 3
+"""
+
+TEST_QUIZ_W_OVR_KW = {
+    "id": TEST_QUIZ_ID,
+    "question_file": TEST_QUIZ_OVR,
+}
+TEST_QUIZ_W_OVR_YAML = f"""
+id: "{TEST_QUIZ_ID}"
+question_file: "{TEST_QUIZ_OVR}"
+"""
+
+ROOM_ID = "test-room"
+ROOM_NAME = "Test Room"
+ROOM_DESCRIPTION = "This room is for testing"
+WELCOME_MESSAGE = "Welcome to this room!"
+SUGGESTION = "Try us out for a spin!"
+IMAGE_FILENAME = "test_image.jpg"
+
+HTTP_MCP_URL = "https://example.com/services/baz/mcp"
+HTTP_MCP_QP_KEY = "frob"
+HTTP_MCP_QP_VALUE = "bazquyth"
+HTTP_MCP_QUERY_PARAMS = {HTTP_MCP_QP_KEY: HTTP_MCP_QP_VALUE}
+HTTP_MCP_BEARER_TOKEN = "FACEDACE"
+QUIZ_ID = "test_quiz"
+
+DADS_BASE_URL = "https://docs.stage.josce.mil/dev/"
+DADS_SSO_SERVER_URL = "https://sso.test.josce.mil/auth/"
+DADS_BEARER_TOKEN = "CAFEBEAD"
+DADS_API_CONFIG_KW = {
+    "base_url": DADS_BASE_URL,
+    "sso_server_url": DADS_SSO_SERVER_URL,
+    "verify_ssl_certs": False,
+    "bearer_token": DADS_BEARER_TOKEN,
+}
+DADS_API_CONFIG_YAML = f"""
+base_url: "{DADS_BASE_URL}"
+sso_server_url: "{DADS_SSO_SERVER_URL}"
+verify_ssl_certs: false
+bearer_token: "{DADS_BEARER_TOKEN}"
+"""
+FADTC_PROJECT = "test-project"
+FADTC_SOURCE_DOC_PATH_1 = "modules/ROOT/pages/test-one.adoc"
+FADTC_SOURCE_DOC_PATH_2 = "modules/ROOT/pages/test-two.adoc"
+FADTC_CONFIG_KW = {
+    "project": FADTC_PROJECT,
+    "source_document_paths": [
+        FADTC_SOURCE_DOC_PATH_1,
+        FADTC_SOURCE_DOC_PATH_2,
+    ],
+    "dads_api_config_path": None,  # to be replaced
+    "allow_mcp": True,
+}
+
+
+EMPTY_AGENT_CONFIG_KW = dict(
+    id=AGENT_ID,
+)
+EMPTY_AGENT_CONFIG_YAML = f"""
+id: "{AGENT_ID}"
+"""
+
+
+BARE_AGENT_CONFIG_KW = dict(
+    id=AGENT_ID,
+    system_prompt=SYSTEM_PROMPT,
+    model_name=MODEL_NAME,
+)
+BARE_AGENT_CONFIG_YAML = f"""
+id: "{AGENT_ID}"
+system_prompt: "{SYSTEM_PROMPT}"
+model_name: "{MODEL_NAME}"
+"""
+
+W_TOOLS_AGENT_CONFIG_KW = dict(
+    id=AGENT_ID,
+    system_prompt=SYSTEM_PROMPT,
+    model_name=MODEL_NAME,
+    tool_configs={
+        "get_current_datetime": config.ToolConfig(
+            kind="get_current_datetime",
+            tool_name="soliplex.tools.get_current_datetime",
+            allow_mcp=True,
+        ),
+        "search_documents": config.SearchDocumentsToolConfig(
+            search_documents_limit=1,
+            rag_lancedb_override_path="/dev/null",
+            allow_mcp=True,
+        ),
+    },
+)
+W_TOOLS_AGENT_CONFIG_YAML = f"""\
+id: "{AGENT_ID}"
+system_prompt: "{SYSTEM_PROMPT}"
+model_name: "{MODEL_NAME}"
+tools:
+    - tool_name: "soliplex.tools.get_current_datetime"
+      allow_mcp: true
+    - tool_name: "soliplex.tools.search_documents"
+      rag_lancedb_override_path: /dev/null
+      search_documents_limit: 1
+      allow_mcp: true
+"""
+
+W_MCP_SERVERS_AGENT_CONFIG_KW = dict(
+    id=AGENT_ID,
+    system_prompt=SYSTEM_PROMPT,
+    model_name=MODEL_NAME,
+    mcp_client_toolset_configs=
+      # [
+        {
+            "test_1": config.Stdio_MCP_ClientToolsetConfig(
+                #id="test_1",
+                command="cat",
+                args=[
+                    "-",
+                ],
+                env={
+                    "foo": "bar",
+                }
+            ),
+            "test_2": config.HTTP_MCP_ClientToolsetConfig(
+                #id="test_2",
+                url=HTTP_MCP_URL,
+                headers={
+                    "Authorization": f"Bearer {HTTP_MCP_BEARER_TOKEN}",
+                },
+                query_params=HTTP_MCP_QUERY_PARAMS,
+            ),
+        },
+      # ],
+)
+W_MCP_SERVERS_AGENT_CONFIG_YAML = f"""\
+id: "{AGENT_ID}"
+system_prompt: "{SYSTEM_PROMPT}"
+model_name: "{MODEL_NAME}"
+mcp_client_toolsets:
+  # - id: "test_1"
+    test_1:
+      type: "stdio"
+      command: "cat"
+      args:
+        - "-"
+      env:
+        foo: "bar"
+  # - id: "test_2"
+    test_2:
+      type: "http"
+      url: "{HTTP_MCP_URL}"
+      headers:
+        Authorization: "Bearer {HTTP_MCP_BEARER_TOKEN}"
+      query_params:
+        {HTTP_MCP_QP_KEY}: "{HTTP_MCP_QP_VALUE}"
+"""
+
+
+W_PROMPT_FILE_AGENT_CONFIG_KW = dict(
+    id=AGENT_ID,
+    _system_prompt_path="./prompt.txt",
+    model_name=MODEL_NAME,
+)
+W_PROMPT_FILE_AGENT_CONFIG_YAML = f"""
+id: "{AGENT_ID}"
+system_prompt: ./prompt.txt
+model_name: "{MODEL_NAME}"
+"""
+
+Q_UUID_1 = "DEADBEEF"
+QUESTION_1 = "What color is the sky"
+ANSWER_1 = "blue"
+TYPE_1 = "qa"
+
+Q_UUID_2 = "FACEDACE"
+QUESTION_2 = "What color is grass?"
+ANSWER_2 = "green"
+TYPE_2 = "multiple-choice"
+OPTIONS_2 = ["red", "green", "blue"]
+
+QUESTIONS = [
+    config.QuizQuestion(
+        inputs=QUESTION_1,
+        expected_output=ANSWER_1,
+        metadata=config.QuizQuestionMetadata(
+            uuid=Q_UUID_1,
+            type=TYPE_1,
+        ),
+    ),
+    config.QuizQuestion(
+        inputs=QUESTION_2,
+        expected_output=ANSWER_2,
+        metadata=config.QuizQuestionMetadata(
+            type=TYPE_2,
+            uuid=Q_UUID_2,
+            options=OPTIONS_2
+        ),
+    ),
+]
+
+BARE_ROOM_CONFIG_KW = {
+    "id": ROOM_ID,
+    "name": ROOM_NAME,
+    "description": ROOM_DESCRIPTION,
+    "agent_config": config.AgentConfig(
+        id=f"room-{ROOM_ID}",
+        system_prompt=SYSTEM_PROMPT,
+    ),
+}
+BARE_ROOM_CONFIG_YAML = f"""\
+id: "{ROOM_ID}"
+name: "{ROOM_NAME}"
+description: "{ROOM_DESCRIPTION}"
+agent:
+    system_prompt: "{SYSTEM_PROMPT}"
+"""
+
+FULL_ROOM_CONFIG_KW = {
+    "id": ROOM_ID,
+    "name": ROOM_NAME,
+    "description": ROOM_DESCRIPTION,
+    "welcome_message": WELCOME_MESSAGE,
+    "suggestions": [
+        SUGGESTION,
+    ],
+    "enable_attachments": True,
+    "logo_image": f"./{IMAGE_FILENAME}",
+    "agent_config": config.AgentConfig(
+        id=f"room-{ROOM_ID}",
+        system_prompt=SYSTEM_PROMPT,
+    ),
+    "quizzes": [
+        config.RoomConfiguredQuiz(
+            id=TEST_QUIZ_ID, question_file=TEST_QUIZ_OVR,
+        ),
+    ],
+    "allow_mcp": True,
+}
+FULL_ROOM_CONFIG_YAML = f"""\
+id: "{ROOM_ID}"
+name: "{ROOM_NAME}"
+description: "{ROOM_DESCRIPTION}"
+welcome_message: "{WELCOME_MESSAGE}"
+suggestions:
+  - "{SUGGESTION}"
+enable_attachments: true
+logo_image: "./{IMAGE_FILENAME}"
+agent:
+    system_prompt: "{SYSTEM_PROMPT}"
+quizzes:
+  - id: "{TEST_QUIZ_ID}"
+    question_file: "{TEST_QUIZ_OVR}"
+allow_mcp: true
+"""
+
+BARE_COMPLETIONS_CONFIG_KW = {
+    "id": ROOM_ID,
+    "agent_config": config.AgentConfig(
+        id=f"completions-{ROOM_ID}",
+        system_prompt=SYSTEM_PROMPT,
+    ),
+}
+BARE_COMPLETIONS_CONFIG_YAML = f"""\
+id: "{ROOM_ID}"
+agent:
+    system_prompt: "{SYSTEM_PROMPT}"
+"""
+
+
+@pytest.fixture
+def temp_dir() -> pathlib.Path:
+    with tempfile.TemporaryDirectory() as td:
+        yield pathlib.Path(td)
+
+
+@pytest.mark.parametrize("w_config", [
+    BARE_AUTHSYSTEM_CONFIG_KW,
+    W_SCOPE_AUTHSYSTEM_CONFIG_KW,
+])
+def test_authsystem_from_yaml(temp_dir, w_config):
+    expected = config.OIDCAuthSystemConfig(**w_config)
+    expected._config_path = temp_dir
+
+    found = config.OIDCAuthSystemConfig.from_yaml(temp_dir, w_config)
+
+    assert found == expected
+
+
+@pytest.mark.parametrize("w_config, exp_secret, env_patch", [
+    (
+        W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW,
+        AUTHSYSTEM_CLIENT_SECRET_LIT,
+        {},
+    ),
+    (
+        W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW,
+        AUTHSYSTEM_CLIENT_SECRET_ENV,
+        {"CLIENT_SECRET_ENV": AUTHSYSTEM_CLIENT_SECRET_LIT},
+    ),
+])
+def test_authsystem_from_yaml_w_client_secret(
+    temp_dir, w_config, exp_secret, env_patch,
+):
+    expected = config.OIDCAuthSystemConfig(**w_config)
+    expected.client_secret = AUTHSYSTEM_CLIENT_SECRET_LIT
+    expected._config_path = temp_dir
+
+    with mock.patch.dict("os.environ", clear=True, **env_patch):
+        found = config.OIDCAuthSystemConfig.from_yaml(temp_dir, w_config)
+
+    assert found == expected
+
+
+@pytest.mark.parametrize("w_config, exp_path", [
+    (
+        W_OIDC_CPP_REL_KW,
+        "{temp_dir}/{rel_name}"
+    ),
+    (
+        W_OIDC_CPP_ABS_KW,
+        AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS,
+    )
+])
+def test_authsystem_from_yaml_w_oid_cpp(temp_dir, w_config, exp_path):
+    expected = config.OIDCAuthSystemConfig(**w_config)
+    expected._config_path = temp_dir
+
+    if exp_path.startswith("{"):
+        kwargs = {
+            "temp_dir": temp_dir,
+            "rel_name": AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_REL_NAME,
+        }
+        exp_path = exp_path.format(**kwargs)
+
+    found = config.OIDCAuthSystemConfig.from_yaml(temp_dir, w_config)
+
+    assert found == expected
+
+
+def test_authsystem_server_metadata_url():
+    inst = config.OIDCAuthSystemConfig(**BARE_AUTHSYSTEM_CONFIG_KW)
+
+    assert inst.server_metadata_url == (
+        f"{AUTHSYSTEM_SERVER_URL}/{config.WELL_KNOWN_OPENID_CONFIGURATION}"
+    )
+
+
+@pytest.mark.parametrize("w_config, exp_client_kwargs, exp_secret", [
+    (BARE_AUTHSYSTEM_CONFIG_KW, {}, ""),
+    (
+        W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW,
+        {},
+        AUTHSYSTEM_CLIENT_SECRET_LIT,
+    ),
+    (W_SCOPE_AUTHSYSTEM_CONFIG_KW, {"scope": AUTHSYSTEM_SCOPE}, ""),
+    (W_OIDC_CPP_ABS_KW, {"verify": AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS}, ""),
+])
+def test_authsystem_oauth_client_args(
+    temp_dir, w_config, exp_client_kwargs, exp_secret,
+):
+    inst = config.OIDCAuthSystemConfig(**w_config)
+    exp_url = (
+        f"{AUTHSYSTEM_SERVER_URL}/{config.WELL_KNOWN_OPENID_CONFIGURATION}"
+    )
+
+    found = inst.oauth_client_kwargs
+
+    assert found["name"] == AUTHSYSTEM_ID
+    assert found["server_metadata_url"] == exp_url
+    assert found["client_id"] == AUTHSYSTEM_CLIENT_ID
+    assert found["client_secret"] == exp_secret
+    assert found["client_kwargs"] ==  exp_client_kwargs
+
+
+def test_toolconfig_id():
+    tool_config = config.ToolConfig(
+        kind="testing",
+        tool_name="soliplex.tools.test_tool",
+    )
+
+    assert tool_config.tool_id == "test_tool"
+
+
+@pytest.mark.parametrize("w_existing", [False, True])
+def test_toolconfig_tool(w_existing):
+
+    def existing():  # pragma: NO COVER
+        pass
+
+    def test_tool(ctx, tool_config=None):
+        "This is a test"
+
+    if w_existing:
+        tool_config = config.ToolConfig(
+            kind="testing",
+            tool_name="no.such.animal.exists",
+        )
+        tool_config._tool = existing
+    else:
+        tool_config = config.ToolConfig(
+            kind="testing",
+            tool_name="soliplex.tools.test_tool",
+        )
+
+    with mock.patch.dict("soliplex.tools.__dict__", test_tool=test_tool):
+        found = tool_config.tool
+
+    if w_existing:
+        assert found is existing
+
+    else:
+        assert found is test_tool
+
+
+def TEST_TOOL_W_CTX_WO_PARAM_WO_TC(
+    ctx,
+) -> str:
+    "This is a test"
+
+
+def TEST_TOOL_W_CTX_W_PARAM_WO_TC(
+    ctx,
+    query: str,
+) -> str:
+    "This is a test"
+
+
+def TEST_TOOL_W_CTX_WO_PARAM_W_TC(
+    ctx,
+    tool_config: config.ToolConfig,
+) -> str:
+    "This is a test"
+
+
+def TEST_TOOL_W_CTX_W_PARAM_W_TC(
+    ctx,
+    query: str,
+    tool_config: config.ToolConfig,
+) -> str:
+    "This is a test"
+
+
+def TEST_TOOL_WO_CTX_WO_PARAM_WO_TC(
+) -> str:
+    "This is a test"
+
+
+def TEST_TOOL_WO_CTX_W_PARAM_WO_TC(
+    query: str,
+) -> str:
+    "This is a test"
+
+
+def TEST_TOOL_WO_CTX_WO_PARAM_W_TC(
+    tool_config: config.ToolConfig,
+) -> str:
+    "This is a test"
+
+
+def TEST_TOOL_WO_CTX_W_PARAM_W_TC(
+    query: str,
+    tool_config: config.ToolConfig,
+) -> str:
+    "This is a test"
+
+
+@pytest.mark.parametrize("test_tool", [
+    TEST_TOOL_W_CTX_WO_PARAM_W_TC,
+    TEST_TOOL_W_CTX_W_PARAM_W_TC,
+])
+def test_toolconfig_tool_requires_w_conflict(test_tool):
+
+    tool_config = config.ToolConfig(
+        kind="testing",
+        tool_name="soliplex.tools.test_tool",
+    )
+
+    with mock.patch.dict("soliplex.tools.__dict__", test_tool=test_tool):
+        with pytest.raises(config.ToolRequirementConflict):
+            _ = tool_config.tool_requires
+
+
+@pytest.mark.parametrize("test_tool", [
+    TEST_TOOL_W_CTX_WO_PARAM_WO_TC,
+    TEST_TOOL_W_CTX_W_PARAM_WO_TC,
+    TEST_TOOL_WO_CTX_WO_PARAM_WO_TC,
+    TEST_TOOL_WO_CTX_W_PARAM_WO_TC,
+    TEST_TOOL_WO_CTX_WO_PARAM_W_TC,
+    TEST_TOOL_WO_CTX_W_PARAM_W_TC,
+])
+def test_toolconfig_tool_description(test_tool):
+
+    tool_config = config.ToolConfig(
+        kind="testing",
+        tool_name="soliplex.tools.test_tool",
+    )
+
+    with mock.patch.dict("soliplex.tools.__dict__", test_tool=test_tool):
+        found = tool_config.tool_description
+
+    assert found == test_tool.__doc__.strip()
+
+
+@pytest.mark.parametrize("test_tool, expected", [
+    (TEST_TOOL_W_CTX_WO_PARAM_WO_TC, config.ToolRequires.FASTAPI_CONTEXT),
+    (TEST_TOOL_W_CTX_W_PARAM_WO_TC, config.ToolRequires.FASTAPI_CONTEXT),
+    (TEST_TOOL_WO_CTX_WO_PARAM_WO_TC, config.ToolRequires.BARE),
+    (TEST_TOOL_WO_CTX_W_PARAM_WO_TC, config.ToolRequires.BARE),
+    (TEST_TOOL_WO_CTX_WO_PARAM_W_TC, config.ToolRequires.TOOL_CONFIG),
+    (TEST_TOOL_WO_CTX_W_PARAM_W_TC, config.ToolRequires.TOOL_CONFIG),
+])
+def test_toolconfig_tool_requires(test_tool, expected):
+
+    tool_config = config.ToolConfig(
+        kind="testing",
+        tool_name="soliplex.tools.test_tool",
+    )
+
+    with mock.patch.dict("soliplex.tools.__dict__", test_tool=test_tool):
+        found = tool_config.tool_requires
+
+    assert found == expected
+
+
+@pytest.mark.parametrize("test_tool, exp_wrapped", [
+    (TEST_TOOL_W_CTX_WO_PARAM_WO_TC, False),
+    (TEST_TOOL_W_CTX_W_PARAM_WO_TC, False),
+    (TEST_TOOL_WO_CTX_WO_PARAM_WO_TC, False),
+    (TEST_TOOL_WO_CTX_W_PARAM_WO_TC, False),
+    (TEST_TOOL_WO_CTX_WO_PARAM_W_TC, True),
+    (TEST_TOOL_WO_CTX_W_PARAM_W_TC, True),
+])
+def test_toolconfig_tool_with_config(test_tool, exp_wrapped):
+
+    tool_config = config.ToolConfig(
+        kind="testing",
+        tool_name="soliplex.tools.test_tool",
+    )
+
+    with mock.patch.dict("soliplex.tools.__dict__", test_tool=test_tool):
+        found = tool_config.tool_with_config
+
+    if exp_wrapped:
+        assert isinstance(found, functools.partial)
+        assert found.func is test_tool
+        assert found.keywords == {"tool_config": tool_config}
+        assert found.__name__ == test_tool.__name__
+        assert found.__doc__ == test_tool.__doc__
+
+        exp_signature = inspect.signature(test_tool)
+        for param in found.__signature__.parameters:
+            assert param in exp_signature.parameters
+
+    else:
+        assert found is test_tool
+
+
+@pytest.mark.parametrize("stem, override, which", [
+    (None, None, None),
+    ("testing", "/dev/null", None),
+    ("testing", None, "stem"),
+    (None, "/dev/null", "override"),
+])
+def test_sdtc_ctor(temp_dir, stem, override, which):
+    kw = {}
+
+    if stem is not None:
+        kw["rag_lancedb_stem"] = stem
+
+    if override is not None:
+        kw["rag_lancedb_override_path"] = override
+
+    if which is None:
+        with pytest.raises(config.RagDbExactlyOneOfStemOrOverride):
+            config.SearchDocumentsToolConfig(**kw)
+
+    else:
+        db_rag_path = temp_dir / "db" / "rag"
+        with mock.patch.dict(
+            "os.environ", RAG_LANCE_DB_PATH=str(db_rag_path), clear=True
+        ):
+            sdt_config = config.SearchDocumentsToolConfig(**kw)
+
+            if which == "stem":
+                expected = db_rag_path / f"{stem}.lancedb"
+            else:
+                expected = pathlib.Path(override)
+
+            assert sdt_config._config_path is None
+            assert sdt_config.rag_lancedb_path == expected
+
+
+@pytest.mark.parametrize("stem, override, which", [
+    (None, None, None),
+    ("testing", "/dev/null", None),
+    ("testing", None, "stem"),
+    (None, "/dev/null", "override"),
+    (None, "./foo.lancedb", "override"),
+])
+def test_sdtc_from_yaml(temp_dir, stem, override, which):
+    kw = {}
+
+    if stem is not None:
+        kw["rag_lancedb_stem"] = stem
+
+    if override is not None:
+        kw["rag_lancedb_override_path"] = override
+
+    db_rag_path = temp_dir / "db" / "rag"
+    room_dir = temp_dir / "rooms" / "testroom"
+    config_path = room_dir / "room_config.yaml"
+
+    with mock.patch.dict(
+        "os.environ", RAG_LANCE_DB_PATH=str(db_rag_path), clear=True
+    ):
+        if which is None:
+            with pytest.raises(config.FromYamlException) as exc:
+                config.SearchDocumentsToolConfig.from_yaml(
+                    config_path=config_path, config=kw,
+                )
+
+            assert exc.value.config_path == config_path
+
+        else:
+            sdt_config = config.SearchDocumentsToolConfig.from_yaml(
+                config_path=config_path, config=kw,
+            )
+
+            if which == "stem":
+                expected = db_rag_path / f"{stem}.lancedb"
+            else:
+                if override.startswith("."):
+                    expected = (room_dir / override).resolve()
+                else:
+                    expected = pathlib.Path(override)
+
+            assert sdt_config._config_path == config_path
+            assert sdt_config.rag_lancedb_path.resolve() == expected.resolve()
+
+
+@pytest.fixture
+def stdiomcpc():
+    return config.Stdio_MCP_ClientToolsetConfig(
+        #id="test_1",
+        command="cat",
+        args=["-"],
+        env={"FOO": "BAR"}
+    )
+
+
+@pytest.fixture
+def httpmcpc():
+    return config.HTTP_MCP_ClientToolsetConfig(
+        #id="test_2",
+        url=HTTP_MCP_URL,
+        headers={
+            "Authorization": f"Bearer {HTTP_MCP_BEARER_TOKEN}",
+        },
+    )
+
+
+@pytest.mark.parametrize("kw", [EMPTY_AGENT_CONFIG_KW, BARE_AGENT_CONFIG_KW])
+def test_agentconfig_ctor(kw):
+    with mock.patch.dict(
+        os.environ, clear=True, DEFAULT_AGENT_MODEL="env-model",
+    ):
+        found = config.AgentConfig(**kw)
+
+    if "model_name" in kw:
+        assert found.model_name == kw["model_name"]
+    else:
+        assert found.model_name == "env-model"
+
+
+@pytest.mark.parametrize(
+    "config_yaml, expected_kw",
+    [
+        (EMPTY_AGENT_CONFIG_YAML, EMPTY_AGENT_CONFIG_KW),
+        (BARE_AGENT_CONFIG_YAML, BARE_AGENT_CONFIG_KW),
+        (W_TOOLS_AGENT_CONFIG_YAML, W_TOOLS_AGENT_CONFIG_KW),
+        (W_MCP_SERVERS_AGENT_CONFIG_YAML, W_MCP_SERVERS_AGENT_CONFIG_KW),
+        (W_PROMPT_FILE_AGENT_CONFIG_YAML, W_PROMPT_FILE_AGENT_CONFIG_KW),
+    ],
+)
+def test_agentconfig_from_yaml(
+    temp_dir, config_yaml, expected_kw,
+):
+    yaml_file = temp_dir / "test.yaml"
+    yaml_file.write_text(config_yaml)
+
+    if len(expected_kw.get("tool_configs", ())) > 0:
+        sdtc = expected_kw["tool_configs"]["search_documents"]
+        sdtc._config_path = yaml_file
+
+    expected = config.AgentConfig(**expected_kw)
+
+    expected = dataclasses.replace(expected, _config_path=yaml_file)
+
+    with yaml_file.open() as stream:
+        yaml_dict = yaml.safe_load(stream)
+
+    found = config.AgentConfig.from_yaml(yaml_file, yaml_dict)
+
+    assert found == expected
+
+
+@pytest.mark.parametrize("w_config_path", [False, True])
+@pytest.mark.parametrize("agent_config_kw", [
+    EMPTY_AGENT_CONFIG_KW,
+    BARE_AGENT_CONFIG_KW,
+    W_TOOLS_AGENT_CONFIG_KW,
+    W_PROMPT_FILE_AGENT_CONFIG_KW,
+])
+def test_agentconfig_get_system_prompt(
+    temp_dir, agent_config_kw, w_config_path,
+):
+    agent_config_kw = agent_config_kw.copy()
+
+    if w_config_path:
+        config_path = temp_dir / "prompt.txt"
+        config_path.write_text(SYSTEM_PROMPT)
+
+        agent_config_kw["_config_path"] = config_path
+
+    agent_config = config.AgentConfig(**agent_config_kw)
+
+    if agent_config._system_prompt_text is not None:
+        found = agent_config.get_system_prompt()
+        assert found == agent_config._system_prompt_text
+        return
+
+    if agent_config._config_path:
+
+        if agent_config._system_prompt_path is not None:
+            expected = SYSTEM_PROMPT
+        else:
+            expected = None
+
+        assert agent_config.get_system_prompt() == expected
+
+    else:
+        if agent_config._system_prompt_path is not None:
+            with pytest.raises(config.NoConfigPath):
+                agent_config.get_system_prompt()
+
+        else:
+            assert agent_config.get_system_prompt() is None
+
+
+@pytest.mark.parametrize("w_pke", [False, True, None])
+@pytest.mark.parametrize("w_pbu", [False, True])
+def test_agentconfig_llm_provider_kw(w_pbu, w_pke):
+    kw = {}
+
+    if w_pbu:
+        kw["provider_base_url"] = PROVIDER_BASE_URL
+
+    env_patch = {
+        "OLLAMA_BASE_URL": OLLAMA_BASE_URL,
+    }
+
+    if w_pke:
+        kw["provider_key_envvar"] = PROVIDER_KEY_ENVVAR
+        env_patch[PROVIDER_KEY_ENVVAR] = PROVIDER_KEY_VALUE
+
+    elif w_pke is None: # no envvar set, should raise
+        kw["provider_key_envvar"] = PROVIDER_KEY_ENVVAR
+
+    aconfig = config.AgentConfig(
+        id="test-agent", system_prompt="You are a test", **kw
+    )
+
+    with mock.patch.dict("os.environ", clear=True, **env_patch):
+
+        if w_pke is None:
+            with pytest.raises(config.NoProviderKeyInEnvironment):
+                aconfig.llm_provider_kw  # noqa B018 noraise
+
+        else:
+            found = aconfig.llm_provider_kw
+
+            if w_pbu:
+                expected_base_url = PROVIDER_BASE_URL
+            else:
+                expected_base_url = OLLAMA_BASE_URL
+
+            expected = {
+                "base_url": expected_base_url + "/v1",
+            }
+
+            if w_pke:
+                expected["api_key"] = PROVIDER_KEY_VALUE
+
+            assert found == expected
+
+
+@pytest.fixture
+def qa_question():
+    return config.QuizQuestion(
+        inputs=INPUTS,
+        expected_output=EXPECTED_ANSWER,
+        metadata=config.QuizQuestionMetadata(
+            uuid=QA_QUESTION_UUID,
+            type=QUESTION_TYPE_QA,
+        )
+    )
+
+
+@pytest.fixture
+def mc_question():
+    return config.QuizQuestion(
+        inputs=INPUTS,
+        expected_output=EXPECTED_ANSWER,
+        metadata=config.QuizQuestionMetadata(
+            uuid=MC_QUESTION_UUID,
+            type=QUESTION_TYPE_MC,
+            options=MC_OPTIONS,
+        )
+    )
+
+
+@pytest.fixture
+def quiz_questions(qa_question, mc_question):
+    return [qa_question, mc_question]
+
+
+@pytest.fixture
+def test_quiz_json(quiz_questions):
+    return {
+        "cases": [
+            dataclasses.asdict(question)
+            for question in quiz_questions
+        ]
+    }
+
+@pytest.fixture
+def populated_quiz(temp_dir, test_quiz_json):
+    quizzes_path = temp_dir / "quizzes"
+    quizzes_path.mkdir()
+    populated_quiz = quizzes_path / f"{TEST_QUIZ_ID}.json"
+    populated_quiz.write_text(json.dumps(test_quiz_json))
+    return populated_quiz
+
+
+def test_rcq_ctor_defaults():
+    with pytest.raises(config.RCQExactlyOneOfStemOrOverride):
+        config.RoomConfiguredQuiz(id=TEST_QUIZ_ID)
+
+
+def test_rcq_ctor_exclusive():
+    with pytest.raises(config.RCQExactlyOneOfStemOrOverride):
+        config.RoomConfiguredQuiz(
+            id=TEST_QUIZ_ID,
+            _question_file_stem="question_file.json",
+            _question_file_path_override="/path/to/question_file.json",
+        )
+
+
+@pytest.mark.parametrize("qf, exp_stem, exp_ovr", [
+    ("foo.json", "foo", None),
+    ("foo", "foo", None),
+    ("/path/to/foo.json", None, "/path/to/foo.json"),
+])
+def test_rcq_ctor_w_question_file(
+    temp_dir, qf, exp_stem, exp_ovr,
+):
+    rcq = config.RoomConfiguredQuiz(id=TEST_QUIZ_ID, question_file=qf)
+    assert rcq._question_file_stem == exp_stem
+    assert rcq._question_file_path_override == exp_ovr
+
+    with mock.patch.dict("os.environ", INSTALLATION_PATH=str(temp_dir)):
+        found = rcq.question_file_path
+
+    if exp_stem is not None:
+        assert found == temp_dir / "quizzes" / f"{exp_stem}.json"
+    else:
+        assert found == pathlib.Path(exp_ovr)
+
+
+def test_rcq_from_yaml_exceptions(temp_dir):
+
+    config_kw = {
+        "id": TEST_QUIZ_ID,
+        "title": TEST_QUIZ_TITLE,
+    }
+
+    config_path = temp_dir / "test.yaml"
+
+    with pytest.raises(config.FromYamlException) as exc:
+        config.RoomConfiguredQuiz.from_yaml(config_path, config_kw)
+
+    assert exc.value.config_path == config_path
+
+
+@pytest.mark.parametrize(
+    "config_yaml, expected_kw",
+    [
+        (TEST_QUIZ_W_STEM_YAML, TEST_QUIZ_W_STEM_KW),
+        (TEST_QUIZ_W_OVR_YAML, TEST_QUIZ_W_OVR_KW),
+    ],
+)
+def test_rcq_from_yaml(temp_dir, config_yaml, expected_kw):
+    expected = config.RoomConfiguredQuiz(**expected_kw)
+
+    yaml_file = temp_dir / "test.yaml"
+    yaml_file.write_text(config_yaml)
+    expected = dataclasses.replace(expected, _config_path=yaml_file)
+
+    with yaml_file.open() as stream:
+        yaml_dict = yaml.safe_load(stream)
+
+    found = config.RoomConfiguredQuiz.from_yaml(yaml_file, yaml_dict)
+
+    assert found == expected
+
+
+def test_rcq__load_questions_file(temp_dir, populated_quiz, test_quiz_json):
+    expected_questions = test_quiz_json["cases"]
+
+    rcq = config.RoomConfiguredQuiz(
+        id=TEST_QUIZ_ID, question_file=str(populated_quiz),
+    )
+
+    found = rcq.get_questions()
+
+    for f_question, e_question in zip(
+        found, expected_questions, strict=True,
+    ):
+        assert f_question.inputs == e_question["inputs"]
+        assert f_question.expected_output == e_question["expected_output"]
+        assert f_question.metadata.type == e_question["metadata"]["type"]
+        assert f_question.metadata.uuid == e_question["metadata"]["uuid"]
+
+        options = e_question["metadata"].get("options")
+
+        if options is None:
+            assert f_question.metadata.options == []
+        else:
+            assert f_question.metadata.options == options
+
+
+@pytest.mark.parametrize("w_max_questions", [None, 1])
+@pytest.mark.parametrize("w_loaded", [False, True])
+def test_rcq_get_questions(quiz_questions, w_loaded, w_max_questions):
+    expected_questions = quiz_questions
+
+    kwargs = {"id": TEST_QUIZ_ID, "question_file": "ignored.json"}
+
+    if w_max_questions is not None:
+        kwargs["max_questions"] = w_max_questions
+        expected_questions = expected_questions[:w_max_questions]
+
+    q_map = {
+        question.metadata.uuid: question for question in expected_questions
+    }
+
+    rcq = config.RoomConfiguredQuiz(**kwargs)
+
+    if w_loaded:
+        rcq._questions_map = q_map
+    else:
+        rcq._load_questions_file = mock.Mock(spec_set=(), return_value=q_map)
+
+    found = rcq.get_questions()
+
+    assert found == list(q_map.values())
+
+
+@mock.patch("random.shuffle")
+def test_rcq_get_questions_w_randomize(
+    shuffle, temp_dir, populated_quiz, test_quiz_json,
+):
+    rcq = config.RoomConfiguredQuiz(
+        id=TEST_QUIZ_ID, question_file=str(populated_quiz), randomize=True,
+    )
+
+    found = rcq.get_questions()
+
+    shuffle.assert_called_once_with(found)
+
+
+@pytest.mark.parametrize("w_miss", [False, True])
+@pytest.mark.parametrize("w_loaded", [False, True])
+def test_rcq_get_question(w_loaded, w_miss):
+    UUID = "DEADBEEF"
+    expected = object()
+
+    rcq = config.RoomConfiguredQuiz(
+        id=TEST_QUIZ_ID, question_file="ignored.json",
+    )
+    q_map = {}
+
+    if w_loaded:
+        rcq._questions_map = q_map
+    else:
+        rcq._load_questions_file = mock.Mock(spec_set=(), return_value=q_map)
+
+    if w_miss:
+        with pytest.raises(KeyError):
+            rcq.get_question(UUID)
+
+    else:
+        q_map[UUID] = expected
+
+        found = rcq.get_question(UUID)
+
+        assert found is expected
+
+
+@pytest.mark.parametrize(
+    "config_yaml, expected_kw",
+    [
+        (BARE_ROOM_CONFIG_YAML, BARE_ROOM_CONFIG_KW),
+        (FULL_ROOM_CONFIG_YAML, FULL_ROOM_CONFIG_KW),
+    ],
+)
+def test_roomconfig_from_yaml(temp_dir, config_yaml, expected_kw):
+    expected = config.RoomConfig(**expected_kw)
+
+    yaml_file = temp_dir / "test.yaml"
+    yaml_file.write_text(config_yaml)
+    expected = dataclasses.replace(expected, _config_path=yaml_file)
+    expected.agent_config = dataclasses.replace(
+        expected.agent_config, _config_path=yaml_file,
+    )
+    if "quizzes" in config_yaml:
+        expected.quizzes = [
+            dataclasses.replace(quiz, _config_path=yaml_file)
+            for quiz in expected.quizzes
+        ]
+
+    with yaml_file.open() as stream:
+        yaml_dict = yaml.safe_load(stream)
+
+    found = config.RoomConfig.from_yaml(yaml_file, yaml_dict)
+
+    assert found == expected
+
+@pytest.mark.parametrize("w_existing", [False, True])
+def test_roomconfig_quiz_map(w_existing):
+    NUM_QUIZZES = 3
+    quizzes = [
+        mock.create_autospec(
+            config.RoomConfiguredQuiz,
+            id=f"quiz-{iq}",
+            question_file=f"ignored-{iq}.json",
+        ) for iq in range(NUM_QUIZZES)
+    ]
+
+    existing = object()
+    room_config = config.RoomConfig(**BARE_ROOM_CONFIG_KW)
+
+    if w_existing:
+        room_config._quiz_map = existing
+    else:
+        room_config.quizzes = quizzes
+
+    found = room_config.quiz_map
+
+    if w_existing:
+        assert found is existing
+
+    else:
+        for (_f_id, f_quiz), e_quiz in zip(
+            found.items(), quizzes, strict=True,
+        ):
+            assert f_quiz is e_quiz
+
+
+@pytest.mark.parametrize("w_order", [False, True])
+def test_roomconfig_sort_key(w_order):
+    _ORDER = "explicitly_ordered"
+
+    room_config_kw = BARE_ROOM_CONFIG_KW.copy()
+
+    if w_order:
+        room_config_kw["_order"] = _ORDER
+
+    room_config = config.RoomConfig(**room_config_kw)
+
+    found = room_config.sort_key
+
+    if w_order:
+        assert found == _ORDER
+    else:
+        assert found == ROOM_ID
+
+
+@pytest.mark.parametrize("w_config_path", [False, True])
+@pytest.mark.parametrize(
+    "room_config_kw", [BARE_ROOM_CONFIG_KW, FULL_ROOM_CONFIG_KW],
+)
+def test_roomconfig_get_logo_image(temp_dir, room_config_kw, w_config_path):
+    room_config_kw = room_config_kw.copy()
+
+    if w_config_path:
+        room_config_kw["_config_path"] = temp_dir / "room_config.yaml"
+
+    room_config = config.RoomConfig(**room_config_kw)
+
+    if room_config._config_path:
+        if room_config._logo_image is not None:
+            expected = temp_dir / room_config._logo_image
+        else:
+            expected = None
+
+        found = room_config.get_logo_image()
+
+        assert found == expected
+
+    else:
+        if room_config._logo_image is not None:
+            with pytest.raises(config.NoConfigPath):
+                room_config.get_logo_image()
+
+        else:
+            assert room_config.get_logo_image() is None
+
+
+@pytest.mark.parametrize(
+    "config_yaml, expected_kw",
+    [
+        (BARE_COMPLETIONS_CONFIG_YAML, BARE_COMPLETIONS_CONFIG_KW),
+    ],
+)
+def test_completionsconfig_from_yaml(temp_dir, config_yaml, expected_kw):
+    expected = config.CompletionsConfig(**expected_kw)
+
+    yaml_file = temp_dir / "test.yaml"
+    yaml_file.write_text(config_yaml)
+    expected = dataclasses.replace(expected, _config_path=yaml_file)
+    expected.agent_config = dataclasses.replace(
+        expected.agent_config, _config_path=yaml_file,
+    )
+
+    with yaml_file.open() as stream:
+        yaml_dict = yaml.safe_load(stream)
+
+    found = config.CompletionsConfig.from_yaml(yaml_file, yaml_dict)
+
+    assert found == expected

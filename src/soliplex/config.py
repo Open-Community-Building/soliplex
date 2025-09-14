@@ -1,0 +1,673 @@
+import dataclasses
+import enum
+import functools
+import importlib
+import inspect
+import json
+import os
+import pathlib
+import random
+import typing
+from collections import abc
+
+from soliplex import util
+
+#=============================================================================
+#   Exceptions raised during YAML config processing
+#=============================================================================
+
+class FromYamlException(ValueError):
+    def __init__(self, config_path):
+        self.config_path = config_path
+        super().__init__(f"Error in YAML configuration: {config_path}")
+
+
+class ToolRequirementConflict(ValueError):
+    def __init__(self, tool_name):
+        self.tool_name = tool_name
+        super().__init__(
+            f"Tool {tool_name} requires both context and tool config"
+        )
+
+
+class NoProviderKeyInEnvironment(ValueError):
+    def __init__(self, envvar):
+        self.envvar = envvar
+        super().__init__(f"No API key in environment: {envvar}")
+
+
+class NoConfigPath(ValueError):
+    def __init__(self):
+        super().__init__("No '_config_path' set")
+
+
+class RagDbExactlyOneOfStemOrOverride(TypeError):
+    _config_path = None
+    def __init__(self):
+        super().__init__(
+            "Configure exactly one of 'rag_lancedb_stem' or "
+            "'rag_lancedb_override_path'"
+        )
+
+
+class RCQExactlyOneOfStemOrOverride(TypeError):
+    def __init__(self):
+        super().__init__(
+            "Configure exactly one of '_question_file_stem' or "
+            "'_question_file_override_path'"
+        )
+
+
+#=============================================================================
+#   OIDC Authentication system configuration
+#=============================================================================
+
+WELL_KNOWN_OPENID_CONFIGURATION = ".well-known/openid-configuration"
+
+
+@dataclasses.dataclass
+class OIDCAuthSystemConfig:
+    id: str
+    title: str
+
+    server_url: str
+    token_validation_pem: str
+    client_id: str
+    scope: str = None
+    client_secret: str = "" # "env:{JOSCE_CLIENT_SECRET}"
+    oidc_client_pem_path: pathlib.Path = None
+
+    # Set in 'from_yaml' below
+    _config_path: pathlib.Path | None = None
+
+    @classmethod
+    def from_yaml(
+        cls, config_path: pathlib.Path, config: dict[str, typing.Any],
+    ):
+        config["_config_path"] = config_path
+
+        client_secret = config.pop("client_secret", "")
+        config["client_secret"] =  util.interpolate_env_vars(client_secret)
+
+        return cls(**config)
+
+    @property
+    def server_metadata_url(self):
+        return f"{self.server_url}/{WELL_KNOWN_OPENID_CONFIGURATION}"
+
+    @property
+    def oauth_client_kwargs(self) -> dict:
+        client_kwargs = {}
+
+        if self.scope is not None:
+            client_kwargs["scope"] = self.scope
+
+        if self.oidc_client_pem_path is not None:
+            client_kwargs["verify"] = str(self.oidc_client_pem_path)
+
+        return {
+            "name": self.id,
+            "server_metadata_url": self.server_metadata_url,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "client_kwargs": client_kwargs,
+            # added by the auth setup
+            #"authorize_state": main.SESSION_SECRET_KEY,
+        }
+
+
+@dataclasses.dataclass
+class AvailableOIDCAuthSystemConfigs:
+    systems: list[OIDCAuthSystemConfig] = dataclasses.field(
+        default_factory=list,
+    )
+
+
+#=============================================================================
+#   Tool configuration
+#=============================================================================
+
+class ToolRequires(enum.StrEnum):
+    FASTAPI_CONTEXT = "fastapi_context"
+    TOOL_CONFIG = "tool_config"
+    BARE = "bare"
+
+
+@dataclasses.dataclass
+class ToolConfig:
+    kind: str
+    tool_name: str
+
+    allow_mcp: bool = False
+
+    _tool: abc.Callable[..., typing.Any] = None
+
+    @property
+    def tool_id(self):
+        _, tool_id = self.tool_name.rsplit(".", 1)
+        return tool_id
+
+    @property
+    def tool(self):
+        if self._tool is None:
+            module_name, tool_id = self.tool_name.rsplit(".", 1)
+            module = importlib.import_module(module_name)
+            self._tool = getattr(module, tool_id)
+
+        return self._tool
+
+    @property
+    def tool_description(self) -> str:
+        return inspect.getdoc(self.tool)
+
+    @property
+    def tool_requires(self) -> ToolRequires | None:
+        tool_params = inspect.signature(self.tool).parameters
+
+        if "ctx" in tool_params and "tool_config" in tool_params:
+            raise ToolRequirementConflict(self.tool_name)
+
+        if "ctx" in tool_params:
+            return ToolRequires.FASTAPI_CONTEXT
+        elif "tool_config" in tool_params:
+            return ToolRequires.TOOL_CONFIG
+        else:
+            return ToolRequires.BARE
+
+    @property
+    def tool_with_config(self) -> abc.Callable[..., typing.Any]:
+        if self.tool_requires == ToolRequires.TOOL_CONFIG:
+            tool_func_sig = inspect.signature(self.tool)
+            wo_tc_sig = tool_func_sig.replace(
+                parameters=[
+                    param for param in tool_func_sig.parameters.values()
+                    if param.name != "tool_config"
+                ]
+            )
+            tool_w_config = functools.update_wrapper(
+                functools.partial(self.tool, tool_config=self),
+                self.tool,
+            )
+            tool_w_config.__signature__  = wo_tc_sig
+
+            return tool_w_config
+        else:
+            return self.tool
+
+
+@dataclasses.dataclass
+class SearchDocumentsToolConfig(ToolConfig):
+    kind: str = "search_documents"
+    tool_name: str = "soliplex.tools.search_documents"
+
+    # Set in '__post_init__' below
+    _rag_lancedb_path: pathlib.Path = None
+
+    # One of these two options must be specfied
+    rag_lancedb_stem: str = None
+    rag_lancedb_override_path: str = None
+
+    expand_context_radius: int = 2
+    search_documents_limit: int = 5
+    return_citations: bool = False
+
+    # Set in 'from_yaml' below
+    _config_path: pathlib.Path | None = None
+
+    @classmethod
+    def from_yaml(
+        cls, config_path: pathlib.Path, config: dict[str, typing.Any],
+    ):
+        try:
+            instance = cls(**config)
+        except RagDbExactlyOneOfStemOrOverride as exc:
+            raise FromYamlException(config_path) from exc
+
+        instance._config_path = config_path
+        return instance
+
+    def __post_init__(self):
+        exclusive_required = [
+            self.rag_lancedb_stem,
+            self.rag_lancedb_override_path,
+        ]
+        passed = list(filter(None, exclusive_required))
+
+        if len(list(passed)) != 1:
+            raise RagDbExactlyOneOfStemOrOverride()
+
+    @property
+    def rag_lancedb_path(self) -> pathlib.Path:
+        """Compute the path for the room's RAG rag_lancedb_path database"""
+        if self.rag_lancedb_override_path is not None:
+            rsop = self.rag_lancedb_override_path
+
+            if self._config_path is not None:
+                rsop = (self._config_path.parent / rsop).resolve()
+            else:
+                rsop = pathlib.Path(rsop).resolve()
+
+            return rsop
+        else:
+            db_rag_dir = pathlib.Path(os.environ["RAG_LANCE_DB_PATH"])
+            rspdb = (db_rag_dir / f"{self.rag_lancedb_stem}.lancedb").resolve()
+
+            return rspdb
+
+
+TOOL_CONFIG_CLASSES_BY_TOOL_NAME = {
+    klass.tool_name: klass
+    for klass in [
+        SearchDocumentsToolConfig,
+    ]
+}
+
+
+@dataclasses.dataclass
+class Stdio_MCP_ClientToolsetConfig:
+    """Configure an MCP client toolset which runs as a subprocess"""
+    command: str
+    args: list[str] = dataclasses.field(
+        default_factory=list,
+    )
+
+    env: dict[str, str] = dataclasses.field(
+        default_factory=dict,
+    )
+    allowed_tools: list[str] = None
+
+
+@dataclasses.dataclass
+class HTTP_MCP_ClientToolsetConfig:
+    """Configure an MCP client toolset which makes calls over streaming HTTP"""
+    url: str
+    headers: dict[str, typing.Any] = dataclasses.field(
+        default_factory=dict,
+    )
+
+    query_params: dict[str, str] = dataclasses.field(
+        default_factory=dict,
+    )
+    allowed_tools: list[str] = None
+
+
+MCP_CONFIG_CLASSES_BY_TYPE = {
+    "stdio": Stdio_MCP_ClientToolsetConfig,
+    "http": HTTP_MCP_ClientToolsetConfig,
+}
+
+
+#=============================================================================
+# Agent-related models
+#=============================================================================
+
+class LLMProviderType(enum.StrEnum):
+    OPENAI = "openai"
+    OLLAMA = "ollama"
+
+
+@dataclasses.dataclass
+class AgentConfig:
+    #
+    # Agent-specific options
+    #
+    id: str  # set as 'room-{room_id}' or 'completion-{completion_id}'
+    model_name: str = None
+
+    system_prompt: dataclasses.InitVar[str] = None
+    _system_prompt_text: str = None
+    _system_prompt_path: pathlib.Path = None
+
+    provider_type: LLMProviderType = LLMProviderType.OLLAMA
+    provider_base_url: str = None  # defaults to OLLAMA_BASE_URL envvar
+    provider_key_envvar: str = None  # envvar name containing API key
+
+    tool_configs: dict[str, ToolConfig] = dataclasses.field(
+        default_factory=dict,
+    )
+    mcp_client_toolset_configs: dict[
+        str, Stdio_MCP_ClientToolsetConfig | HTTP_MCP_ClientToolsetConfig
+    ] = dataclasses.field(default_factory=dict)
+
+    # Set by `from_yaml` factory
+    _config_path: pathlib.Path = None
+
+    def __post_init__(self, system_prompt):
+        if self.model_name is None:
+            self.model_name = os.getenv("DEFAULT_AGENT_MODEL")
+
+        if system_prompt is not None:
+            self._system_prompt_text = system_prompt
+
+    @classmethod
+    def from_yaml(cls, config_path: pathlib.Path, config: dict):
+        config["_config_path"] = config_path
+
+        if "system_prompt" in config:
+            system_prompt = config.pop("system_prompt")
+
+            if system_prompt.startswith("./"):
+                config["_system_prompt_path"] = system_prompt
+            else:
+                config["system_prompt"] = system_prompt
+
+        tool_configs = {}
+
+        for t_config in config.pop("tools", ()):
+            tool_name = t_config.pop("tool_name")
+            tc_class = TOOL_CONFIG_CLASSES_BY_TOOL_NAME.get(tool_name)
+
+            if tc_class is None:
+                _, kind = tool_name.rsplit(".", 1)
+                tool_config = ToolConfig(
+                    kind=kind, tool_name=tool_name, **t_config,
+                )
+                tool_configs[kind] = tool_config
+            else:
+                tool_config = tc_class.from_yaml(config_path, t_config)
+                tool_configs[tool_config.kind] = tool_config
+
+        config["tool_configs"] = tool_configs
+
+        mcp_client_toolset_configs = {}
+
+        for mcp_name, mcp_client_toolset_config in config.pop(
+            "mcp_client_toolsets", {}
+        ).items():
+            type_ = mcp_client_toolset_config.pop("type")
+            mcp_config_klass = MCP_CONFIG_CLASSES_BY_TYPE[type_]
+            mcp_client_toolset_configs[mcp_name] = mcp_config_klass(
+                **mcp_client_toolset_config,
+            )
+
+        config["mcp_client_toolset_configs"] = mcp_client_toolset_configs
+
+        return cls(**config)
+
+    def get_system_prompt(self) -> str | None:
+        if self._system_prompt_text is not None:
+            return self._system_prompt_text
+
+        if self._system_prompt_path is not None:
+            if self._config_path is None:
+                raise NoConfigPath()
+
+            system_prompt_file = (
+                self._config_path.parent / self._system_prompt_path
+            )
+            return system_prompt_file.read_text()
+
+        else:  # pragma: NO COVER
+            pass
+
+    @property
+    def llm_provider_kw(self) -> dict:
+        if self.provider_base_url is None:
+            provider_base_url = os.environ["OLLAMA_BASE_URL"]
+        else:
+            provider_base_url = self.provider_base_url
+
+        provider_kw = {
+            "base_url": f"{provider_base_url}/v1",
+        }
+
+        if self.provider_key_envvar is not None:
+            provider_key = os.getenv(self.provider_key_envvar)
+
+            if provider_key is None:
+                raise NoProviderKeyInEnvironment(self.provider_key_envvar)
+
+            provider_kw["api_key"] = provider_key
+
+        return provider_kw
+
+
+#=============================================================================
+# Quiz-related models
+#=============================================================================
+
+class QuizQuestionType(enum.StrEnum):
+    QA = "qa"
+    FILL_BLANK = "fill-blank"
+    MULTIPLE_CHOICE = "multiple-choice"
+
+
+@dataclasses.dataclass
+class QuizQuestionMetadata:
+    type: QuizQuestionType
+    uuid: str
+    options: list[str] = dataclasses.field(
+        default_factory=list,
+    )
+
+
+@dataclasses.dataclass
+class QuizQuestion:
+    inputs: str
+    expected_output: str
+    metadata: QuizQuestionMetadata
+
+
+@dataclasses.dataclass
+class RoomConfiguredQuiz:
+
+    id: str
+    question_file: dataclasses.InitVar[str] = None
+    _question_file_stem: str = None
+    _question_file_path_override: str = None
+    _questions_map: dict[str, QuizQuestion] = None
+
+    title: str = "Quiz"
+    randomize: bool = False
+    max_questions: int = None
+
+    def __post_init__(self, question_file):
+        if question_file is not None:
+            if "/" in question_file:
+                self._question_file_path_override = question_file
+            else:
+                if question_file.endswith(".json"):
+                    question_file = question_file[:-len(".json")]
+
+                self._question_file_stem = question_file
+        if (
+            self._question_file_stem is None and
+            self._question_file_path_override is None
+        ) or (
+            self._question_file_stem is not None and
+            self._question_file_path_override is not None
+        ):
+            raise RCQExactlyOneOfStemOrOverride()
+
+    # Set by `from_yaml` factory
+    _config_path: pathlib.Path = None
+
+    @classmethod
+    def from_yaml(cls, config_path: pathlib.Path, config: dict):
+        config["_config_path"] = config_path
+
+        try:
+            return cls(**config)
+        except RCQExactlyOneOfStemOrOverride as exc:
+            raise FromYamlException(config_path) from exc
+
+    @property
+    def question_file_path(self) -> pathlib.Path:
+        if self._question_file_path_override is not None:
+            return pathlib.Path(self._question_file_path_override)
+        else:
+            installation_path = pathlib.Path(os.environ["INSTALLATION_PATH"])
+            quizzes_path = installation_path / "quizzes"
+            return quizzes_path / f"{self._question_file_stem}.json"
+
+    @staticmethod
+    def _make_question(question: dict) -> QuizQuestion:
+
+        metadata = QuizQuestionMetadata(
+            uuid=question["metadata"]["uuid"],
+            type = question["metadata"]["type"],
+            options = question["metadata"].get("options", []),
+        )
+        return QuizQuestion(
+            inputs=question["inputs"],
+            expected_output=question["expected_output"],
+            metadata=metadata,
+        )
+
+    def _load_questions_file(self) -> dict[str, QuizQuestion]:
+        quiz_json = json.loads(self.question_file_path.read_text())
+        return {
+            q_dict["metadata"]["uuid"]: self._make_question(q_dict)
+                for q_dict in quiz_json["cases"]
+        }
+
+    def get_questions(self) -> list[QuizQuestion]:
+        if self._questions_map is None:
+            self._questions_map = self._load_questions_file()
+
+        questions = list(self._questions_map.values())
+
+        if self.randomize:
+            random.shuffle(questions)
+
+        if self.max_questions is not None:
+            questions = questions[:self.max_questions]
+
+        return questions
+
+    def get_question(self, uuid: str) -> QuizQuestion:
+        if self._questions_map is None:
+            self._questions_map = self._load_questions_file()
+
+        return self._questions_map[uuid]
+
+
+#=============================================================================
+# Room-related models
+#=============================================================================
+
+@dataclasses.dataclass
+class RoomConfig:
+    """Configuration for a chat room."""
+
+    #
+    # Required room metadata
+    #
+    id: str
+    name: str
+    description: str
+    agent_config: AgentConfig
+
+    #
+    # Room UI options
+    #
+    _order: str = None   # defaults to 'id'
+    welcome_message: str = None
+    suggestions: list[str] = dataclasses.field(
+        default_factory=list,
+    )
+    enable_attachments: bool = False
+
+    #
+    # MCP options
+    #
+    allow_mcp: bool = False
+
+    #
+    # Quiz-specific options
+    #
+    quizzes: list[RoomConfiguredQuiz] = dataclasses.field(
+        default_factory=list,
+    )
+    _quiz_map: dict[str, RoomConfiguredQuiz] = None
+
+    # Set by `from_yaml` factory
+    _config_path: pathlib.Path = None
+
+    logo_image: dataclasses.InitVar[str] = None
+    _logo_image: str = None
+
+    def __post_init__(self, logo_image: str | None):
+        if logo_image is not None:
+            self._logo_image = logo_image
+
+    @classmethod
+    def from_yaml(cls, config_path: pathlib.Path, config: dict):
+        config["_config_path"] = config_path
+
+        room_id = config["id"]
+        agent_config_yaml = config.pop("agent")
+        agent_config_yaml["id"] = f"room-{room_id}"
+
+        config["agent_config"] = AgentConfig.from_yaml(
+            config_path,
+            agent_config_yaml,
+        )
+
+        quizzes_config_yaml = config.pop("quizzes", None)
+        if quizzes_config_yaml is not None:
+            config["quizzes"] = [
+                RoomConfiguredQuiz.from_yaml(config_path, quiz_config_yaml)
+                for quiz_config_yaml in quizzes_config_yaml
+            ]
+
+        logo_image = config.pop("logo_image", None)
+        config["_logo_image"] = logo_image
+
+        return cls(**config)
+
+    @property
+    def sort_key(self):
+        if self._order is not None:
+            return self._order
+
+        return self.id
+
+    @property
+    def quiz_map(self) -> dict[str, RoomConfiguredQuiz]:
+        if self._quiz_map is None:
+            self._quiz_map = {
+                quiz.id: quiz for quiz in self.quizzes
+            }
+
+        return self._quiz_map
+
+    def get_logo_image(self) -> pathlib.Path | None:
+        if self._logo_image is not None:
+            if self._config_path is None:
+                raise NoConfigPath()
+
+            return self._config_path.parent / self._logo_image
+
+
+#=============================================================================
+# Completions endpoint-related models
+#=============================================================================
+
+@dataclasses.dataclass
+class CompletionsConfig:
+    """Configuration for a completions endpoint."""
+
+    #
+    # Required metadata
+    #
+    id: str
+    agent_config: AgentConfig
+
+    # Set by `from_yaml` factory
+    _config_path: pathlib.Path = None
+
+    @classmethod
+    def from_yaml(cls, config_path: pathlib.Path, config: dict):
+        config["_config_path"] = config_path
+
+        room_id = config["id"]
+        agent_config_yaml = config.pop("agent")
+        agent_config_yaml["id"] = f"completions-{room_id}"
+
+        config["agent_config"] = AgentConfig.from_yaml(
+            config_path,
+            agent_config_yaml,
+        )
+
+        return cls(**config)
