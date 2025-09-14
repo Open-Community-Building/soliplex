@@ -59,7 +59,7 @@ class RCQExactlyOneOfStemOrOverride(TypeError):
 
 
 #=============================================================================
-#   OIDC Authentication system configuration
+#   OIDC Authentication system configuration types
 #=============================================================================
 
 WELL_KNOWN_OPENID_CONFIGURATION = ".well-known/openid-configuration"
@@ -124,7 +124,7 @@ class AvailableOIDCAuthSystemConfigs:
 
 
 #=============================================================================
-#   Tool configuration
+#   Tool configuration types
 #=============================================================================
 
 class ToolRequires(enum.StrEnum):
@@ -298,7 +298,7 @@ MCP_CONFIG_CLASSES_BY_TYPE = {
 
 
 #=============================================================================
-# Agent-related models
+#   Agent-related configuration types
 #=============================================================================
 
 class LLMProviderType(enum.StrEnum):
@@ -423,7 +423,7 @@ class AgentConfig:
 
 
 #=============================================================================
-# Quiz-related models
+#   Quiz-related configuration types
 #=============================================================================
 
 class QuizQuestionType(enum.StrEnum):
@@ -543,7 +543,7 @@ class RoomConfiguredQuiz:
 
 
 #=============================================================================
-# Room-related models
+#   Room-related configuration types
 #=============================================================================
 
 @dataclasses.dataclass
@@ -641,7 +641,7 @@ class RoomConfig:
 
 
 #=============================================================================
-# Completions endpoint-related models
+#   Completions endpoint-related configuration types
 #=============================================================================
 
 @dataclasses.dataclass
@@ -674,7 +674,7 @@ class CompletionsConfig:
 
 
 #=============================================================================
-# Installation configuration models
+#   Installation configuration types
 #=============================================================================
 
 
