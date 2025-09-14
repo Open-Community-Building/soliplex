@@ -1441,6 +1441,66 @@ def test__load_config_yaml_w_invalid(temp_dir):
     assert exc.value.config_path == invalid_cfg
 
 
+def test__find_room_configs_w_single(temp_dir):
+    room_path = temp_dir / "room"
+    room_path.mkdir()
+    room_config = room_path / "room_config.yaml"
+    room_config.write_text(BARE_ROOM_CONFIG_YAML)
+
+    expected_rc = config.RoomConfig(**BARE_ROOM_CONFIG_KW)
+    expected_rc._config_path = room_config
+    expected_rc.agent_config._config_path = room_config
+
+    found_configs = list(config._find_room_configs(room_path))
+
+    assert len(found_configs) == 1
+    (found_config, found_yaml) = found_configs[0]
+
+    found_rc = config.RoomConfig.from_yaml(found_config, found_yaml)
+    assert found_rc == expected_rc
+
+
+def test__find_room_configs_w_multiple(temp_dir):
+    ROOM_IDS = ["foo", "bar", "baz", "qux"]
+
+    expected_rcs = []
+
+    for room_id in sorted(ROOM_IDS):
+        room_path = temp_dir / room_id
+        if room_id == "baz":    # file, not dir
+            room_path.write_text("DEADBEEF")
+        elif room_id == "qux":  # empty dir
+            room_path.mkdir()
+        else:
+            room_path.mkdir()
+            room_config = room_path / "room_config.yaml"
+            room_config.write_text(
+                BARE_ROOM_CONFIG_YAML.replace(
+                    f'id: "{ROOM_ID}"', f'id: "{room_id}"', 1,
+                ),
+            )
+            expected_rc = config.RoomConfig(**BARE_ROOM_CONFIG_KW)
+            expected_rc.id = room_id
+            expected_rc._config_path = room_config
+            expected_rc.agent_config = dataclasses.replace(
+                expected_rc.agent_config,
+                id=f"room-{room_id}",
+                _config_path = room_config,
+            )
+            expected_rcs.append((room_config, expected_rc))
+
+    found_rcs = [
+        (found_config, config.RoomConfig.from_yaml(found_config, found_yaml))
+        for found_config, found_yaml in config._find_room_configs(temp_dir)
+    ]
+
+    for (f_key, f_rc), (e_key, e_rc) in zip(
+        sorted(found_rcs), sorted(expected_rcs), strict=True,
+    ):
+        assert f_key == e_key
+        assert f_rc == e_rc
+
+
 @pytest.mark.parametrize("config_yaml, expected_kw", [
     (BARE_INSTALLATION_CONFIG_YAML, BARE_INSTALLATION_CONFIG_KW),
     (W_SECRETS_INSTALLATION_CONFIG_YAML, W_SECRETS_INSTALLATION_CONFIG_KW),
@@ -1575,3 +1635,71 @@ def test_installationconfig_oidc_auth_system_configs_w_existing():
     found = i_config.oidc_auth_system_configs
 
     assert found == [OASC_1, OASC_2]
+
+
+def test_installationconfig_room_configs_wo_existing(temp_dir):
+    ROOM_IDS = ["foo", "bar"]
+
+    kw = BARE_INSTALLATION_CONFIG_KW.copy()
+    kw["_config_path"] = temp_dir / "installation.yaml"
+    rooms = temp_dir / "rooms"
+    rooms.mkdir()
+
+    for room_id in ROOM_IDS:
+        room_path = rooms / room_id
+        room_path.mkdir()
+        room_config = room_path / "room_config.yaml"
+        room_config.write_text(
+            BARE_ROOM_CONFIG_YAML.replace(
+                f'id: "{ROOM_ID}"', f'id: "{room_id}"', 1,
+            ),
+        )
+
+    i_config = config.InstallationConfig(**kw)
+
+    found = i_config.room_configs
+
+    assert found["foo"].id == "foo"
+    assert found["bar"].id == "bar"
+
+
+def test_installationconfig_room_configs_wo_existing_w_conflict(temp_dir):
+    ROOM_PATHS = ["./foo", "./bar"]
+
+    kw = BARE_INSTALLATION_CONFIG_KW.copy()
+    kw["_config_path"] = temp_dir / "installation.yaml"
+    kw["room_paths"] = ROOM_PATHS
+
+    for room_path in ROOM_PATHS:
+        room_path = temp_dir / room_path
+        room_path.mkdir()
+        room_config = room_path / "room_config.yaml"
+        room_config.write_text(
+            BARE_ROOM_CONFIG_YAML.replace(
+                #f'id: "{ROOM_ID}"', f'id: "{room_id}"', 1, # conflict on ID
+                f'name: "{ROOM_NAME}"', f'name: "{room_path.name}"', 1,
+            )
+        )
+
+    i_config = config.InstallationConfig(**kw)
+
+    found = i_config.room_configs
+
+    assert found[ROOM_ID].id == ROOM_ID
+    # order of 'room_paths' governs who wins
+    assert found[ROOM_ID].name == "foo"
+
+
+def test_installationconfig_room_configs_w_existing():
+    RC_1, RC_2 = object(), object()
+    existing = {"room_1": RC_1, "room_2": RC_2}
+
+    kw = BARE_INSTALLATION_CONFIG_KW.copy()
+    kw["_room_configs"] = existing
+
+    i_config = config.InstallationConfig(**kw)
+
+    found = i_config.room_configs
+
+    assert found["room_1"] == RC_1
+    assert found["room_2"] == RC_2

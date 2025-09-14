@@ -705,6 +705,33 @@ def _load_config_yaml(config_path: pathlib.Path) -> dict:
         raise FromYamlException(config_path) from exc
 
 
+def _find_room_configs(room_dir: pathlib.Path) -> dict:
+    """Yield a sequence of YAML room configs found under 'room_dir'
+
+    If 'room_dir' has its own 'room_config.yaml', just yield the one
+    config parsed from it.
+
+    Otherwise, itterate over immediate subdirectories, yielding configs
+    parsed from any which have a 'room_config.yaml'.
+    """
+    room_config = room_dir / "room_config.yaml"
+
+    try:
+        yield room_config, _load_config_yaml(room_config)
+
+    except NoSuchConfig:
+
+        for sub in sorted(room_dir.glob("*")):
+            if sub.is_dir():
+                sub_config = sub / "room_config.yaml"
+                try:
+                    yield sub_config, _load_config_yaml(sub_config)
+                except NoSuchConfig:
+                    continue
+            else:   # pragma: NO COVER
+                pass
+
+
 @dataclasses.dataclass
 class InstallationConfig:
     """Configuration for a set of rooms, completions, etc."""
@@ -744,6 +771,8 @@ class InstallationConfig:
     # normally a "container" directory for room config directories.
     #
     room_paths: list[pathlib.Path] = None
+
+    _room_configs: dict[str, RoomConfig] = None
 
     #
     # Path(s) to completions configs:  each item can be either a single
@@ -851,3 +880,25 @@ class InstallationConfig:
             )
 
         return self._oidc_auth_system_configs
+
+    def _load_room_configs(self) -> dict[str, RoomConfig]:
+        room_configs = {}
+
+        for room_path in self.room_paths:
+            for config_path, config_yaml in _find_room_configs(room_path):
+                # XXX  order of 'room_paths' controls first-past-the-post
+                #      for any conflict on room ID.
+                config_id = config_yaml["id"]
+                if config_id not in room_configs:
+                    room_configs[config_id] = RoomConfig.from_yaml(
+                        config_path, config_yaml,
+                    )
+
+        return room_configs
+
+    @property
+    def room_configs(self) -> dict[str, RoomConfig]:
+        if self._room_configs is None:
+            self._room_configs = self._load_room_configs()
+
+        return self._room_configs.copy()
