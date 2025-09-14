@@ -1418,6 +1418,29 @@ def test_completionsconfig_from_yaml(temp_dir, config_yaml, expected_kw):
     assert found == expected
 
 
+def test__load_config_yaml_w_missing(temp_dir):
+    config_path = temp_dir / "oidc"
+    config_path.mkdir()
+    missing_cfg = config_path / "config.yaml"
+
+    with pytest.raises(config.NoSuchConfig) as exc:
+        config._load_config_yaml(missing_cfg)
+
+    assert exc.value.config_path == missing_cfg
+
+
+def test__load_config_yaml_w_invalid(temp_dir):
+    config_path = temp_dir / "oidc"
+    config_path.mkdir()
+    invalid_cfg = config_path / "config.yaml"
+    invalid_cfg.write_bytes(b"\xDE\xAD\xBE\xEF")
+
+    with pytest.raises(config.FromYamlException) as exc:
+        config._load_config_yaml(invalid_cfg)
+
+    assert exc.value.config_path == invalid_cfg
+
+
 @pytest.mark.parametrize("config_yaml, expected_kw", [
     (BARE_INSTALLATION_CONFIG_YAML, BARE_INSTALLATION_CONFIG_KW),
     (W_SECRETS_INSTALLATION_CONFIG_YAML, W_SECRETS_INSTALLATION_CONFIG_KW),
@@ -1479,3 +1502,76 @@ def test_installationconfig_from_yaml(temp_dir, config_yaml, expected_kw):
     found = config.InstallationConfig.from_yaml(yaml_file, yaml_dict)
 
     assert found == expected
+
+
+@pytest.mark.parametrize("w_pem", [False, "bare_top", "bare_authsys"])
+@mock.patch("soliplex.config._load_config_yaml")
+def test_installationconfig_oidc_auth_system_configs_wo_existing(
+    lcy, temp_dir, w_pem,
+):
+    exp_oidc_client_pem_path = pathlib.Path(OIDC_CLIENT_PEM_PATH)
+
+    bare_config_yaml = {
+        "auth_systems": [
+            BARE_AUTHSYSTEM_CONFIG_KW.copy()
+        ],
+    }
+
+    if w_pem == "bare_top":
+        bare_config_yaml["oidc_client_pem_path"] = OIDC_CLIENT_PEM_PATH
+    elif w_pem == "bare_authsys":
+        authsys = bare_config_yaml["auth_systems"][0]
+        authsys["oidc_client_pem_path"] = OIDC_CLIENT_PEM_PATH
+    else:
+        assert not w_pem
+        exp_oidc_client_pem_path = None
+
+    w_scope_config_yaml = {
+        "auth_systems": [
+            W_SCOPE_AUTHSYSTEM_CONFIG_KW.copy()
+        ],
+    }
+
+    lcy.side_effect = [bare_config_yaml, w_scope_config_yaml]
+
+    oidc_bare_path = temp_dir / "oidc_bare"
+    oidc_bare_config = oidc_bare_path / "config.yaml"
+
+    oidc_w_scope_path = temp_dir / "oidc_w_scope"
+    oidc_w_scope_config = oidc_w_scope_path / "config.yaml"
+
+    oidc_bare_kw = BARE_AUTHSYSTEM_CONFIG_KW.copy()
+    oidc_bare_kw["oidc_client_pem_path"] = exp_oidc_client_pem_path
+    oidc_bare_kw["_config_path"] = oidc_bare_config
+
+    oidc_w_scope_kw = W_SCOPE_AUTHSYSTEM_CONFIG_KW.copy()
+    oidc_w_scope_kw["oidc_client_pem_path"] = None
+    oidc_w_scope_kw["_config_path"] = oidc_w_scope_config
+
+    expected = [
+        config.OIDCAuthSystemConfig(**oidc_bare_kw),
+        config.OIDCAuthSystemConfig(**oidc_w_scope_kw),
+    ]
+
+    i_config_kw = BARE_INSTALLATION_CONFIG_KW.copy()
+    i_config_kw["oidc_paths"] = [oidc_bare_path, oidc_w_scope_path]
+
+    i_config = config.InstallationConfig(**i_config_kw)
+
+    found = i_config.oidc_auth_system_configs
+
+    for f_asc, e_asc in zip(found, expected, strict=True):
+        assert f_asc == e_asc
+
+
+def test_installationconfig_oidc_auth_system_configs_w_existing():
+    OASC_1, OASC_2 = object(), object()
+
+    kw = BARE_INSTALLATION_CONFIG_KW.copy()
+    kw["_oidc_auth_system_configs"] = [OASC_1, OASC_2]
+
+    i_config = config.InstallationConfig(**kw)
+
+    found = i_config.oidc_auth_system_configs
+
+    assert found == [OASC_1, OASC_2]

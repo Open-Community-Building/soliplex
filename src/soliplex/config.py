@@ -10,6 +10,9 @@ import random
 import typing
 from collections import abc
 
+import yaml
+from yaml import error as yaml_error
+
 from soliplex import util
 
 #=============================================================================
@@ -39,6 +42,12 @@ class NoProviderKeyInEnvironment(ValueError):
 class NoConfigPath(ValueError):
     def __init__(self):
         super().__init__("No '_config_path' set")
+
+
+class NoSuchConfig(ValueError):
+    def __init__(self, config_path):
+        self.config_path = config_path
+        super().__init__(f"Config path is not a YAML file: {config_path}")
 
 
 class RagDbExactlyOneOfStemOrOverride(TypeError):
@@ -683,6 +692,18 @@ class CompletionsConfig:
 #   Installation configuration types
 #=============================================================================
 
+def _load_config_yaml(config_path: pathlib.Path) -> dict:
+    if not config_path.is_file():
+        raise NoSuchConfig(config_path)
+    try:
+        with config_path.open() as stream:
+            return yaml.load(stream, yaml.Loader)
+    except (
+        yaml_error.YAMLError,
+        UnicodeDecodeError,
+    ) as exc:
+        raise FromYamlException(config_path) from exc
+
 
 @dataclasses.dataclass
 class InstallationConfig:
@@ -711,6 +732,8 @@ class InstallationConfig:
     # Defaults to one path: './oidc' (set in '__post_init__')
     #
     oidc_paths: list[pathlib.Path] = None
+
+    _oidc_auth_system_configs: list[OIDCAuthSystemConfig] = None
 
     #
     # Path(s) to room configs:  each item can be either a single
@@ -794,3 +817,37 @@ class InstallationConfig:
                 parent_dir / quizzes_path
                 for quizzes_path in self.quizzes_paths
             ]
+
+    def _load_oidc_auth_system_configs(self) -> list[OIDCAuthSystemConfig]:
+        oas_configs = []
+
+        for oidc_path in self.oidc_paths:
+            oidc_config = oidc_path / "config.yaml"
+            config_yaml = _load_config_yaml(oidc_config)
+
+            oidc_client_pem_path = config_yaml.get("oidc_client_pem_path")
+            if oidc_client_pem_path is not None:
+                oidc_client_pem_path = (
+                    oidc_config / oidc_client_pem_path
+                )
+
+            for auth_system_yaml in config_yaml["auth_systems"]:
+                if "oidc_client_pem_path" not in auth_system_yaml:
+                    auth_system_yaml["oidc_client_pem_path"] = (
+                        oidc_client_pem_path
+                    )
+                oas_config = OIDCAuthSystemConfig.from_yaml(
+                    oidc_config, auth_system_yaml,
+                )
+                oas_configs.append(oas_config)
+
+        return oas_configs
+
+    @property
+    def oidc_auth_system_configs(self) -> list[OIDCAuthSystemConfig]:
+        if self._oidc_auth_system_configs is None:
+            self._oidc_auth_system_configs = (
+                self._load_oidc_auth_system_configs()
+            )
+
+        return self._oidc_auth_system_configs
