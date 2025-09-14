@@ -489,6 +489,23 @@ room_paths:
     - "{ROOM_PATH_2}"
 """
 
+COMPLETIONS_PATH_1 = "./completions"
+COMPLETIONS_PATH_2 = "/path/to/other/completions"
+
+W_COMPLETIONS_PATHS_INSTALLATION_CONFIG_KW = {
+    "id": INSTALLATION_ID,
+    "completions_paths": [
+        COMPLETIONS_PATH_1,
+        COMPLETIONS_PATH_2,
+    ],
+}
+W_COMPLETIONS_PATHS_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+completions_paths:
+    - "{COMPLETIONS_PATH_1}"
+    - "{COMPLETIONS_PATH_2}"
+"""
+
 
 @pytest.fixture
 def temp_dir() -> pathlib.Path:
@@ -1382,6 +1399,10 @@ def test_completionsconfig_from_yaml(temp_dir, config_yaml, expected_kw):
     (
         W_ROOM_PATHS_INSTALLATION_CONFIG_YAML,
         W_ROOM_PATHS_INSTALLATION_CONFIG_KW,
+    ),
+    (
+        W_COMPLETIONS_PATHS_INSTALLATION_CONFIG_YAML,
+        W_COMPLETIONS_PATHS_INSTALLATION_CONFIG_KW,
     ),
 ])
 def test_installationconfig_from_yaml(temp_dir, config_yaml, expected_kw):

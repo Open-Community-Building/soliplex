@@ -716,6 +716,17 @@ class InstallationConfig:
     #
     room_paths: list[pathlib.Path] = None
 
+    #
+    # Path(s) to completions configs:  each item can be either a single
+    # completion config (a directory containing its own
+    # 'completions_config.yaml' file), or a directory containing such
+    # completions configs.
+    #
+    # Defaults to one path: './completions' (set in '__post_init__'), which is
+    # normally a "container" directory for completions config directories.
+    #
+    completions_paths: list[pathlib.Path] = None
+
     # Set by `from_yaml` factory
     _config_path: pathlib.Path = None
 
@@ -740,6 +751,9 @@ class InstallationConfig:
         if self.room_paths is None:
             self.room_paths = ["./rooms"]
 
+        if self.completions_paths is None:
+            self.completions_paths = ["./completions"]
+
         if self._config_path is not None:
 
             parent_dir = self._config_path.parent
@@ -752,4 +766,9 @@ class InstallationConfig:
             self.room_paths = [
                 parent_dir / room_path
                 for room_path in self.room_paths
+            ]
+
+            self.completions_paths = [
+                parent_dir / completions_path
+                for completions_path in self.completions_paths
             ]
