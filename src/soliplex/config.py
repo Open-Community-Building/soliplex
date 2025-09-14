@@ -971,3 +971,11 @@ class InstallationConfig:
             self._completions_configs = self._load_completions_configs()
 
         return self._completions_configs.copy()
+
+    def reload_configurations(self):
+        """Load all dependent configuration sets"""
+        self._oidc_auth_system_configs = (
+            self._load_oidc_auth_system_configs()
+        )
+        self._room_configs = self._load_room_configs()
+        self._completions_configs = self._load_completions_configs()

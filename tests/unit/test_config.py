@@ -1872,3 +1872,35 @@ def test_installationconfig_completions_configs_w_existing():
 
     assert found["completions_1"] == CC_1
     assert found["completions_2"] == CC_2
+
+
+def test_installationconfig_reload_configurations():
+    existing = object()
+
+    kw = BARE_INSTALLATION_CONFIG_KW.copy()
+    kw["_oidc_auth_system_configs"] = existing
+    kw["_room_configs"] = existing
+    kw["_completions_configs"] = existing
+    i_config = config.InstallationConfig(**kw)
+
+    with mock.patch.multiple(
+        i_config,
+        _load_oidc_auth_system_configs=mock.DEFAULT,
+        _load_room_configs=mock.DEFAULT,
+        _load_completions_configs=mock.DEFAULT,
+    ) as patched:
+        i_config.reload_configurations()
+
+    assert (
+        i_config._oidc_auth_system_configs is
+        patched["_load_oidc_auth_system_configs"].return_value
+    )
+
+    assert (
+        i_config._room_configs is patched["_load_room_configs"].return_value
+    )
+
+    assert (
+        i_config._completions_configs is
+        patched["_load_completions_configs"].return_value
+    )
