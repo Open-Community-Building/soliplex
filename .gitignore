@@ -1,0 +1,19 @@
+.env
+venv/
+
+#Python
+*.pyc
+.coverage
+*.egg-info
+*.pyc
+__pycache__/
+
+# pre-commit
+.pre-commit-config.yaml
+
+# misc
+tmp/
+
+# osx
+.DS_Store
+._*
