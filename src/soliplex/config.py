@@ -727,6 +727,14 @@ class InstallationConfig:
     #
     completions_paths: list[pathlib.Path] = None
 
+    #
+    # Path(s) to quiz data:  each item must be a single directory containing
+    # one or more '*.json' files, each holding question data for a single quiz.
+    #
+    # Defaults to one path: './quizzes' (set in '__post_init__').
+    #
+    quizzes_paths: list[pathlib.Path] = None
+
     # Set by `from_yaml` factory
     _config_path: pathlib.Path = None
 
@@ -754,6 +762,9 @@ class InstallationConfig:
         if self.completions_paths is None:
             self.completions_paths = ["./completions"]
 
+        if self.quizzes_paths is None:
+            self.quizzes_paths = ["./quizzes"]
+
         if self._config_path is not None:
 
             parent_dir = self._config_path.parent
@@ -771,4 +782,9 @@ class InstallationConfig:
             self.completions_paths = [
                 parent_dir / completions_path
                 for completions_path in self.completions_paths
+            ]
+
+            self.quizzes_paths = [
+                parent_dir / quizzes_path
+                for quizzes_path in self.quizzes_paths
             ]

@@ -506,6 +506,23 @@ completions_paths:
     - "{COMPLETIONS_PATH_2}"
 """
 
+QUIZZES_PATH_1 = "./quizzes"
+QUIZZES_PATH_2 = "/path/to/other/quizzes"
+
+W_QUIZZES_PATHS_INSTALLATION_CONFIG_KW = {
+    "id": INSTALLATION_ID,
+    "quizzes_paths": [
+        QUIZZES_PATH_1,
+        QUIZZES_PATH_2,
+    ],
+}
+W_QUIZZES_PATHS_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+quizzes_paths:
+    - "{QUIZZES_PATH_1}"
+    - "{QUIZZES_PATH_2}"
+"""
+
 
 @pytest.fixture
 def temp_dir() -> pathlib.Path:
@@ -1403,6 +1420,10 @@ def test_completionsconfig_from_yaml(temp_dir, config_yaml, expected_kw):
     (
         W_COMPLETIONS_PATHS_INSTALLATION_CONFIG_YAML,
         W_COMPLETIONS_PATHS_INSTALLATION_CONFIG_KW,
+    ),
+    (
+        W_QUIZZES_PATHS_INSTALLATION_CONFIG_YAML,
+        W_QUIZZES_PATHS_INSTALLATION_CONFIG_KW,
     ),
 ])
 def test_installationconfig_from_yaml(temp_dir, config_yaml, expected_kw):
