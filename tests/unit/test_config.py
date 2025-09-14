@@ -455,6 +455,23 @@ environment:
     {CONFIG_KEY_2}: "{CONFIG_VAL_2}"
 """
 
+OIDC_PATH_1 = "./oidc"
+OIDC_PATH_2 = "/path/to/other/oidc"
+
+W_OIDC_PATHS_INSTALLATION_CONFIG_KW = {
+    "id": INSTALLATION_ID,
+    "oidc_paths": [
+        OIDC_PATH_1,
+        OIDC_PATH_2,
+    ],
+}
+W_OIDC_PATHS_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+oidc_paths:
+    - "{OIDC_PATH_1}"
+    - "{OIDC_PATH_2}"
+"""
+
 
 @pytest.fixture
 def temp_dir() -> pathlib.Path:
@@ -1341,6 +1358,10 @@ def test_completionsconfig_from_yaml(temp_dir, config_yaml, expected_kw):
         W_ENVIRONMENT_MAPPING_INSTALLATION_CONFIG_YAML,
         W_ENVIRONMENT_INSTALLATION_CONFIG_KW,
     ),
+    (
+        W_OIDC_PATHS_INSTALLATION_CONFIG_YAML,
+        W_OIDC_PATHS_INSTALLATION_CONFIG_KW,
+    ),
 ])
 def test_installationconfig_from_yaml(temp_dir, config_yaml, expected_kw):
     expected = config.InstallationConfig(**expected_kw)
@@ -1348,6 +1369,18 @@ def test_installationconfig_from_yaml(temp_dir, config_yaml, expected_kw):
     yaml_file = temp_dir / "installation.yaml"
     yaml_file.write_text(config_yaml)
     expected = dataclasses.replace(expected, _config_path=yaml_file)
+
+    if "oidc_paths" in expected_kw:
+        oidc_paths = [
+            temp_dir / oidc_path
+            for oidc_path in expected_kw["oidc_paths"]
+        ]
+        expected = dataclasses.replace(expected, oidc_paths=oidc_paths)
+
+    else:
+        expected = dataclasses.replace(expected, oidc_paths=[
+            temp_dir / "oidc",
+        ])
 
     with yaml_file.open() as stream:
         yaml_dict = yaml.safe_load(stream)

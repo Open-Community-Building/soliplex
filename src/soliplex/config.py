@@ -699,6 +699,13 @@ class InstallationConfig:
         default_factory=dict,
     )
 
+    #
+    # Path(s) to OIDC Authentication System configs
+    #
+    # Defaults to one path: './oidc' (set in '__post_init__')
+    #
+    oidc_paths: list[pathlib.Path] = None
+
     # Set by `from_yaml` factory
     _config_path: pathlib.Path = None
 
@@ -715,3 +722,15 @@ class InstallationConfig:
             }
 
         return cls(**config)
+
+    def __post_init__(self):
+        if self.oidc_paths is None:
+            self.oidc_paths = ["./oidc"]
+
+        if self._config_path is not None:
+
+            parent_dir = self._config_path.parent
+            self.oidc_paths = [
+                parent_dir / oidc_path
+                for oidc_path in self.oidc_paths
+            ]
