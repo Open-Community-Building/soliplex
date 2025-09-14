@@ -1904,3 +1904,50 @@ def test_installationconfig_reload_configurations():
         i_config._completions_configs is
         patched["_load_completions_configs"].return_value
     )
+
+
+@pytest.fixture
+def populated_temp_dir(temp_dir):
+    default = temp_dir / "installation.yaml"
+    default.write_text('id: "testing"')
+
+    not_a_yaml_file = temp_dir / "not_a_yaml_file.yaml"
+    not_a_yaml_file.write_bytes(b"\xDE\xAD\xBE\xEF")
+
+    there_but_no_config = temp_dir / "there-but-no-config"
+    there_but_no_config.mkdir()
+
+    there_with_config = temp_dir / "there-with-config"
+    there_with_config.mkdir()
+    there_with_config_filename = there_with_config / "installation.yaml"
+    there_with_config_filename.write_text('id: "there-with-config"')
+
+    alt_config = temp_dir / "alt-config"
+    alt_config.mkdir()
+    alt_config_filename = alt_config / "filename.yaml"
+    alt_config_filename.write_text('id: "alt-config"')
+
+    return temp_dir
+
+@pytest.mark.parametrize("rel_path, raises, expected_id", [
+    (".", False, "testing"),
+    ("./installation.yaml", False, "testing"),
+    ("no_such_filename.yaml", config.NoSuchConfig, None),
+    ("not_a_yaml_file.yaml", config.FromYamlException, None),
+    ("/dev/null", config.NoSuchConfig, None),
+    ("./not-there", config.NoSuchConfig, None),
+    ("./there-but-no-config", config.NoSuchConfig, None),
+    ("./there-with-config", False, "there-with-config"),
+    ("./alt-config/filename.yaml", False, "alt-config"),
+])
+def test_load_installation(populated_temp_dir, rel_path, raises, expected_id):
+    target = populated_temp_dir / rel_path
+
+    if raises:
+        with pytest.raises(raises):
+            config.load_installation(target)
+
+    else:
+        installation = config.load_installation(target)
+
+        assert installation.id == expected_id

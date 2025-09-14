@@ -979,3 +979,14 @@ class InstallationConfig:
         )
         self._room_configs = self._load_room_configs()
         self._completions_configs = self._load_completions_configs()
+
+
+def load_installation(config_path: pathlib.Path) -> InstallationConfig:
+    config_path = config_path.resolve()
+
+    if config_path.is_dir():
+        config_path = config_path / "installation.yaml"
+
+    config_yaml = _load_config_yaml(config_path)
+
+    return InstallationConfig.from_yaml(config_path, config_yaml)
