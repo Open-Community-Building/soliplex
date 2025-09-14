@@ -671,3 +671,47 @@ class CompletionsConfig:
         )
 
         return cls(**config)
+
+
+#=============================================================================
+# Installation configuration models
+#=============================================================================
+
+
+@dataclasses.dataclass
+class InstallationConfig:
+    """Configuration for a set of rooms, completions, etc."""
+    #
+    # Required metadata
+    #
+    id: str
+
+    #
+    # Secrets name values looked up from env vars or other sources.
+    #
+    secrets: list[str] = dataclasses.field(
+        default_factory=list,
+    )
+    #
+    # Map values similar to 'os.environ'.
+    #
+    environment: dict[str, str] = dataclasses.field(
+        default_factory=dict,
+    )
+
+    # Set by `from_yaml` factory
+    _config_path: pathlib.Path = None
+
+    @classmethod
+    def from_yaml(cls, config_path: pathlib.Path, config: dict):
+        config["_config_path"] = config_path
+
+        environment = config.get("environment")
+
+        if isinstance(environment, list):
+            config["environment"] = {
+                item["name"]: item["value"]
+                for item in environment
+            }
+
+        return cls(**config)

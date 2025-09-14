@@ -397,6 +397,64 @@ agent:
     system_prompt: "{SYSTEM_PROMPT}"
 """
 
+INSTALLATION_ID = "test-installation"
+
+BARE_INSTALLATION_CONFIG_KW = {
+    "id": INSTALLATION_ID,
+}
+BARE_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+"""
+
+SECRET_NAME_1 = "TEST_SECRET_ONE"
+SECRET_VALUE_1 = "DEADBEEF"
+SECRET_NAME_2 = "TEST_SECRET_TWO"
+SECRET_VALUE_2 = "FACEDACE"
+SECRETS_ENV_PATCH = {
+    SECRET_NAME_1: SECRET_VALUE_1,
+    SECRET_NAME_2: SECRET_VALUE_2,
+}
+
+W_SECRETS_INSTALLATION_CONFIG_KW = {
+    "id": INSTALLATION_ID,
+    "secrets": [
+        SECRET_NAME_1,
+        SECRET_NAME_2,
+    ],
+}
+W_SECRETS_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+secrets:
+    - "{SECRET_NAME_1}"
+    - "{SECRET_NAME_2}"
+"""
+
+CONFIG_KEY_1 = "key_1"
+CONFIG_VAL_1 = "val_1"
+CONFIG_KEY_2 = "key_2"
+CONFIG_VAL_2 = "val_2"
+W_ENVIRONMENT_INSTALLATION_CONFIG_KW = {
+    "id": INSTALLATION_ID,
+    "environment": {
+        CONFIG_KEY_1: CONFIG_VAL_1,
+        CONFIG_KEY_2: CONFIG_VAL_2,
+    },
+}
+W_ENVIRONMENT_LIST_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+environment:
+    - name: "{CONFIG_KEY_1}"
+      value: "{CONFIG_VAL_1}"
+    - name: "{CONFIG_KEY_2}"
+      value: "{CONFIG_VAL_2}"
+"""
+W_ENVIRONMENT_MAPPING_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+environment:
+    {CONFIG_KEY_1}: "{CONFIG_VAL_1}"
+    {CONFIG_KEY_2}: "{CONFIG_VAL_2}"
+"""
+
 
 @pytest.fixture
 def temp_dir() -> pathlib.Path:
@@ -1268,5 +1326,32 @@ def test_completionsconfig_from_yaml(temp_dir, config_yaml, expected_kw):
         yaml_dict = yaml.safe_load(stream)
 
     found = config.CompletionsConfig.from_yaml(yaml_file, yaml_dict)
+
+    assert found == expected
+
+
+@pytest.mark.parametrize("config_yaml, expected_kw", [
+    (BARE_INSTALLATION_CONFIG_YAML, BARE_INSTALLATION_CONFIG_KW),
+    (W_SECRETS_INSTALLATION_CONFIG_YAML, W_SECRETS_INSTALLATION_CONFIG_KW),
+    (
+        W_ENVIRONMENT_LIST_INSTALLATION_CONFIG_YAML,
+        W_ENVIRONMENT_INSTALLATION_CONFIG_KW,
+    ),
+    (
+        W_ENVIRONMENT_MAPPING_INSTALLATION_CONFIG_YAML,
+        W_ENVIRONMENT_INSTALLATION_CONFIG_KW,
+    ),
+])
+def test_installationconfig_from_yaml(temp_dir, config_yaml, expected_kw):
+    expected = config.InstallationConfig(**expected_kw)
+
+    yaml_file = temp_dir / "installation.yaml"
+    yaml_file.write_text(config_yaml)
+    expected = dataclasses.replace(expected, _config_path=yaml_file)
+
+    with yaml_file.open() as stream:
+        yaml_dict = yaml.safe_load(stream)
+
+    found = config.InstallationConfig.from_yaml(yaml_file, yaml_dict)
 
     assert found == expected
