@@ -711,8 +711,13 @@ def _load_config_yaml(config_path: pathlib.Path) -> dict:
         raise FromYamlException(config_path) from exc
 
 
-def _find_room_configs(room_dir: pathlib.Path) -> dict:
+def _find_room_configs(
+    room_dir: pathlib.Path,
+) -> typing.Sequence[tuple[pathlib.Path, dict]]:
     """Yield a sequence of YAML room configs found under 'room_dir'
+
+    Yielded values are tuples, '(config_path, config_yaml)', suitable for
+    passing to RoomConfig.from_yaml.
 
     If 'room_dir' has its own 'room_config.yaml', just yield the one
     config parsed from it.
@@ -738,8 +743,13 @@ def _find_room_configs(room_dir: pathlib.Path) -> dict:
                 pass
 
 
-def _find_completions_configs(completions_dir: pathlib.Path) -> dict:
+def _find_completions_configs(
+    completions_dir: pathlib.Path,
+) -> typing.Sequence[tuple[pathlib.Path, dict]]:
     """Yield sequence of YAML completions configs found under 'completions_dir'
+
+    Yielded values are tuples, '(config_path, config_yaml)', suitable for
+    passing to CompletionsConfig.from_yaml.
 
     If 'completions_dir' has its own 'completions_config.yaml', just yield
     the one config parsed from it.
