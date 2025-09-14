@@ -706,6 +706,16 @@ class InstallationConfig:
     #
     oidc_paths: list[pathlib.Path] = None
 
+    #
+    # Path(s) to room configs:  each item can be either a single
+    # room config (a directory containing its own 'room_config.yaml' file),
+    # or a directory containing such room configs.
+    #
+    # Defaults to one path: './rooms' (set in '__post_init__'), which is
+    # normally a "container" directory for room config directories.
+    #
+    room_paths: list[pathlib.Path] = None
+
     # Set by `from_yaml` factory
     _config_path: pathlib.Path = None
 
@@ -727,10 +737,19 @@ class InstallationConfig:
         if self.oidc_paths is None:
             self.oidc_paths = ["./oidc"]
 
+        if self.room_paths is None:
+            self.room_paths = ["./rooms"]
+
         if self._config_path is not None:
 
             parent_dir = self._config_path.parent
+
             self.oidc_paths = [
                 parent_dir / oidc_path
                 for oidc_path in self.oidc_paths
+            ]
+
+            self.room_paths = [
+                parent_dir / room_path
+                for room_path in self.room_paths
             ]
