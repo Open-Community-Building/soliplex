@@ -89,6 +89,12 @@ class OIDCAuthSystemConfig:
         client_secret = config.pop("client_secret", "")
         config["client_secret"] =  util.interpolate_env_vars(client_secret)
 
+        oidc_client_pem_path = config.pop("oidc_client_pem_path", None)
+        if oidc_client_pem_path is not None:
+            config["oidc_client_pem_path"] = (
+                config_path.parent / oidc_client_pem_path
+            )
+
         return cls(**config)
 
     @property

@@ -28,6 +28,7 @@ jbVPyMXk2bi6vmfpfjCtio7RjDqi38wTf38RuD7mhPYyDOzGFcfSr4yNnORRKyYH
 """
 AUTHSYSTEM_CLIENT_ID = "testing-oidc"
 
+OIDC_CLIENT_PEM_PATH = "/path/to/cacert.pem"
 BARE_AUTHSYSTEM_CONFIG_KW = {
     "id": AUTHSYSTEM_ID,
     "title": AUTHSYSTEM_TITLE,
@@ -59,6 +60,13 @@ W_SCOPE_AUTHSYSTEM_CONFIG_KW["scope"] = AUTHSYSTEM_SCOPE
 W_SCOPE_AUTHSYSTEM_CONFIG_YAML=f"""
 {BARE_AUTHSYSTEM_CONFIG_YAML}
     scope: "{AUTHSYSTEM_SCOPE}"
+"""
+
+W_PEM_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
+W_PEM_AUTHSYSTEM_CONFIG_KW["oidc_client_pem_path"] = OIDC_CLIENT_PEM_PATH
+W__AUTHSYSTEM_CONFIG_YAML=f"""
+{BARE_AUTHSYSTEM_CONFIG_YAML}
+    oidc_client_pem_path: "{OIDC_CLIENT_PEM_PATH}"
 """
 
 AUTHSYSTEM_CLIENT_SECRET_LIT = "REALLY BIG SECRET"
@@ -533,9 +541,19 @@ def temp_dir() -> pathlib.Path:
 @pytest.mark.parametrize("w_config", [
     BARE_AUTHSYSTEM_CONFIG_KW,
     W_SCOPE_AUTHSYSTEM_CONFIG_KW,
+    W_PEM_AUTHSYSTEM_CONFIG_KW,
 ])
 def test_authsystem_from_yaml(temp_dir, w_config):
     expected = config.OIDCAuthSystemConfig(**w_config)
+
+    oidc_client_pem_path = w_config.get("oidc_client_pem_path")
+
+    if oidc_client_pem_path is not None:
+        expected = dataclasses.replace(
+            expected,
+            oidc_client_pem_path=pathlib.Path(oidc_client_pem_path),
+        )
+
     expected._config_path = temp_dir
 
     found = config.OIDCAuthSystemConfig.from_yaml(temp_dir, w_config)
@@ -580,7 +598,7 @@ def test_authsystem_from_yaml_w_client_secret(
 ])
 def test_authsystem_from_yaml_w_oid_cpp(temp_dir, w_config, exp_path):
     expected = config.OIDCAuthSystemConfig(**w_config)
-    expected._config_path = temp_dir
+    config_path = expected._config_path = temp_dir / "config.yaml"
 
     if exp_path.startswith("{"):
         kwargs = {
@@ -589,7 +607,9 @@ def test_authsystem_from_yaml_w_oid_cpp(temp_dir, w_config, exp_path):
         }
         exp_path = exp_path.format(**kwargs)
 
-    found = config.OIDCAuthSystemConfig.from_yaml(temp_dir, w_config)
+    expected.oidc_client_pem_path = pathlib.Path(exp_path)
+
+    found = config.OIDCAuthSystemConfig.from_yaml(config_path, w_config)
 
     assert found == expected
 
