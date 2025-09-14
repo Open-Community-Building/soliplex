@@ -669,6 +669,8 @@ class CompletionsConfig:
     id: str
     agent_config: AgentConfig
 
+    name: str = None
+
     # Set by `from_yaml` factory
     _config_path: pathlib.Path = None
 
@@ -676,9 +678,13 @@ class CompletionsConfig:
     def from_yaml(cls, config_path: pathlib.Path, config: dict):
         config["_config_path"] = config_path
 
-        room_id = config["id"]
+        completions_id = config["id"]
+
+        if "name" not in config:
+            config["name"] = completions_id
+
         agent_config_yaml = config.pop("agent")
-        agent_config_yaml["id"] = f"completions-{room_id}"
+        agent_config_yaml["id"] = f"completions-{completions_id}"
 
         config["agent_config"] = AgentConfig.from_yaml(
             config_path,
@@ -724,6 +730,33 @@ def _find_room_configs(room_dir: pathlib.Path) -> dict:
         for sub in sorted(room_dir.glob("*")):
             if sub.is_dir():
                 sub_config = sub / "room_config.yaml"
+                try:
+                    yield sub_config, _load_config_yaml(sub_config)
+                except NoSuchConfig:
+                    continue
+            else:   # pragma: NO COVER
+                pass
+
+
+def _find_completions_configs(completions_dir: pathlib.Path) -> dict:
+    """Yield sequence of YAML completions configs found under 'completions_dir'
+
+    If 'completions_dir' has its own 'completions_config.yaml', just yield
+    the one config parsed from it.
+
+    Otherwise, itterate over immediate subdirectories, yielding configs
+    parsed from any which have a 'completions_config.yaml'.
+    """
+    completions_config = completions_dir / "completions_config.yaml"
+
+    try:
+        yield completions_config, _load_config_yaml(completions_config)
+
+    except NoSuchConfig:
+
+        for sub in sorted(completions_dir.glob("*")):
+            if sub.is_dir():
+                sub_config = sub / "completions_config.yaml"
                 try:
                     yield sub_config, _load_config_yaml(sub_config)
                 except NoSuchConfig:
@@ -784,6 +817,8 @@ class InstallationConfig:
     # normally a "container" directory for completions config directories.
     #
     completions_paths: list[pathlib.Path] = None
+
+    _completions_configs: dict[str, CompletionsConfig] = None
 
     #
     # Path(s) to quiz data:  each item must be a single directory containing
@@ -902,3 +937,27 @@ class InstallationConfig:
             self._room_configs = self._load_room_configs()
 
         return self._room_configs.copy()
+
+    def _load_completions_configs(self) -> dict[str, RoomConfig]:
+        completions_configs = {}
+
+        for completions_path in self.completions_paths:
+            for config_path, config_yaml in _find_completions_configs(
+                completions_path
+            ):
+                # XXX  order of 'completions_paths' controls
+                #      first-past-the-post for any conflict on completions ID.
+                config_id = config_yaml["id"]
+                if config_id not in completions_configs:
+                    completions_configs[config_id] = (
+                        CompletionsConfig.from_yaml(config_path, config_yaml)
+                    )
+
+        return completions_configs
+
+    @property
+    def completions_configs(self) -> dict[str, RoomConfig]:
+        if self._completions_configs is None:
+            self._completions_configs = self._load_completions_configs()
+
+        return self._completions_configs.copy()

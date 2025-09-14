@@ -392,15 +392,33 @@ quizzes:
 allow_mcp: true
 """
 
+COMPLETIONS_ID = "test-completions"
+COMPLETIONS_NAME = "Test Completions"
+
 BARE_COMPLETIONS_CONFIG_KW = {
-    "id": ROOM_ID,
+    "id": COMPLETIONS_ID,
     "agent_config": config.AgentConfig(
-        id=f"completions-{ROOM_ID}",
+        id=f"completions-{COMPLETIONS_ID}",
         system_prompt=SYSTEM_PROMPT,
     ),
 }
 BARE_COMPLETIONS_CONFIG_YAML = f"""\
-id: "{ROOM_ID}"
+id: "{COMPLETIONS_ID}"
+agent:
+    system_prompt: "{SYSTEM_PROMPT}"
+"""
+
+W_NAME_COMPLETIONS_CONFIG_KW = {
+    "id": COMPLETIONS_ID,
+    "name": COMPLETIONS_NAME,
+    "agent_config": config.AgentConfig(
+        id=f"completions-{COMPLETIONS_ID}",
+        system_prompt=SYSTEM_PROMPT,
+    ),
+}
+W_NAME_COMPLETIONS_CONFIG_YAML = f"""\
+id: "{COMPLETIONS_ID}"
+name: "{COMPLETIONS_NAME}"
 agent:
     system_prompt: "{SYSTEM_PROMPT}"
 """
@@ -1398,9 +1416,14 @@ def test_roomconfig_get_logo_image(temp_dir, room_config_kw, w_config_path):
     "config_yaml, expected_kw",
     [
         (BARE_COMPLETIONS_CONFIG_YAML, BARE_COMPLETIONS_CONFIG_KW),
+        (W_NAME_COMPLETIONS_CONFIG_YAML, W_NAME_COMPLETIONS_CONFIG_KW),
     ],
 )
 def test_completionsconfig_from_yaml(temp_dir, config_yaml, expected_kw):
+    if "name" not in expected_kw:
+        expected_kw = expected_kw.copy()
+        expected_kw["name"] = expected_kw["id"]
+
     expected = config.CompletionsConfig(**expected_kw)
 
     yaml_file = temp_dir / "test.yaml"
@@ -1449,7 +1472,9 @@ def test__find_room_configs_w_single(temp_dir):
 
     expected_rc = config.RoomConfig(**BARE_ROOM_CONFIG_KW)
     expected_rc._config_path = room_config
-    expected_rc.agent_config._config_path = room_config
+    expected_rc.agent_config = dataclasses.replace(
+        expected_rc.agent_config, _config_path=room_config,
+    )
 
     found_configs = list(config._find_room_configs(room_path))
 
@@ -1499,6 +1524,76 @@ def test__find_room_configs_w_multiple(temp_dir):
     ):
         assert f_key == e_key
         assert f_rc == e_rc
+
+
+def test__find_completions_configs_w_single(temp_dir):
+    room_path = temp_dir / "room"
+    room_path.mkdir()
+    completions_config = room_path / "completions_config.yaml"
+    completions_config.write_text(BARE_COMPLETIONS_CONFIG_YAML)
+
+    expected_cc = config.CompletionsConfig(**BARE_COMPLETIONS_CONFIG_KW)
+    expected_cc.name = expected_cc.id
+    expected_cc._config_path = completions_config
+    expected_cc.agent_config = dataclasses.replace(
+        expected_cc.agent_config, _config_path=completions_config,
+    )
+
+    found_configs = list(config._find_completions_configs(room_path))
+
+    assert len(found_configs) == 1
+    (found_config, found_yaml) = found_configs[0]
+
+    found_cc = config.CompletionsConfig.from_yaml(found_config, found_yaml)
+    assert found_cc == expected_cc
+
+
+def test__find_completions_configs_w_multiple(temp_dir):
+    COMPLETION_IDS = ["foo", "bar", "baz", "qux"]
+
+    expected_ccs = []
+
+    for completion_id in sorted(COMPLETION_IDS):
+        completion_path = temp_dir / completion_id
+        if completion_id == "baz":    # file, not dir
+            completion_path.write_text("DEADBEEF")
+        elif completion_id == "qux":  # empty dir
+            completion_path.mkdir()
+        else:
+            completion_path.mkdir()
+            completions_config = completion_path / "completions_config.yaml"
+            completions_config.write_text(
+                BARE_COMPLETIONS_CONFIG_YAML.replace(
+                    f'id: "{COMPLETIONS_ID}"', f'id: "{completion_id}"', 1,
+                ),
+            )
+            expected_cc = config.CompletionsConfig(
+                **BARE_COMPLETIONS_CONFIG_KW,
+            )
+            expected_cc.id = expected_cc.name = completion_id
+            expected_cc._config_path = completions_config
+            expected_cc.agent_config = dataclasses.replace(
+                expected_cc.agent_config,
+                id=f"completions-{completion_id}",
+                _config_path = completions_config,
+            )
+            expected_ccs.append((completions_config, expected_cc))
+
+    found_ccs = [
+        (
+            found_config,
+            config.CompletionsConfig.from_yaml(found_config, found_yaml),
+        )
+        for found_config, found_yaml in config._find_completions_configs(
+            temp_dir
+        )
+    ]
+
+    for (f_key, f_cc), (e_key, e_cc) in zip(
+        sorted(found_ccs), sorted(expected_ccs), strict=True,
+    ):
+        assert f_key == e_key
+        assert f_cc == e_cc
 
 
 @pytest.mark.parametrize("config_yaml, expected_kw", [
@@ -1703,3 +1798,77 @@ def test_installationconfig_room_configs_w_existing():
 
     assert found["room_1"] == RC_1
     assert found["room_2"] == RC_2
+
+
+def test_installationconfig_completions_configs_wo_existing(temp_dir):
+    COMPLETIONS_IDS = ["foo", "bar"]
+
+    kw = BARE_INSTALLATION_CONFIG_KW.copy()
+    kw["_config_path"] = temp_dir / "installation.yaml"
+    completions = temp_dir / "completions"
+    completions.mkdir()
+
+    for completions_id in COMPLETIONS_IDS:
+        completions_path = completions / completions_id
+        completions_path.mkdir()
+        completions_config = completions_path / "completions_config.yaml"
+        completions_config.write_text(
+            BARE_COMPLETIONS_CONFIG_YAML.replace(
+                f'id: "{COMPLETIONS_ID}"', f'id: "{completions_id}"', 1,
+            ),
+        )
+
+    i_config = config.InstallationConfig(**kw)
+
+    found = i_config.completions_configs
+
+    assert found["foo"].id == "foo"
+    assert found["bar"].id == "bar"
+
+
+def test_installationconfig_completions_configs_wo_existing_w_conflict(
+    temp_dir,
+):
+    COMPLETIONS_PATHS = ["./foo", "./bar"]
+
+    kw = BARE_INSTALLATION_CONFIG_KW.copy()
+    kw["_config_path"] = temp_dir / "installation.yaml"
+    kw["completions_paths"] = COMPLETIONS_PATHS
+
+    for completions_path in COMPLETIONS_PATHS:
+        completions_path = temp_dir / completions_path
+        completions_path.mkdir()
+        completions_config = completions_path / "completions_config.yaml"
+        completions_config.write_text(
+            W_NAME_COMPLETIONS_CONFIG_YAML.replace(
+                #f'id: "{COMPLETIONS_ID}"',
+                #f'id: "{completions_id}"',
+                #1, # conflict on ID
+                f'name: "{COMPLETIONS_NAME}"',
+                f'name: "{completions_path.name}"',
+                1,
+            )
+        )
+
+    i_config = config.InstallationConfig(**kw)
+
+    found = i_config.completions_configs
+
+    assert found[COMPLETIONS_ID].id == COMPLETIONS_ID
+    # order of 'completions_paths' governs who wins
+    assert found[COMPLETIONS_ID].name == "foo"
+
+
+def test_installationconfig_completions_configs_w_existing():
+    CC_1, CC_2 = object(), object()
+    existing = {"completions_1": CC_1, "completions_2": CC_2}
+
+    kw = BARE_INSTALLATION_CONFIG_KW.copy()
+    kw["_completions_configs"] = existing
+
+    i_config = config.InstallationConfig(**kw)
+
+    found = i_config.completions_configs
+
+    assert found["completions_1"] == CC_1
+    assert found["completions_2"] == CC_2
