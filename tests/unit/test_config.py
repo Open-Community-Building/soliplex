@@ -369,7 +369,7 @@ FULL_ROOM_CONFIG_KW = {
         system_prompt=SYSTEM_PROMPT,
     ),
     "quizzes": [
-        config.RoomConfiguredQuiz(
+        config.QuizConfig(
             id=TEST_QUIZ_ID, question_file=TEST_QUIZ_OVR,
         ),
     ],
@@ -1137,14 +1137,14 @@ def populated_quiz(temp_dir, test_quiz_json):
     return populated_quiz
 
 
-def test_rcq_ctor_defaults():
+def test_quiz_ctor_defaults():
     with pytest.raises(config.RCQExactlyOneOfStemOrOverride):
-        config.RoomConfiguredQuiz(id=TEST_QUIZ_ID)
+        config.QuizConfig(id=TEST_QUIZ_ID)
 
 
-def test_rcq_ctor_exclusive():
+def test_quiz_ctor_exclusive():
     with pytest.raises(config.RCQExactlyOneOfStemOrOverride):
-        config.RoomConfiguredQuiz(
+        config.QuizConfig(
             id=TEST_QUIZ_ID,
             _question_file_stem="question_file.json",
             _question_file_path_override="/path/to/question_file.json",
@@ -1156,15 +1156,15 @@ def test_rcq_ctor_exclusive():
     ("foo", "foo", None),
     ("/path/to/foo.json", None, "/path/to/foo.json"),
 ])
-def test_rcq_ctor_w_question_file(
+def test_quiz_ctor_w_question_file(
     temp_dir, qf, exp_stem, exp_ovr,
 ):
-    rcq = config.RoomConfiguredQuiz(id=TEST_QUIZ_ID, question_file=qf)
-    assert rcq._question_file_stem == exp_stem
-    assert rcq._question_file_path_override == exp_ovr
+    quiz = config.QuizConfig(id=TEST_QUIZ_ID, question_file=qf)
+    assert quiz._question_file_stem == exp_stem
+    assert quiz._question_file_path_override == exp_ovr
 
     with mock.patch.dict("os.environ", INSTALLATION_PATH=str(temp_dir)):
-        found = rcq.question_file_path
+        found = quiz.question_file_path
 
     if exp_stem is not None:
         assert found == temp_dir / "quizzes" / f"{exp_stem}.json"
@@ -1172,7 +1172,7 @@ def test_rcq_ctor_w_question_file(
         assert found == pathlib.Path(exp_ovr)
 
 
-def test_rcq_from_yaml_exceptions(temp_dir):
+def test_quiz_from_yaml_exceptions(temp_dir):
 
     config_kw = {
         "id": TEST_QUIZ_ID,
@@ -1182,7 +1182,7 @@ def test_rcq_from_yaml_exceptions(temp_dir):
     config_path = temp_dir / "test.yaml"
 
     with pytest.raises(config.FromYamlException) as exc:
-        config.RoomConfiguredQuiz.from_yaml(config_path, config_kw)
+        config.QuizConfig.from_yaml(config_path, config_kw)
 
     assert exc.value.config_path == config_path
 
@@ -1194,8 +1194,8 @@ def test_rcq_from_yaml_exceptions(temp_dir):
         (TEST_QUIZ_W_OVR_YAML, TEST_QUIZ_W_OVR_KW),
     ],
 )
-def test_rcq_from_yaml(temp_dir, config_yaml, expected_kw):
-    expected = config.RoomConfiguredQuiz(**expected_kw)
+def test_quiz_from_yaml(temp_dir, config_yaml, expected_kw):
+    expected = config.QuizConfig(**expected_kw)
 
     yaml_file = temp_dir / "test.yaml"
     yaml_file.write_text(config_yaml)
@@ -1204,19 +1204,19 @@ def test_rcq_from_yaml(temp_dir, config_yaml, expected_kw):
     with yaml_file.open() as stream:
         yaml_dict = yaml.safe_load(stream)
 
-    found = config.RoomConfiguredQuiz.from_yaml(yaml_file, yaml_dict)
+    found = config.QuizConfig.from_yaml(yaml_file, yaml_dict)
 
     assert found == expected
 
 
-def test_rcq__load_questions_file(temp_dir, populated_quiz, test_quiz_json):
+def test_quiz__load_questions_file(temp_dir, populated_quiz, test_quiz_json):
     expected_questions = test_quiz_json["cases"]
 
-    rcq = config.RoomConfiguredQuiz(
+    quiz = config.QuizConfig(
         id=TEST_QUIZ_ID, question_file=str(populated_quiz),
     )
 
-    found = rcq.get_questions()
+    found = quiz.get_questions()
 
     for f_question, e_question in zip(
         found, expected_questions, strict=True,
@@ -1236,7 +1236,7 @@ def test_rcq__load_questions_file(temp_dir, populated_quiz, test_quiz_json):
 
 @pytest.mark.parametrize("w_max_questions", [None, 1])
 @pytest.mark.parametrize("w_loaded", [False, True])
-def test_rcq_get_questions(quiz_questions, w_loaded, w_max_questions):
+def test_quiz_get_questions(quiz_questions, w_loaded, w_max_questions):
     expected_questions = quiz_questions
 
     kwargs = {"id": TEST_QUIZ_ID, "question_file": "ignored.json"}
@@ -1249,55 +1249,55 @@ def test_rcq_get_questions(quiz_questions, w_loaded, w_max_questions):
         question.metadata.uuid: question for question in expected_questions
     }
 
-    rcq = config.RoomConfiguredQuiz(**kwargs)
+    quiz = config.QuizConfig(**kwargs)
 
     if w_loaded:
-        rcq._questions_map = q_map
+        quiz._questions_map = q_map
     else:
-        rcq._load_questions_file = mock.Mock(spec_set=(), return_value=q_map)
+        quiz._load_questions_file = mock.Mock(spec_set=(), return_value=q_map)
 
-    found = rcq.get_questions()
+    found = quiz.get_questions()
 
     assert found == list(q_map.values())
 
 
 @mock.patch("random.shuffle")
-def test_rcq_get_questions_w_randomize(
+def test_quiz_get_questions_w_randomize(
     shuffle, temp_dir, populated_quiz, test_quiz_json,
 ):
-    rcq = config.RoomConfiguredQuiz(
+    quiz = config.QuizConfig(
         id=TEST_QUIZ_ID, question_file=str(populated_quiz), randomize=True,
     )
 
-    found = rcq.get_questions()
+    found = quiz.get_questions()
 
     shuffle.assert_called_once_with(found)
 
 
 @pytest.mark.parametrize("w_miss", [False, True])
 @pytest.mark.parametrize("w_loaded", [False, True])
-def test_rcq_get_question(w_loaded, w_miss):
+def test_quiz_get_question(w_loaded, w_miss):
     UUID = "DEADBEEF"
     expected = object()
 
-    rcq = config.RoomConfiguredQuiz(
+    quiz = config.QuizConfig(
         id=TEST_QUIZ_ID, question_file="ignored.json",
     )
     q_map = {}
 
     if w_loaded:
-        rcq._questions_map = q_map
+        quiz._questions_map = q_map
     else:
-        rcq._load_questions_file = mock.Mock(spec_set=(), return_value=q_map)
+        quiz._load_questions_file = mock.Mock(spec_set=(), return_value=q_map)
 
     if w_miss:
         with pytest.raises(KeyError):
-            rcq.get_question(UUID)
+            quiz.get_question(UUID)
 
     else:
         q_map[UUID] = expected
 
-        found = rcq.get_question(UUID)
+        found = quiz.get_question(UUID)
 
         assert found is expected
 
@@ -1336,7 +1336,7 @@ def test_roomconfig_quiz_map(w_existing):
     NUM_QUIZZES = 3
     quizzes = [
         mock.create_autospec(
-            config.RoomConfiguredQuiz,
+            config.QuizConfig,
             id=f"quiz-{iq}",
             question_file=f"ignored-{iq}.json",
         ) for iq in range(NUM_QUIZZES)

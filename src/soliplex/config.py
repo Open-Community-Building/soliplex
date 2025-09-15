@@ -464,7 +464,7 @@ class QuizQuestion:
 
 
 @dataclasses.dataclass
-class RoomConfiguredQuiz:
+class QuizConfig:
 
     id: str
     question_file: dataclasses.InitVar[str] = None
@@ -591,10 +591,10 @@ class RoomConfig:
     #
     # Quiz-specific options
     #
-    quizzes: list[RoomConfiguredQuiz] = dataclasses.field(
+    quizzes: list[QuizConfig] = dataclasses.field(
         default_factory=list,
     )
-    _quiz_map: dict[str, RoomConfiguredQuiz] = None
+    _quiz_map: dict[str, QuizConfig] = None
 
     # Set by `from_yaml` factory
     _config_path: pathlib.Path = None
@@ -622,7 +622,7 @@ class RoomConfig:
         quizzes_config_yaml = config.pop("quizzes", None)
         if quizzes_config_yaml is not None:
             config["quizzes"] = [
-                RoomConfiguredQuiz.from_yaml(config_path, quiz_config_yaml)
+                QuizConfig.from_yaml(config_path, quiz_config_yaml)
                 for quiz_config_yaml in quizzes_config_yaml
             ]
 
@@ -639,7 +639,7 @@ class RoomConfig:
         return self.id
 
     @property
-    def quiz_map(self) -> dict[str, RoomConfiguredQuiz]:
+    def quiz_map(self) -> dict[str, QuizConfig]:
         if self._quiz_map is None:
             self._quiz_map = {
                 quiz.id: quiz for quiz in self.quizzes
