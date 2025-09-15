@@ -1431,11 +1431,23 @@ def test__load_config_yaml_w_missing(temp_dir):
     assert exc.value.config_path == missing_cfg
 
 
-def test__load_config_yaml_w_invalid(temp_dir):
+@pytest.mark.parametrize("invalid", [
+    b"\xDE\xAD\xBE\xEF",    # raises UnicodeDecodeError
+    "",                     # parses as None
+    "123",                  # parses as int
+    "4.56",                 # parses as float
+    '"foo"',                # parses as str
+    '- "abc"\n- "def"',     # parses as list of str
+])
+def test__load_config_yaml_w_invalid(temp_dir, invalid):
     config_path = temp_dir / "oidc"
     config_path.mkdir()
     invalid_cfg = config_path / "config.yaml"
-    invalid_cfg.write_bytes(b"\xDE\xAD\xBE\xEF")
+
+    if isinstance(invalid, bytes):
+        invalid_cfg.write_bytes(invalid)
+    else:
+        invalid_cfg.write_text(invalid)
 
     with pytest.raises(config.FromYamlException) as exc:
         config._load_config_yaml(invalid_cfg)
@@ -1443,136 +1455,46 @@ def test__load_config_yaml_w_invalid(temp_dir):
     assert exc.value.config_path == invalid_cfg
 
 
-def test__find_room_configs_w_single(temp_dir):
-    room_path = temp_dir / "room"
-    room_path.mkdir()
-    room_config = room_path / "room_config.yaml"
-    room_config.write_text(BARE_ROOM_CONFIG_YAML)
+def test__find_configs_w_single(temp_dir):
+    THING_ID = "testing"
+    CONFIG_FILENAME = "config.yaml"
+    to_search = temp_dir / "to_search"
+    to_search.mkdir()
+    config_file = to_search / CONFIG_FILENAME
+    config_file.write_text(f"id: {THING_ID}")
+    expected = {"id": THING_ID}
 
-    expected_rc = config.RoomConfig(**BARE_ROOM_CONFIG_KW)
-    expected_rc._config_path = room_config
-    expected_rc.agent_config = dataclasses.replace(
-        expected_rc.agent_config, _config_path=room_config,
-    )
+    found = list(config._find_configs(to_search, CONFIG_FILENAME))
 
-    found_configs = list(config._find_room_configs(room_path))
-
-    assert len(found_configs) == 1
-    (found_config, found_yaml) = found_configs[0]
-
-    found_rc = config.RoomConfig.from_yaml(found_config, found_yaml)
-    assert found_rc == expected_rc
+    assert found == [(config_file, expected)]
 
 
-def test__find_room_configs_w_multiple(temp_dir):
-    ROOM_IDS = ["foo", "bar", "baz", "qux"]
+def test__find_configs_w_multiple(temp_dir):
+    THING_IDS = ["foo", "bar", "baz", "qux"]
+    CONFIG_FILENAME = "config.yaml"
 
-    expected_rcs = []
+    expected_things = []
 
-    for room_id in sorted(ROOM_IDS):
-        room_path = temp_dir / room_id
-        if room_id == "baz":    # file, not dir
-            room_path.write_text("DEADBEEF")
-        elif room_id == "qux":  # empty dir
-            room_path.mkdir()
+    for thing_id in sorted(THING_IDS):
+        thing_path = temp_dir / thing_id
+        if thing_id == "baz":    # file, not dir
+            thing_path.write_text("DEADBEEF")
+        elif thing_id == "qux":  # empty dir
+            thing_path.mkdir()
         else:
-            room_path.mkdir()
-            room_config = room_path / "room_config.yaml"
-            room_config.write_text(
-                BARE_ROOM_CONFIG_YAML.replace(
-                    f'id: "{ROOM_ID}"', f'id: "{room_id}"', 1,
-                ),
-            )
-            expected_rc = config.RoomConfig(**BARE_ROOM_CONFIG_KW)
-            expected_rc.id = room_id
-            expected_rc._config_path = room_config
-            expected_rc.agent_config = dataclasses.replace(
-                expected_rc.agent_config,
-                id=f"room-{room_id}",
-                _config_path = room_config,
-            )
-            expected_rcs.append((room_config, expected_rc))
+            thing_path.mkdir()
+            config_file = thing_path / CONFIG_FILENAME
+            config_file.write_text(f"id: {thing_id}")
+            expected_thing = {"id": thing_id}
+            expected_things.append((config_file, expected_thing))
 
-    found_rcs = [
-        (found_config, config.RoomConfig.from_yaml(found_config, found_yaml))
-        for found_config, found_yaml in config._find_room_configs(temp_dir)
-    ]
+    found_things = list(config._find_configs(temp_dir, CONFIG_FILENAME))
 
-    for (f_key, f_rc), (e_key, e_rc) in zip(
-        sorted(found_rcs), sorted(expected_rcs), strict=True,
+    for (f_key, f_thing), (e_key, e_thing) in zip(
+        sorted(found_things), sorted(expected_things), strict=True,
     ):
         assert f_key == e_key
-        assert f_rc == e_rc
-
-
-def test__find_completions_configs_w_single(temp_dir):
-    room_path = temp_dir / "room"
-    room_path.mkdir()
-    completions_config = room_path / "completions_config.yaml"
-    completions_config.write_text(BARE_COMPLETIONS_CONFIG_YAML)
-
-    expected_cc = config.CompletionsConfig(**BARE_COMPLETIONS_CONFIG_KW)
-    expected_cc.name = expected_cc.id
-    expected_cc._config_path = completions_config
-    expected_cc.agent_config = dataclasses.replace(
-        expected_cc.agent_config, _config_path=completions_config,
-    )
-
-    found_configs = list(config._find_completions_configs(room_path))
-
-    assert len(found_configs) == 1
-    (found_config, found_yaml) = found_configs[0]
-
-    found_cc = config.CompletionsConfig.from_yaml(found_config, found_yaml)
-    assert found_cc == expected_cc
-
-
-def test__find_completions_configs_w_multiple(temp_dir):
-    COMPLETION_IDS = ["foo", "bar", "baz", "qux"]
-
-    expected_ccs = []
-
-    for completion_id in sorted(COMPLETION_IDS):
-        completion_path = temp_dir / completion_id
-        if completion_id == "baz":    # file, not dir
-            completion_path.write_text("DEADBEEF")
-        elif completion_id == "qux":  # empty dir
-            completion_path.mkdir()
-        else:
-            completion_path.mkdir()
-            completions_config = completion_path / "completions_config.yaml"
-            completions_config.write_text(
-                BARE_COMPLETIONS_CONFIG_YAML.replace(
-                    f'id: "{COMPLETIONS_ID}"', f'id: "{completion_id}"', 1,
-                ),
-            )
-            expected_cc = config.CompletionsConfig(
-                **BARE_COMPLETIONS_CONFIG_KW,
-            )
-            expected_cc.id = expected_cc.name = completion_id
-            expected_cc._config_path = completions_config
-            expected_cc.agent_config = dataclasses.replace(
-                expected_cc.agent_config,
-                id=f"completions-{completion_id}",
-                _config_path = completions_config,
-            )
-            expected_ccs.append((completions_config, expected_cc))
-
-    found_ccs = [
-        (
-            found_config,
-            config.CompletionsConfig.from_yaml(found_config, found_yaml),
-        )
-        for found_config, found_yaml in config._find_completions_configs(
-            temp_dir
-        )
-    ]
-
-    for (f_key, f_cc), (e_key, e_cc) in zip(
-        sorted(found_ccs), sorted(expected_ccs), strict=True,
-    ):
-        assert f_key == e_key
-        assert f_cc == e_cc
+        assert f_thing == e_thing
 
 
 @pytest.mark.parametrize("config_yaml, expected_kw", [

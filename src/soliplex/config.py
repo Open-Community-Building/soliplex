@@ -11,7 +11,6 @@ import typing
 from collections import abc
 
 import yaml
-from yaml import error as yaml_error
 
 from soliplex import util
 
@@ -23,6 +22,23 @@ class FromYamlException(ValueError):
     def __init__(self, config_path):
         self.config_path = config_path
         super().__init__(f"Error in YAML configuration: {config_path}")
+
+
+class NoConfigPath(ValueError):
+    def __init__(self):
+        super().__init__("No '_config_path' set")
+
+
+class NoSuchConfig(ValueError):
+    def __init__(self, config_path):
+        self.config_path = config_path
+        super().__init__(f"Config path is not a YAML file: {config_path}")
+
+
+class NotADict(ValueError):
+    def __init__(self, found):
+        self.found = found
+        super().__init__(f"YAML did not parse as a dict: {found}")
 
 
 class ToolRequirementConflict(ValueError):
@@ -37,17 +53,6 @@ class NoProviderKeyInEnvironment(ValueError):
     def __init__(self, envvar):
         self.envvar = envvar
         super().__init__(f"No API key in environment: {envvar}")
-
-
-class NoConfigPath(ValueError):
-    def __init__(self):
-        super().__init__("No '_config_path' set")
-
-
-class NoSuchConfig(ValueError):
-    def __init__(self, config_path):
-        self.config_path = config_path
-        super().__init__(f"Config path is not a YAML file: {config_path}")
 
 
 class RagDbExactlyOneOfStemOrOverride(TypeError):
@@ -698,43 +703,53 @@ class CompletionsConfig:
 #   Installation configuration types
 #=============================================================================
 
+def _check_is_dict(config_yaml):
+    if not isinstance(config_yaml, dict):
+        raise NotADict(config_yaml)
+
+    return config_yaml
+
 def _load_config_yaml(config_path: pathlib.Path) -> dict:
+    """Load a YAML config file"""
     if not config_path.is_file():
         raise NoSuchConfig(config_path)
+
     try:
         with config_path.open() as stream:
-            return yaml.load(stream, yaml.Loader)
-    except (
-        yaml_error.YAMLError,
-        UnicodeDecodeError,
-    ) as exc:
+            config_yaml = _check_is_dict(
+                yaml.load(stream, yaml.Loader),
+            )
+
+    except Exception as exc:
         raise FromYamlException(config_path) from exc
 
+    return config_yaml
 
-def _find_room_configs(
-    room_dir: pathlib.Path,
+
+def _find_configs(
+    to_search: pathlib.Path, filename_yaml: str,
 ) -> typing.Sequence[tuple[pathlib.Path, dict]]:
-    """Yield a sequence of YAML room configs found under 'room_dir'
+    """Yield a sequence of YAML configs found under 'to_search'
 
     Yielded values are tuples, '(config_path, config_yaml)', suitable for
-    passing to RoomConfig.from_yaml.
+    passing to a config class's 'from_yaml'.
 
-    If 'room_dir' has its own 'room_config.yaml', just yield the one
+    If 'to_search' has its own copy of 'filename_yaml', just yield the one
     config parsed from it.
 
     Otherwise, itterate over immediate subdirectories, yielding configs
-    parsed from any which have a 'room_config.yaml'.
+    parsed from any which have copies of 'filename_yaml'
     """
-    room_config = room_dir / "room_config.yaml"
+    config_file = to_search / filename_yaml
 
     try:
-        yield room_config, _load_config_yaml(room_config)
+        yield config_file, _load_config_yaml(config_file)
 
     except NoSuchConfig:
 
-        for sub in sorted(room_dir.glob("*")):
+        for sub in sorted(to_search.glob("*")):
             if sub.is_dir():
-                sub_config = sub / "room_config.yaml"
+                sub_config = sub / filename_yaml
                 try:
                     yield sub_config, _load_config_yaml(sub_config)
                 except NoSuchConfig:
@@ -743,36 +758,13 @@ def _find_room_configs(
                 pass
 
 
-def _find_completions_configs(
-    completions_dir: pathlib.Path,
-) -> typing.Sequence[tuple[pathlib.Path, dict]]:
-    """Yield sequence of YAML completions configs found under 'completions_dir'
+_find_room_configs = functools.partial(
+    _find_configs, filename_yaml="room_config.yaml",
+)
 
-    Yielded values are tuples, '(config_path, config_yaml)', suitable for
-    passing to CompletionsConfig.from_yaml.
-
-    If 'completions_dir' has its own 'completions_config.yaml', just yield
-    the one config parsed from it.
-
-    Otherwise, itterate over immediate subdirectories, yielding configs
-    parsed from any which have a 'completions_config.yaml'.
-    """
-    completions_config = completions_dir / "completions_config.yaml"
-
-    try:
-        yield completions_config, _load_config_yaml(completions_config)
-
-    except NoSuchConfig:
-
-        for sub in sorted(completions_dir.glob("*")):
-            if sub.is_dir():
-                sub_config = sub / "completions_config.yaml"
-                try:
-                    yield sub_config, _load_config_yaml(sub_config)
-                except NoSuchConfig:
-                    continue
-            else:   # pragma: NO COVER
-                pass
+_find_completions_configs = functools.partial(
+    _find_configs, filename_yaml="completions_config.yaml",
+)
 
 
 @dataclasses.dataclass
