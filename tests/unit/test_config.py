@@ -933,27 +933,6 @@ def test_sdtc_from_yaml(temp_dir, stem, override, which):
             assert sdt_config.rag_lancedb_path.resolve() == expected.resolve()
 
 
-@pytest.fixture
-def stdiomcpc():
-    return config.Stdio_MCP_ClientToolsetConfig(
-        #id="test_1",
-        command="cat",
-        args=["-"],
-        env={"FOO": "BAR"}
-    )
-
-
-@pytest.fixture
-def httpmcpc():
-    return config.HTTP_MCP_ClientToolsetConfig(
-        #id="test_2",
-        url=HTTP_MCP_URL,
-        headers={
-            "Authorization": f"Bearer {HTTP_MCP_BEARER_TOKEN}",
-        },
-    )
-
-
 @pytest.mark.parametrize("kw", [EMPTY_AGENT_CONFIG_KW, BARE_AGENT_CONFIG_KW])
 def test_agentconfig_ctor(kw):
     with mock.patch.dict(
@@ -1928,6 +1907,7 @@ def populated_temp_dir(temp_dir):
     alt_config_filename.write_text('id: "alt-config"')
 
     return temp_dir
+
 
 @pytest.mark.parametrize("rel_path, raises, expected_id", [
     (".", False, "testing"),
