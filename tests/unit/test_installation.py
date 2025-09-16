@@ -87,6 +87,37 @@ def test_installation_get_completion_config(w_completion_id, raises):
         assert found is c_configs
 
 
+@pytest.mark.parametrize("w_room_id, raises", [
+    ("room_id", False),
+    ("nonesuch", True)
+])
+@mock.patch("soliplex.agents.get_agent_from_configs")
+def test_installation_get_agent_for_room(gafc, w_room_id, raises):
+    a_config = mock.create_autospec(config.AgentConfig)
+
+    tc_config = mock.create_autospec(config.ToolConfig)
+    sdtc_config = mock.create_autospec(config.SearchDocumentsToolConfig)
+
+    r_config = mock.create_autospec(config.RoomConfig)
+    r_config.agent_config = a_config
+    t_configs = r_config.tool_configs = [tc_config, sdtc_config]
+
+    r_configs = {"room_id": r_config}
+    i_config = mock.create_autospec(config.InstallationConfig)
+    i_config.room_configs = r_configs
+    test_user = {"name": "test"}
+
+    the_installation = installation.Installation(i_config)
+
+    if raises:
+        with pytest.raises(KeyError):
+            the_installation.get_agent_for_room(w_room_id, test_user)
+    else:
+        found = the_installation.get_agent_for_room(w_room_id, test_user)
+        assert found is gafc.return_value
+        gafc.assert_called_once_with(a_config, t_configs)
+
+
 @pytest.mark.anyio
 async def test_get_the_installation():
     i_config = mock.create_autospec(config.InstallationConfig)

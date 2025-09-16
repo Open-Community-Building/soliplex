@@ -3,6 +3,7 @@ import dataclasses
 import fastapi
 import pydantic_ai
 
+from soliplex import agents
 from soliplex import config
 
 
@@ -33,6 +34,14 @@ class Installation:
         self, completion_id, user_name: str,
     ) -> config.CompletionConfig:
         return self._config.completion_configs[completion_id]
+
+    def get_agent_for_room(
+        self, room_id: str, user_name: str,
+    ) -> pydantic_ai.Agent:
+        room_config = self.get_room_config(room_id, user_name)
+        return agents.get_agent_from_configs(
+            room_config.agent_config, room_config.tool_configs,
+        )
 
 
 async def get_the_installation(

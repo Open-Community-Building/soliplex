@@ -180,6 +180,21 @@ class Installation(pydantic.BaseModel):
 #   API interaction models
 #=============================================================================
 
+#-----------------------------------------------------------------------------
+#   Tool-related models
+#-----------------------------------------------------------------------------
+
+class UserProfile(pydantic.BaseModel):
+    given_name: str
+    family_name: str
+    email: str
+    preferred_username: str
+
+
+class AgentDependencies(pydantic.BaseModel):
+    user: UserProfile = None  # TBD make required
+
+
 class SearchResult(pydantic.BaseModel):
     content: str
     score: float
