@@ -14,9 +14,25 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
+    "authlib",
+    "docling",
     "fastapi",
-    "pydantic",
+    "fastmcp>=2.10.6,<2.11",
+    "haiku.rag[openai] >= 0.8.0",
+    "httpx",
+    "itsdangerous",
+    "jwcrypto",
+    "logfire[fastapi]",
+    "openai>=1.12.0",
+    "pydantic-ai >= 1.0.1",
+    "pyjwt",
+    "python-dotenv",
+    "python-keycloak",
     "pyyaml",
+    "ruff",
+    "sqlmodel",
+    "starlette",
+    "uvicorn[standard]",
 ]
 
 [project.optional-dependencies]
