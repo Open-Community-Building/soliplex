@@ -58,9 +58,16 @@ async def test_get_chat_completion(fc, auth_fn, completion_configs):
     request = mock.create_autospec(fastapi.Request)
 
     the_installation = mock.create_autospec(installation.Installation)
-    the_installation.get_completion_configs.return_value = (
-        completion_configs
-    )
+
+    if COMPLETION_ID not in completion_configs:
+        the_installation.get_completion_config.side_effect = KeyError(
+            "testing"
+        )
+    else:
+        the_installation.get_completion_config.return_value = (
+            completion_configs[COMPLETION_ID]
+        )
+
     token = object()
 
     if COMPLETION_ID not in completion_configs:
@@ -86,7 +93,7 @@ async def test_get_chat_completion(fc, auth_fn, completion_configs):
         assert found is fc.return_value
         fc.assert_called_once_with(completion_configs[COMPLETION_ID])
 
-    the_installation.get_completion_configs.assert_called_once_with(
-        auth_fn.return_value,
+    the_installation.get_completion_config.assert_called_once_with(
+        COMPLETION_ID, auth_fn.return_value,
     )
     auth_fn.assert_called_once_with(the_installation, token)

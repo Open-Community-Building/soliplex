@@ -46,10 +46,9 @@ async def get_room(
         auth.oauth2_predicate,
 ) -> models.Room:
     user = auth.authenticate(the_installation, token)
-    room_configs = the_installation.get_room_configs(user)
 
     try:
-        room_config = room_configs[room_id]
+        room_config = the_installation.get_room_config(room_id, user)
     except KeyError:
         raise fastapi.HTTPException(
             status_code=404, detail=f"No such room: {room_id}",
@@ -72,10 +71,9 @@ async def get_room_bg_image(
         auth.oauth2_predicate,
 ):
     user = auth.authenticate(the_installation, token)
-    room_configs = the_installation.get_room_configs(user)
 
     try:
-        room_config = room_configs[room_id]
+        room_config = the_installation.get_room_config(room_id, user)
     except KeyError:
         raise fastapi.HTTPException(
             status_code=404, detail=f"No such room: {room_id}",

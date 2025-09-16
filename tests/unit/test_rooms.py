@@ -58,7 +58,12 @@ async def test_get_room(fc, auth_fn, room_configs):
     request = mock.create_autospec(fastapi.Request)
 
     the_installation = mock.create_autospec(installation.Installation)
-    the_installation.get_room_configs.return_value = room_configs
+
+    if ROOM_ID not in room_configs:
+        the_installation.get_room_config.side_effect = KeyError("testing")
+    else:
+        the_installation.get_room_config.return_value = room_configs[ROOM_ID]
+
     token = object()
 
     if ROOM_ID not in room_configs:
@@ -84,8 +89,8 @@ async def test_get_room(fc, auth_fn, room_configs):
         assert found is fc.return_value
         fc.assert_called_once_with(room_configs[ROOM_ID])
 
-    the_installation.get_room_configs.assert_called_once_with(
-        auth_fn.return_value,
+    the_installation.get_room_config.assert_called_once_with(
+        ROOM_ID, auth_fn.return_value,
     )
     auth_fn.assert_called_once_with(the_installation, token)
 
@@ -102,7 +107,12 @@ async def test_get_room_bg_image(auth_fn, temp_dir, w_image, room_configs):
     request = mock.create_autospec(fastapi.Request)
 
     the_installation = mock.create_autospec(installation.Installation)
-    the_installation.get_room_configs.return_value = room_configs
+
+    if ROOM_ID not in room_configs:
+        the_installation.get_room_config.side_effect = KeyError("testing")
+    else:
+        the_installation.get_room_config.return_value = room_configs[ROOM_ID]
+
     token = object()
 
     if ROOM_ID in room_configs:
@@ -145,7 +155,7 @@ async def test_get_room_bg_image(auth_fn, temp_dir, w_image, room_configs):
             assert exc.value.status_code == 404
             assert exc.value.detail == "No image for room"
 
-    the_installation.get_room_configs.assert_called_once_with(
-        auth_fn.return_value,
+    the_installation.get_room_config.assert_called_once_with(
+        ROOM_ID, auth_fn.return_value,
     )
     auth_fn.assert_called_once_with(the_installation, token)

@@ -1,6 +1,7 @@
 import dataclasses
 
 import fastapi
+import pydantic_ai
 
 from soliplex import config
 
@@ -13,13 +14,25 @@ class Installation:
     def oidc_auth_system_configs(self) -> list[config.OIDCAuthSystemConfig]:
         return self._config.oidc_auth_system_configs
 
-    def get_room_configs(self, _user) -> dict[str, config.RoomConfig]:
+    def get_room_configs(
+        self, user_name: str,
+    ) -> dict[str, config.RoomConfig]:
         return self._config.room_configs
 
+    def get_room_config(
+        self, room_id, user_name: str,
+    ) -> config.RoomConfig:
+        return self._config.room_configs[room_id]
+
     def get_completion_configs(
-        self, _user
+        self, user_name: str,
     ) -> dict[str, config.CompletionConfig]:
         return self._config.completion_configs
+
+    def get_completion_config(
+        self, completion_id, user_name: str,
+    ) -> config.CompletionConfig:
+        return self._config.completion_configs[completion_id]
 
 
 async def get_the_installation(

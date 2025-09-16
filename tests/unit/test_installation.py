@@ -29,6 +29,28 @@ def test_installation_get_room_configs():
     assert the_installation.get_room_configs(test_user) == r_configs
 
 
+@pytest.mark.parametrize("w_room_id, raises", [
+    ("room_id", False),
+    ("nonesuch", True)
+])
+def test_installation_get_room_config(w_room_id, raises):
+    r_config = mock.create_autospec(config.RoomConfig)
+    r_configs = {"room_id": r_config}
+    i_config = mock.create_autospec(config.InstallationConfig)
+    i_config.room_configs = r_configs
+    test_user = {"name": "test"}
+
+    the_installation = installation.Installation(i_config)
+
+    if raises:
+        with pytest.raises(KeyError):
+            the_installation.get_room_config(w_room_id, test_user)
+    else:
+        found = the_installation.get_room_config(w_room_id, test_user)
+
+        assert found is r_config
+
+
 def test_installation_get_completion_configs():
     c_config = mock.create_autospec(config.CompletionConfig)
     c_configs = {"completion_id": c_config}
@@ -39,6 +61,30 @@ def test_installation_get_completion_configs():
     the_installation = installation.Installation(i_config)
 
     assert the_installation.get_completion_configs(test_user) == c_configs
+
+
+@pytest.mark.parametrize("w_completion_id, raises", [
+    ("completion_id", False),
+    ("nonesuch", True)
+])
+def test_installation_get_completion_config(w_completion_id, raises):
+    c_config = mock.create_autospec(config.CompletionConfig)
+    c_configs = {"completion_id": c_config}
+    i_config = mock.create_autospec(config.InstallationConfig)
+    i_config.completion_configs = c_configs
+    test_user = {"name": "test"}
+
+    the_installation = installation.Installation(i_config)
+
+    if raises:
+        with pytest.raises(KeyError):
+            the_installation.get_completion_config(
+                w_completion_id, test_user,
+            )
+    else:
+        found = the_installation.get_completion_configs(test_user)
+
+        assert found is c_configs
 
 
 @pytest.mark.anyio

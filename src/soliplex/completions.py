@@ -24,6 +24,7 @@ async def get_chat_completions(
 ) -> models.ConfiguredCompletions:
     user = auth.authenticate(the_installation, token)
     completion_configs = the_installation.get_completion_configs(user)
+
     return {
         key: models.Completion.from_config(completion_config)
         for (key, completion_config) in sorted(completion_configs.items())
@@ -41,9 +42,10 @@ async def get_chat_completion(
         auth.oauth2_predicate,
 ) -> models.Completion:
     user = auth.authenticate(the_installation, token)
-    completion_configs = the_installation.get_completion_configs(user)
     try:
-        completion_config = completion_configs[completion_id]
+        completion_config = the_installation.get_completion_config(
+            completion_id, user,
+        )
     except KeyError:
         raise fastapi.HTTPException(
             status_code=404, detail=f"No such completion: {completion_id}"
