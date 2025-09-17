@@ -38,7 +38,8 @@ def get_agent_from_configs(
             provider = openai_providers.OpenAIProvider(**provider_kw)
 
         tools = [
-            make_ai_tool(tool_config) for tool_config in tool_configs
+            make_ai_tool(tool_config)
+            for tool_config in tool_configs.values()
         ]
         toolsets = [] # TOOD build from mcp_client_toolsets
 
