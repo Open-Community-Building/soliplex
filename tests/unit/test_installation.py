@@ -4,6 +4,7 @@ import fastapi
 import pytest
 
 from soliplex import config
+from soliplex import convos
 from soliplex import installation
 
 
@@ -165,3 +166,6 @@ async def test_lifespan(lc):
     i_config.reload_configurations.assert_called_once_with()
 
     lc.assert_called_once_with(INSTALLATION_PATH)
+
+    the_convos = found[0]["the_convos"]
+    assert isinstance(the_convos, convos.Conversations)

@@ -5,6 +5,7 @@ import pydantic_ai
 
 from soliplex import agents
 from soliplex import config
+from soliplex import convos
 
 
 @dataclasses.dataclass
@@ -58,9 +59,11 @@ async def lifespan(app: fastapi.FastAPI, installation_path):
     i_config = config.load_installation(installation_path)
     i_config.reload_configurations()
     the_installation = Installation(i_config)
+    the_convos = convos.Conversations()
 
     context = {
         "the_installation": the_installation,
+        "the_convos": the_convos,
     }
 
     yield context
