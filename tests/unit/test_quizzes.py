@@ -22,6 +22,7 @@ MC_QUESTION_UUID = "FACEDACE"
 QUESTION_TYPE_QA = "qa"
 QUESTION_TYPE_MC = "multiple-choice"
 MC_OPTIONS = ["orange", "blue", "purple"]
+QUIZ_JUDGE_AGENT_MODEL = "test-model"
 
 OLLAMA_BASE_URL = "https://example.com:12345"
 
@@ -59,7 +60,9 @@ def quiz_questions(qa_question, mc_question):
 @pytest.fixture
 def test_quiz(qa_question, mc_question):
     rcq = config.QuizConfig(
-        id="testing", question_file="ignored.json",
+        id="testing",
+        question_file="ignored.json",
+        judge_agent_model=QUIZ_JUDGE_AGENT_MODEL,
     )
     rcq._questions_map = {
         question.metadata.uuid: question
@@ -94,7 +97,9 @@ def populated_quiz(quiz_tempdir, test_quiz_json):
 @mock.patch("pydantic_ai.providers.ollama.OllamaProvider")
 @mock.patch("pydantic_ai.models.openai.OpenAIChatModel")
 @mock.patch("pydantic_ai.Agent")
-def test_get_quiz_judge_agent(agent_klass, model_klass, provider_klass):
+def test_get_quiz_judge_agent(
+    agent_klass, model_klass, provider_klass, test_quiz,
+):
     env_patch = {
         "OLLAMA_BASE_URL": OLLAMA_BASE_URL,
     }
@@ -104,7 +109,7 @@ def test_get_quiz_judge_agent(agent_klass, model_klass, provider_klass):
     }
 
     with mock.patch.dict("os.environ", clear=True, **env_patch):
-        found = quizzes.get_quiz_judge_agent()
+        found = quizzes.get_quiz_judge_agent(test_quiz)
 
     assert found is agent_klass.return_value
     agent_klass.assert_called_once_with(
@@ -114,7 +119,7 @@ def test_get_quiz_judge_agent(agent_klass, model_klass, provider_klass):
     )
 
     model_klass.assert_called_once_with(
-        model_name=quizzes.ANSWER_EQUIVALENCE_MODEL,
+        model_name=test_quiz.judge_agent_model,
         provider=provider_klass.return_value,
     )
 
@@ -123,12 +128,14 @@ def test_get_quiz_judge_agent(agent_klass, model_klass, provider_klass):
 
 @pytest.mark.anyio
 @mock.patch("soliplex.quizzes.get_quiz_judge_agent")
-async def test_check_answer_with_agent(gqja, qa_question):
+async def test_check_answer_with_agent(gqja, qa_question, test_quiz):
     agent = gqja.return_value
     a_run = agent.run = mock.AsyncMock()
     answer = "Who knows?"
 
-    found = await quizzes.check_answer_with_agent(qa_question, answer)
+    found = await quizzes.check_answer_with_agent(
+        test_quiz, qa_question, answer,
+    )
 
     assert found is a_run.return_value.output.equivalent
 
@@ -139,7 +146,7 @@ async def test_check_answer_with_agent(gqja, qa_question):
     assert f"ANSWER: {answer}" in lines
     assert f"EXPECTED ANSWER: {EXPECTED_ANSWER}" in lines
 
-    gqja.assert_called_once_with()
+    gqja.assert_called_once_with(test_quiz)
 
 
 @pytest.mark.anyio
@@ -203,7 +210,7 @@ async def test_check_answer_w_qa(cawa, test_quiz, qa_question, w_correct):
             assert found["correct"] == "false"
             assert found["expected_output"] == EXPECTED_ANSWER
 
-        cawa.assert_awaited_once_with(qa_question, answer)
+        cawa.assert_awaited_once_with(test_quiz, qa_question, answer)
 
 
 @pytest.mark.anyio

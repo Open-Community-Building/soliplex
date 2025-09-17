@@ -51,7 +51,7 @@ GUIDELINES:
 /no_think"""  # noqa: E501 first line is important to the LLM.
 
 
-def get_quiz_judge_agent():
+def get_quiz_judge_agent(quiz: config.QuizConfig):
     provider_base_url = os.environ["OLLAMA_BASE_URL"]
 
     ollama_provider = ollama_providers.OllamaProvider(
@@ -59,7 +59,7 @@ def get_quiz_judge_agent():
     )
 
     ollama_model = openai_models.OpenAIChatModel(
-        model_name=ANSWER_EQUIVALENCE_MODEL,
+        model_name=quiz.judge_agent_model,
         provider=ollama_provider,
     )
 
@@ -72,10 +72,11 @@ def get_quiz_judge_agent():
 
 
 async def check_answer_with_agent(
+    quiz: config.QuizConfig,
     question: config.QuizQuestion,
     answer: str,
 ) -> bool:
-    agent = get_quiz_judge_agent()
+    agent = get_quiz_judge_agent(quiz)
 
     prompt = f"""\
 QUESTION: {question.inputs}
@@ -102,7 +103,7 @@ async def check_answer(
         correct = (answer == question.expected_output.lower())
 
     else:
-        correct = await check_answer_with_agent(question, answer)
+        correct = await check_answer_with_agent(quiz, question, answer)
 
     if correct:
         return {"correct": "true"}
