@@ -17,29 +17,29 @@ class Installation:
         return self._config.oidc_auth_system_configs
 
     def get_room_configs(
-        self, user_name: str,
+        self, user: dict,
     ) -> dict[str, config.RoomConfig]:
         return self._config.room_configs
 
     def get_room_config(
-        self, room_id, user_name: str,
+        self, room_id, user: dict,
     ) -> config.RoomConfig:
         return self._config.room_configs[room_id]
 
     def get_completion_configs(
-        self, user_name: str,
+        self, user: dict,
     ) -> dict[str, config.CompletionConfig]:
         return self._config.completion_configs
 
     def get_completion_config(
-        self, completion_id, user_name: str,
+        self, completion_id, user: dict,
     ) -> config.CompletionConfig:
         return self._config.completion_configs[completion_id]
 
     def get_agent_for_room(
-        self, room_id: str, user_name: str,
+        self, room_id: str, user: dict,
     ) -> pydantic_ai.Agent:
-        room_config = self.get_room_config(room_id, user_name)
+        room_config = self.get_room_config(room_id, user)
         return agents.get_agent_from_configs(
             room_config.agent_config,
             room_config.tool_configs,

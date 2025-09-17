@@ -260,7 +260,7 @@ async def test_post_convos_new(
             fcm.return_value,
         )
         gafr.assert_called_once_with(
-            TEST_CONVO_ROOMID, user_name=exp_user["preferred_username"],
+            TEST_CONVO_ROOMID, user=w_auth_user,
         )
 
         fcm.assert_called_once_with(NEW_AI_MESSAGES)
@@ -352,7 +352,7 @@ async def test_post_convos_new_room(
             fcm.return_value,
         )
         gafr.assert_called_once_with(
-            TEST_CONVO_ROOMID, user_name=exp_user["preferred_username"],
+            TEST_CONVO_ROOMID, user=w_auth_user,
         )
 
         fcm.assert_called_once_with(NEW_AI_MESSAGES)
@@ -511,7 +511,7 @@ async def test_post_convo(
         fcm.assert_called_once_with(NEW_AI_MESSAGES)
 
     gafr.assert_called_once_with(
-        TEST_CONVO_ROOMID, user_name=exp_user["preferred_username"],
+        TEST_CONVO_ROOMID, user=w_auth_user,
     )
     auth_fn.assert_called_once_with(the_installation, token)
 

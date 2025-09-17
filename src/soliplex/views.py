@@ -80,7 +80,7 @@ async def post_convos_new(
 
     try:
         agent = the_installation.get_agent_for_room(
-            convo_msg.room_id, user_name=user_name,
+            convo_msg.room_id, user=user,
         )
     except KeyError:
         raise fastapi.HTTPException(
@@ -135,7 +135,7 @@ async def post_convos_new_room(
 
     try:
         agent = the_installation.get_agent_for_room(
-            room_id, user_name=user_name,
+            room_id, user=user,
         )
     except KeyError:
         raise fastapi.HTTPException(
@@ -232,7 +232,7 @@ async def post_convo(
 
     try:
         agent = the_installation.get_agent_for_room(
-            convo.room_id, user_name=user_name,
+            convo.room_id, user=user,
         )
     except KeyError:
         raise fastapi.HTTPException(
