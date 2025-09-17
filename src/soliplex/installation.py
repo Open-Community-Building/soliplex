@@ -40,7 +40,9 @@ class Installation:
     ) -> pydantic_ai.Agent:
         room_config = self.get_room_config(room_id, user_name)
         return agents.get_agent_from_configs(
-            room_config.agent_config, room_config.tool_configs,
+            room_config.agent_config,
+            room_config.tool_configs,
+            room_config.mcp_client_toolset_configs,
         )
 
 
