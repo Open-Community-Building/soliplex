@@ -239,3 +239,54 @@ def test_logfile_span_preserves_function_metadata(mock_span):
 
     assert baz.__name__ == "baz"
     assert baz.__doc__ == "A test docstring."
+
+
+@pytest.mark.parametrize("text, expected", [
+    # Test 4+ dots get replaced with ...
+    ("foo....bar", "foo...bar"),
+    ("foo.....bar", "foo...bar"),
+    ("foo..........bar", "foo...bar"),
+
+    # Test 2+ ellipses get replaced with …
+    ("foo……bar", "foo…bar"),
+    ("foo………bar", "foo…bar"),
+    ("foo…………bar", "foo…bar"),
+
+    # Test 3 or fewer dots are not modified
+    ("foo...bar", "foo...bar"),
+    ("foo..bar", "foo..bar"),
+    ("foo.bar", "foo.bar"),
+    ("foobar", "foobar"),
+
+    # Test 1 ellipses is not modified
+    ("foo…bar", "foo…bar"),
+
+    # Test multiple replacements in same string
+    ("foo....bar....baz", "foo...bar...baz"),
+    ("foo……bar……baz", "foo…bar…baz"),
+    ("start......middle.....end", "start...middle...end"),
+
+    # Test edge cases
+    ("", ""),
+    ("....", "..."),
+    ("...", "..."),
+    ("..........", "..."),
+    ("…", "…"),
+    ("……", "…"),
+
+    # Test dots at beginning/end of string
+    ("....text", "...text"),
+    ("text....", "text..."),
+    # Test ellipses at beginning/end of string
+    ("text……", "text…"),
+    ("……text", "…text"),
+
+    # Test dots with newlines and other characters
+    ("line1....\nline2", "line1...\nline2"),
+    ("test....\t....test", "test...\t...test"),
+    # Test ellipses with newlines and other characters
+    ("line1……\nline2", "line1…\nline2"),
+    ("test……\t……test", "test…\t…test"),
+])
+def test_preprocesr_markdown(text, expected):
+    assert util.preprocess_markdown(text) == expected

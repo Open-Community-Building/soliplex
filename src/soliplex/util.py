@@ -4,12 +4,16 @@ import functools
 import logging
 import os
 import pathlib
+import re
 import subprocess
 import traceback
 import typing
 
 import logfire
 from starlette import datastructures
+
+FOUR_OR_MORE_PERIODS = re.compile(r"\.{4,}")
+TWO_OR_MORE_ELLIPSES = re.compile(r"…{2,}")
 
 # import to log
 logger = logging.getLogger("uvicorn.error")
@@ -121,3 +125,13 @@ def logfire_span(span_name):
                     return func(*args, **kwargs)
             return sync_wrapper
     return decorator
+
+
+def preprocess_markdown(text: str) -> str:
+    """Remove repeated punctuation from markdown
+
+    Avoids overflowing embedding context.
+    """
+    parsed = FOUR_OR_MORE_PERIODS.sub("...", text)
+    parsed = TWO_OR_MORE_ELLIPSES.sub("…", parsed)
+    return parsed
