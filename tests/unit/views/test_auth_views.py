@@ -8,6 +8,18 @@ from fastapi import responses
 from soliplex import installation
 from soliplex.views import auth as auth_views
 
+USER_NAME = "phreddy"
+GIVEN_NAME = "Phred"
+FAMILY_NAME = "Phlyntstone"
+EMAIL = "phreddy@example.com"
+
+AUTH_USER = {
+    "preferred_username": USER_NAME,
+    "given_name": GIVEN_NAME,
+    "family_name": FAMILY_NAME,
+    "email": EMAIL,
+}
+
 
 @pytest.mark.anyio
 async def test_get_login(with_auth_systems):
@@ -186,3 +198,33 @@ async def test_get_auth_system(
             auth_fn.assert_not_called()
 
         cc.assert_called_once_with(system)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("w_auth_disabled", [False, True])
+@mock.patch("soliplex.auth.authenticate")
+@mock.patch("soliplex.auth.auth_disabled")
+async def test_get_user_info(
+    auth_disabled, authenticate, w_auth_disabled,
+):
+    auth_disabled.return_value = w_auth_disabled
+    authenticate.return_value = AUTH_USER
+
+    the_installation = mock.create_autospec(installation.Installation)
+    token = object()
+
+    if w_auth_disabled:
+        with pytest.raises(fastapi.HTTPException) as exc:
+            await auth_views.get_user_info(the_installation, token)
+
+        assert exc.value.status_code == 404
+        assert exc.value.detail == "system in no-auth mode"
+
+        authenticate.assert_not_called()
+
+    else:
+        found = await auth_views.get_user_info(the_installation, token)
+
+        assert found == AUTH_USER
+
+        authenticate.assert_called_once_with(the_installation, token)

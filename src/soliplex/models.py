@@ -223,6 +223,8 @@ class SearchResult(pydantic.BaseModel):
     document_uri: str | None = None
 
 
+UserInfo = dict[str, typing.Any]
+
 #-----------------------------------------------------------------------------
 #   Convos-related models
 #-----------------------------------------------------------------------------

@@ -2,9 +2,11 @@
 import fastapi
 from authlib.integrations import starlette_client
 from fastapi import responses
+from fastapi import security
 
 from soliplex import auth
 from soliplex import installation
+from soliplex import models
 from soliplex import util
 
 router = fastapi.APIRouter()
@@ -89,3 +91,18 @@ async def get_auth_system(
     return_to += f"&expires_in={expires_in}"
     return_to += f"&refresh_expires_in={refresh_expires_in}"
     return responses.RedirectResponse(return_to)
+
+
+@router.get("/get_user_info")
+async def get_user_info(
+    the_installation: installation.Installation =
+        installation.depend_the_installation,
+    token: security.HTTPAuthorizationCredentials=auth.oauth2_predicate,
+) -> models.UserInfo:
+    if auth.auth_disabled():
+        raise fastapi.HTTPException(
+            status_code=404,
+            detail="system in no-auth mode",
+        )
+    
+    return auth.authenticate(the_installation, token)
