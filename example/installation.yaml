@@ -39,11 +39,6 @@ environment:
   #- name: "CONTAINER_IS_RUNNING"
   #  value: "1"
 
-  # Used by both 'haiku.rag' and 'soliplex'
-  # Don't set this in development:  let devenv do it.
-  #
-  # - name: "OLLAMA_BASE_URL"
-  #   value: "http://localhost:11434"
 
   #------------------------------------------------------------------------
   # 'haiku.rag' config vars
@@ -74,12 +69,18 @@ environment:
   - name: "INSTALLATION_PATH"
     value: "file:."
 
+  - name: "DEFAULT_AGENT_MODEL"
+    value: "gpt-oss:20b"
+
+  - name: "OLLAMA_BASE_URL"
+    value: "http://localhost:11434"
+
+# Uncomment this to expire MCP room server tokens after one hour.
+# - name: "MCP_TOKEN_MAX_AGE"
+#   value: 3600
+
   - name: "RAG_LANCE_DB_PATH"
     value: "file:../db/rag"
-
-  # Comment out the following entry to turn on 'no-auth' mode.
-  - name: "OIDC_CONFIG_PATH"
-    value: "file:./oidc"
 
   #------------------------------------------------------------------------
   # Non-secret configuration for Logfire
