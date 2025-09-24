@@ -60,10 +60,9 @@ async def test_search_documents(
         sdt_config.search_documents_limit = w_limit
         exp_limit = w_limit
 
-    with mock.patch.dict("os.environ", RAG_LANCE_DB_PATH="/tmp/rag/"):
-        found = await tools.search_documents(
-            "postal regulations", tool_config=sdt_config,
-        )
+    found = await tools.search_documents(
+        "postal regulations", tool_config=sdt_config,
+    )
 
     for f_result, (doc, i_doc) in zip(found, docs, strict=True):
         assert f_result.score == i_doc
