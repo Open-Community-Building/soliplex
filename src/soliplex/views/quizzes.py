@@ -38,7 +38,11 @@ async def get_quiz(
             status_code=404, detail=str(e),
         ) from None
 
-    info = dataclasses.asdict(quiz)
+    # Remove the `_installation_config` to avoid infinite recursion
+    q_copy = dataclasses.replace(quiz, _installation_config=None)
+    info = dataclasses.asdict(q_copy)
+
+    questions = quiz.get_questions()
     info["questions"] = [
         dataclasses.asdict(question)
         for question in quiz.get_questions()
