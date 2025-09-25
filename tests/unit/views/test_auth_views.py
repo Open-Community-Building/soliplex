@@ -28,9 +28,15 @@ async def test_get_login(with_auth_systems):
 
     found = await auth_views.get_login(the_installation)
 
-    for f_as, e_as in zip(found["systems"], with_auth_systems, strict=True):
-        assert f_as["id"] == e_as.id
-        assert f_as["title"] == e_as.title
+    with_auth_systems_map = {asys.id: asys for asys in with_auth_systems}
+
+    for (f_key, f_val), (e_key, e_val) in zip(
+        sorted(found.items()),
+        sorted(with_auth_systems_map.items()),
+        strict=True,
+    ):
+        assert f_key == e_key
+        assert f_val.title == e_val.title
 
 
 @pytest.mark.anyio

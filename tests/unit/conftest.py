@@ -1,6 +1,5 @@
 import pathlib
 import tempfile
-from unittest import mock
 
 import pytest
 
@@ -9,12 +8,12 @@ from soliplex import config
 
 def _auth_systems(n_auth_systems):
     return [
-        mock.create_autospec(
-            config.OIDCAuthSystemConfig,
+        config.OIDCAuthSystemConfig(
             id=f"auth-system-{i_auth_system}",
             title=f"Auth System #{i_auth_system}",
             token_validation_pem=f"PEM {i_auth_system:3d}",
-            oauth_client_kwargs={"name": f"auth_system_{i_auth_system:03}"},
+            server_url=f"http://auth{i_auth_system:03}.example.com/",
+            client_id=f"AUTH_SYSTEM_{i_auth_system:03}",
         )
         for i_auth_system in range(n_auth_systems)
     ]

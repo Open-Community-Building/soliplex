@@ -2103,10 +2103,10 @@ IGNORED=bogus
     expected = dataclasses.replace(
         expected,
         _config_path=yaml_file,
-        oidc_paths = [temp_dir / "oidc"],
-        room_paths = [temp_dir / "rooms"],
-        completion_paths = [temp_dir / "completions"],
-        quizzes_paths = [temp_dir / "quizzes"],
+        oidc_paths=[temp_dir / "oidc"],
+        room_paths=[temp_dir / "rooms"],
+        completion_paths=[temp_dir / "completions"],
+        quizzes_paths=[temp_dir / "quizzes"],
     )
 
     with yaml_file.open() as stream:
