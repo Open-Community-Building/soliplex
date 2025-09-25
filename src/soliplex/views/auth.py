@@ -92,7 +92,8 @@ async def get_auth_system(
     return responses.RedirectResponse(return_to)
 
 
-@router.get("/get_user_info")
+@util.logfire_span("GET /user_info")
+@router.get("/user_info")
 async def get_user_info(
     the_installation: installation.Installation = depend_the_installation,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
