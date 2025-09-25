@@ -59,12 +59,6 @@ tools:
 """
 
 
-@pytest.fixture
-def temp_dir() -> pathlib.Path:
-    with tempfile.TemporaryDirectory() as td:
-        yield pathlib.Path(td)
-
-
 @mock.patch("soliplex.completions.time")
 def test_openai_chunk_repr(time_module):
     MODEL = "testing"

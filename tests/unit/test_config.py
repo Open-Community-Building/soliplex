@@ -386,19 +386,66 @@ agent:
     system_prompt: "{SYSTEM_PROMPT}"
 """
 
-W_NAME_COMPLETION_CONFIG_KW = {
+FULL_COMPLETION_CONFIG_KW = {
     "id": COMPLETION_ID,
     "name": COMPLETION_NAME,
     "agent_config": config.AgentConfig(
         id=f"completion-{COMPLETION_ID}",
         system_prompt=SYSTEM_PROMPT,
     ),
+    "tool_configs" : {
+        "get_current_datetime": config.ToolConfig(
+            tool_name="soliplex.tools.get_current_datetime",
+        ),
+        "search_documents": config.SearchDocumentsToolConfig(
+            search_documents_limit=1,
+            rag_lancedb_override_path="/dev/null",
+        ),
+    },
+    "mcp_client_toolset_configs": {
+        "stdio_test": config.Stdio_MCP_ClientToolsetConfig(
+            command="cat",
+            args=[
+                "-",
+            ],
+            env={
+                "foo": "bar",
+            }
+        ),
+        "http_test": config.HTTP_MCP_ClientToolsetConfig(
+            url=HTTP_MCP_URL,
+            headers={
+                "Authorization": f"Bearer {HTTP_MCP_BEARER_TOKEN}",
+            },
+            query_params=HTTP_MCP_QUERY_PARAMS,
+        ),
+    },
 }
-W_NAME_COMPLETION_CONFIG_YAML = f"""\
+FULL_COMPLETION_CONFIG_YAML = f"""\
 id: "{COMPLETION_ID}"
 name: "{COMPLETION_NAME}"
 agent:
     system_prompt: "{SYSTEM_PROMPT}"
+tools:
+    - tool_name: "soliplex.tools.get_current_datetime"
+    - tool_name: "soliplex.tools.search_documents"
+      rag_lancedb_override_path: /dev/null
+      search_documents_limit: 1
+mcp_client_toolsets:
+    stdio_test:
+      type: "stdio"
+      command: "cat"
+      args:
+        - "-"
+      env:
+        foo: "bar"
+    http_test:
+      type: "http"
+      url: "{HTTP_MCP_URL}"
+      headers:
+        Authorization: "Bearer {HTTP_MCP_BEARER_TOKEN}"
+      query_params:
+        {HTTP_MCP_QP_KEY}: "{HTTP_MCP_QP_VALUE}"
 """
 
 INSTALLATION_ID = "test-installation"
@@ -1302,6 +1349,7 @@ def qa_question():
         metadata=config.QuizQuestionMetadata(
             uuid=QA_QUESTION_UUID,
             type=QUESTION_TYPE_QA,
+            options=None,
         )
     )
 
@@ -1496,13 +1544,8 @@ def test_quizconfig__load_questions_file(temp_dir, populated_quiz, quiz_json):
         assert f_question.expected_output == e_question["expected_output"]
         assert f_question.metadata.type == e_question["metadata"]["type"]
         assert f_question.metadata.uuid == e_question["metadata"]["uuid"]
-
         options = e_question["metadata"].get("options")
-
-        if options is None:
-            assert f_question.metadata.options == []
-        else:
-            assert f_question.metadata.options == options
+        assert f_question.metadata.options == options
 
 
 @pytest.mark.parametrize("w_max_questions", [None, 1])
@@ -1714,7 +1757,7 @@ def test_roomconfig_get_logo_image(temp_dir, room_config_kw, w_config_path):
     "config_yaml, expected_kw",
     [
         (BARE_COMPLETION_CONFIG_YAML, BARE_COMPLETION_CONFIG_KW),
-        (W_NAME_COMPLETION_CONFIG_YAML, W_NAME_COMPLETION_CONFIG_KW),
+        (FULL_COMPLETION_CONFIG_YAML, FULL_COMPLETION_CONFIG_KW),
     ],
 )
 def test_completionconfig_from_yaml(
@@ -2147,7 +2190,7 @@ def test_installationconfig_completion_configs_wo_existing_w_conflict(
         completion_path.mkdir()
         completion_config = completion_path / "completion_config.yaml"
         completion_config.write_text(
-            W_NAME_COMPLETION_CONFIG_YAML.replace(
+            FULL_COMPLETION_CONFIG_YAML.replace(
                 #f'id: "{COMPLETION_ID}"',
                 #f'id: "{completion_id}"',
                 #1, # conflict on ID
