@@ -176,7 +176,9 @@ class OIDCAuthSystem(pydantic.BaseModel):
 
     @classmethod
     def from_config(cls, oas_config: config.OIDCAuthSystemConfig):
-        kwargs = dataclasses.asdict(oas_config)
+        kwargs = dataclasses.asdict(
+            dataclasses.replace(oas_config, _installation_config=None)
+        )
         return cls(**kwargs)
 
 
