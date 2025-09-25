@@ -16,6 +16,7 @@ classifiers = [
 dependencies = [
     "authlib",
     "docling",
+    "python-dotenv",
     "fastapi",
     "fastmcp>=2.12.3,<2.13",
     "haiku.rag >= 0.10.2",

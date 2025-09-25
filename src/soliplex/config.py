@@ -13,6 +13,7 @@ import typing
 from collections import abc
 from urllib import parse as url_parse
 
+import dotenv
 import yaml
 
 from soliplex import util
@@ -1141,6 +1142,17 @@ class InstallationConfig:
             config["environment"] = {
                 item["name"]: item["value"] for item in environment
             }
+
+        dotenv_file = config_path.parent / ".env"
+
+        if dotenv_file.is_file():
+
+            with dotenv_file.open() as stream:
+                dotenv_env = dotenv.dotenv_values(stream=stream)
+
+            for key, value in dotenv_env.items():
+                if key in config["environment"]:
+                    config["environment"][key] = value
 
         return cls(**config)
 
