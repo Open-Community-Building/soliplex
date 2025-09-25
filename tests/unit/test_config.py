@@ -2045,7 +2045,6 @@ def test_installationconfig_get_environment(w_hit, w_default):
     ],
 )
 def test_installationconfig_from_yaml(
-    installation_config,
     temp_dir,
     config_yaml,
     expected_kw,
@@ -2076,6 +2075,39 @@ def test_installationconfig_from_yaml(
         exp_room_paths = [temp_dir / "rooms"]
 
     expected = dataclasses.replace(expected, room_paths=exp_room_paths)
+
+    with yaml_file.open() as stream:
+        yaml_dict = yaml.safe_load(stream)
+
+    found = config.InstallationConfig.from_yaml(yaml_file, yaml_dict)
+
+    assert found == expected
+
+
+def test_installationconfig_from_yaml_w_dotenv(temp_dir):
+    REPLACEMENT = "other value"
+    DOTENV_TEXT = f"""
+{CONFIG_KEY_1}={REPLACEMENT}
+IGNORED=bogus
+"""
+    dotenv_file = temp_dir / ".env"
+    dotenv_file.write_text(DOTENV_TEXT)
+
+    config_yaml = W_ENVIRONMENT_MAPPING_INSTALLATION_CONFIG_YAML
+    yaml_file = temp_dir / "installation.yaml"
+    yaml_file.write_text(config_yaml)
+
+    expected_kw = W_ENVIRONMENT_INSTALLATION_CONFIG_KW.copy()
+    expected_kw["environment"][CONFIG_KEY_1] = REPLACEMENT
+    expected = config.InstallationConfig(**expected_kw)
+    expected = dataclasses.replace(
+        expected,
+        _config_path=yaml_file,
+        oidc_paths = [temp_dir / "oidc"],
+        room_paths = [temp_dir / "rooms"],
+        completion_paths = [temp_dir / "completions"],
+        quizzes_paths = [temp_dir / "quizzes"],
+    )
 
     with yaml_file.open() as stream:
         yaml_dict = yaml.safe_load(stream)
