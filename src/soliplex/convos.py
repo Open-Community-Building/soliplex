@@ -16,9 +16,9 @@ REQUEST_CONTEXT_PARTS = ("system-prompt", "user-prompt")
 RESPONSE_CONTEXT_PARTS = ("text", )
 
 
-#==============================================================================
+# =============================================================================
 #   Impedance matching helpers for different message schemas
-#==============================================================================
+# =============================================================================
 
 class _ConvoMessage(typing_extensions.TypedDict):
     """Format of messages streamed to the client during a conversation."""
@@ -122,9 +122,9 @@ def _filter_context_messages(
     ])
 
 
-#==============================================================================
+# =============================================================================
 #   In-memory storage for room-based user conversations.
-#==============================================================================
+# =============================================================================
 
 @dataclasses.dataclass
 class Conversation:
