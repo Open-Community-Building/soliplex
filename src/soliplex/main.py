@@ -22,7 +22,7 @@ from soliplex.views import quizzes as quizzes_views
 from soliplex.views import rooms as rooms_views
 
 
-def curry_lifespan(installation_path: pathlib.Path=None):
+def curry_lifespan(installation_path: pathlib.Path = None):
     if installation_path is None:
         installation_path = os.environ.get("SOLIPLEX_INSTALLATION_PATH")
 
@@ -32,11 +32,12 @@ def curry_lifespan(installation_path: pathlib.Path=None):
     installation_path = pathlib.Path(installation_path)
 
     return functools.partial(
-        installation.lifespan, installation_path=installation_path,
+        installation.lifespan,
+        installation_path=installation_path,
     )
 
-def create_app(installation_path: pathlib.Path=None):  # pragma: NO COVER
 
+def create_app(installation_path: pathlib.Path = None):  # pragma: NO COVER
     # 'if-token-present' means nothing will be sent (and the example will work)
     # if you don't have logfire configured
     logfire.configure(send_to_logfire="if-token-present")

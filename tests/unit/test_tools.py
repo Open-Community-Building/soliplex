@@ -61,7 +61,8 @@ async def test_search_documents(
         exp_limit = w_limit
 
     found = await tools.search_documents(
-        "postal regulations", tool_config=sdt_config,
+        "postal regulations",
+        tool_config=sdt_config,
     )
 
     for f_result, (doc, i_doc) in zip(found, docs, strict=True):

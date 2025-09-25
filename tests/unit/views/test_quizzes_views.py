@@ -30,7 +30,7 @@ def qa_question():
         metadata=config.QuizQuestionMetadata(
             uuid=QA_QUESTION_UUID,
             type=QUESTION_TYPE_QA,
-        )
+        ),
     )
 
 
@@ -43,7 +43,7 @@ def mc_question():
             uuid=MC_QUESTION_UUID,
             type=QUESTION_TYPE_MC,
             options=MC_OPTIONS,
-        )
+        ),
     )
 
 
@@ -119,11 +119,11 @@ async def test_get_quiz(auth_fn, test_quiz, w_miss):
             assert found == expected_json
 
     the_installation.get_room_config.assert_called_once_with(
-        TEST_ROOM_ID, user=auth_fn.return_value,
+        TEST_ROOM_ID,
+        user=auth_fn.return_value,
     )
 
     auth_fn.assert_called_once_with(the_installation, token)
-
 
 
 @pytest.mark.anyio
@@ -178,7 +178,8 @@ async def test_post_quiz_question(auth_fn, ca, test_quiz, w_miss):
 
             if w_miss == "question":
                 ca.side_effect = quizzes.QuestionNotFound(
-                    TEST_QUIZ_ID, QA_QUESTION_UUID,
+                    TEST_QUIZ_ID,
+                    QA_QUESTION_UUID,
                 )
 
                 with pytest.raises(fastapi.HTTPException) as exc:
@@ -208,8 +209,9 @@ async def test_post_quiz_question(auth_fn, ca, test_quiz, w_miss):
                 assert found is ca.return_value
 
             ca.assert_called_once_with(
-                test_quiz, QA_QUESTION_UUID, answer.text,
+                test_quiz,
+                QA_QUESTION_UUID,
+                answer.text,
             )
-
 
     auth_fn.assert_called_once_with(the_installation, token)

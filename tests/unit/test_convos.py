@@ -78,16 +78,21 @@ TEST_CONVOS = {
 
 timestamp = datetime.datetime.now(datetime.UTC)
 system_prompt_part = ai_messages.SystemPromptPart(
-    content=SYSTEM_PROMPT, timestamp=timestamp,
+    content=SYSTEM_PROMPT,
+    timestamp=timestamp,
 )
 user_prompt_part = ai_messages.UserPromptPart(
-    content=USER_PROMPT, timestamp=timestamp,
+    content=USER_PROMPT,
+    timestamp=timestamp,
 )
 tool_return_part = ai_messages.ToolReturnPart(
-    content=TOOL_RETURN, tool_call_id=TOOL_CALL_ID, tool_name=TOOL_NAME,
+    content=TOOL_RETURN,
+    tool_call_id=TOOL_CALL_ID,
+    tool_name=TOOL_NAME,
 )
 retry_prompt_part = ai_messages.RetryPromptPart(
-    RETRY_PROMPT, timestamp=timestamp,
+    RETRY_PROMPT,
+    timestamp=timestamp,
 )
 
 text_part = ai_messages.TextPart(content=TEXT)
@@ -95,19 +100,22 @@ thinking_part = ai_messages.ThinkingPart(content=THINKING)
 tool_call_part = ai_messages.ToolCallPart(tool_name=TOOL_NAME)
 
 
-@pytest.mark.parametrize("parts, expect_none", [
-    ([system_prompt_part], True),
-    ([user_prompt_part], False),
-    ([tool_return_part], True),
-    ([retry_prompt_part], True),
-    ([system_prompt_part, tool_return_part], True),
-    ([system_prompt_part, retry_prompt_part], True),
-    ([tool_return_part, retry_prompt_part], True),
-    ([system_prompt_part, tool_return_part, retry_prompt_part], True),
-    ([system_prompt_part, user_prompt_part], False),
-    ([tool_return_part, user_prompt_part], False),
-    ([retry_prompt_part, user_prompt_part], False),
-])
+@pytest.mark.parametrize(
+    "parts, expect_none",
+    [
+        ([system_prompt_part], True),
+        ([user_prompt_part], False),
+        ([tool_return_part], True),
+        ([retry_prompt_part], True),
+        ([system_prompt_part, tool_return_part], True),
+        ([system_prompt_part, retry_prompt_part], True),
+        ([tool_return_part, retry_prompt_part], True),
+        ([system_prompt_part, tool_return_part, retry_prompt_part], True),
+        ([system_prompt_part, user_prompt_part], False),
+        ([tool_return_part, user_prompt_part], False),
+        ([retry_prompt_part, user_prompt_part], False),
+    ],
+)
 def test__to_convo_message_w_request(parts, expect_none):
     msg = ai_messages.ModelRequest(parts=parts)
 
@@ -121,15 +129,18 @@ def test__to_convo_message_w_request(parts, expect_none):
         assert found["timestamp"] == timestamp.isoformat()
 
 
-@pytest.mark.parametrize("parts, expect_none", [
-    ([text_part], False),
-    ([thinking_part, text_part], False),
-    ([tool_call_part, text_part], False),
-    ([thinking_part,tool_call_part, text_part], False),
-    ([thinking_part], True),
-    ([tool_call_part], True),
-    ([thinking_part,tool_call_part], True),
-])
+@pytest.mark.parametrize(
+    "parts, expect_none",
+    [
+        ([text_part], False),
+        ([thinking_part, text_part], False),
+        ([tool_call_part, text_part], False),
+        ([thinking_part, tool_call_part, text_part], False),
+        ([thinking_part], True),
+        ([tool_call_part], True),
+        ([thinking_part, tool_call_part], True),
+    ],
+)
 def test__to_convo_message_w_response(parts, expect_none):
     msg = ai_messages.ModelResponse(parts=parts)
 
@@ -142,19 +153,22 @@ def test__to_convo_message_w_response(parts, expect_none):
         assert found["content"] == TEXT
 
 
-@pytest.mark.parametrize("parts, expect_none", [
-    ([system_prompt_part], True),
-    ([user_prompt_part], False),
-    ([tool_return_part], True),
-    ([retry_prompt_part], True),
-    ([system_prompt_part, tool_return_part], True),
-    ([system_prompt_part, retry_prompt_part], True),
-    ([tool_return_part, retry_prompt_part], True),
-    ([system_prompt_part, tool_return_part, retry_prompt_part], True),
-    ([system_prompt_part, user_prompt_part], False),
-    ([tool_return_part, user_prompt_part], False),
-    ([retry_prompt_part, user_prompt_part], False),
-])
+@pytest.mark.parametrize(
+    "parts, expect_none",
+    [
+        ([system_prompt_part], True),
+        ([user_prompt_part], False),
+        ([tool_return_part], True),
+        ([retry_prompt_part], True),
+        ([system_prompt_part, tool_return_part], True),
+        ([system_prompt_part, retry_prompt_part], True),
+        ([tool_return_part, retry_prompt_part], True),
+        ([system_prompt_part, tool_return_part, retry_prompt_part], True),
+        ([system_prompt_part, user_prompt_part], False),
+        ([tool_return_part, user_prompt_part], False),
+        ([retry_prompt_part, user_prompt_part], False),
+    ],
+)
 def test__to_convo_history_message_w_request(parts, expect_none):
     msg = ai_messages.ModelRequest(parts=parts)
 
@@ -168,15 +182,18 @@ def test__to_convo_history_message_w_request(parts, expect_none):
         assert found["timestamp"] == timestamp.isoformat()
 
 
-@pytest.mark.parametrize("parts, expect_none", [
-    ([text_part], False),
-    ([thinking_part, text_part], False),
-    ([tool_call_part, text_part], False),
-    ([thinking_part,tool_call_part, text_part], False),
-    ([thinking_part], True),
-    ([tool_call_part], True),
-    ([thinking_part,tool_call_part], True),
-])
+@pytest.mark.parametrize(
+    "parts, expect_none",
+    [
+        ([text_part], False),
+        ([thinking_part, text_part], False),
+        ([tool_call_part, text_part], False),
+        ([thinking_part, tool_call_part, text_part], False),
+        ([thinking_part], True),
+        ([tool_call_part], True),
+        ([thinking_part, tool_call_part], True),
+    ],
+)
 def test__to_convo_history_message_w_response(parts, expect_none):
     msg = ai_messages.ModelResponse(parts=parts)
 
@@ -189,21 +206,24 @@ def test__to_convo_history_message_w_response(parts, expect_none):
         assert found["text"] == TEXT
 
 
-@pytest.mark.parametrize("parts, expect_len", [
-    ([system_prompt_part], 1),
-    ([user_prompt_part], 1),
-    ([tool_return_part], 0),
-    ([retry_prompt_part], 0),
-    ([system_prompt_part, tool_return_part], 1),
-    ([system_prompt_part, retry_prompt_part], 1),
-    ([user_prompt_part, tool_return_part], 1),
-    ([user_prompt_part, retry_prompt_part], 1),
-    ([tool_return_part, retry_prompt_part], 0),
-    ([system_prompt_part, tool_return_part, retry_prompt_part], 1),
-    ([system_prompt_part, user_prompt_part], 2),
-    ([tool_return_part, user_prompt_part], 1),
-    ([retry_prompt_part, user_prompt_part], 1),
-])
+@pytest.mark.parametrize(
+    "parts, expect_len",
+    [
+        ([system_prompt_part], 1),
+        ([user_prompt_part], 1),
+        ([tool_return_part], 0),
+        ([retry_prompt_part], 0),
+        ([system_prompt_part, tool_return_part], 1),
+        ([system_prompt_part, retry_prompt_part], 1),
+        ([user_prompt_part, tool_return_part], 1),
+        ([user_prompt_part, retry_prompt_part], 1),
+        ([tool_return_part, retry_prompt_part], 0),
+        ([system_prompt_part, tool_return_part, retry_prompt_part], 1),
+        ([system_prompt_part, user_prompt_part], 2),
+        ([tool_return_part, user_prompt_part], 1),
+        ([retry_prompt_part, user_prompt_part], 1),
+    ],
+)
 def test__filter_context_message_w_requests(parts, expect_len):
     msg = ai_messages.ModelRequest(parts=parts)
 
@@ -222,15 +242,18 @@ def test__filter_context_message_w_requests(parts, expect_len):
                 pass
 
 
-@pytest.mark.parametrize("parts, expect_none", [
-    ([text_part], False),
-    ([thinking_part, text_part], False),
-    ([tool_call_part, text_part], False),
-    ([thinking_part,tool_call_part, text_part], False),
-    ([thinking_part], True),
-    ([tool_call_part], True),
-    ([thinking_part,tool_call_part], True),
-])
+@pytest.mark.parametrize(
+    "parts, expect_none",
+    [
+        ([text_part], False),
+        ([thinking_part, text_part], False),
+        ([tool_call_part, text_part], False),
+        ([thinking_part, tool_call_part, text_part], False),
+        ([thinking_part], True),
+        ([tool_call_part], True),
+        ([thinking_part, tool_call_part], True),
+    ],
+)
 def test__filter_context_message_w_responses(parts, expect_none):
     msg = ai_messages.ModelResponse(parts=parts)
 
@@ -258,6 +281,7 @@ def test__filter_context_messages():
     assert m2.kind == "response"
     assert m2.parts == [text_part]
 
+
 @pytest.mark.anyio
 @pytest.mark.parametrize("w_none", [False, True])
 @mock.patch("soliplex.convos._to_convo_history_message")
@@ -271,7 +295,9 @@ async def test_conversation_message_history_dicts(tchm, w_none):
         assert found == []
     else:
         for f_dict, _e_msg in zip(
-            found, OLD_AI_MESSAGES, strict=True,
+            found,
+            OLD_AI_MESSAGES,
+            strict=True,
         ):
             assert f_dict is tchm.return_value
 
@@ -316,7 +342,8 @@ async def test_conversations_get_conversation(w_user, w_miss):
             mock.patch.dict(the_convos._convos, testing=TEST_CONVOS),
         ):
             found = await the_convos.get_conversation(
-                "testing", TEST_CONVO_UUID,
+                "testing",
+                TEST_CONVO_UUID,
             )
 
         assert found is TEST_CONVO
@@ -342,7 +369,8 @@ async def test_conversations_get_conversation_info(w_user, w_miss):
             mock.patch.dict(the_convos._convos, testing=TEST_CONVOS),
         ):
             found = await the_convos.get_conversation_info(
-                "testing", TEST_CONVO_UUID,
+                "testing",
+                TEST_CONVO_UUID,
             )
 
         assert found["convo_uuid"] == TEST_CONVO_UUID
@@ -350,7 +378,9 @@ async def test_conversations_get_conversation_info(w_user, w_miss):
         assert found["room_id"] == TEST_CONVO_ROOMID
 
         for f_dict, e_msg in zip(
-            found["message_history"], OLD_AI_MESSAGES, strict=True,
+            found["message_history"],
+            OLD_AI_MESSAGES,
+            strict=True,
         ):
             if isinstance(e_msg, ai_messages.ModelRequest):
                 assert f_dict["origin"] == "user"
@@ -374,7 +404,10 @@ async def test_conversations_new_conversation(w_user, w_existing):
         mock.patch.dict(the_convos._convos, **kw),
     ):
         found = await the_convos.new_conversation(
-            "testing", TEST_CONVO_ROOMID, TEST_CONVO_NAME, OLD_AI_MESSAGES,
+            "testing",
+            TEST_CONVO_ROOMID,
+            TEST_CONVO_NAME,
+            OLD_AI_MESSAGES,
         )
 
     assert isinstance(found["convo_uuid"], str)
@@ -382,7 +415,9 @@ async def test_conversations_new_conversation(w_user, w_existing):
     assert found["room_id"] == TEST_CONVO_ROOMID
 
     for f_dict, e_msg in zip(
-        found["message_history"], OLD_AI_MESSAGES, strict=True,
+        found["message_history"],
+        OLD_AI_MESSAGES,
+        strict=True,
     ):
         if isinstance(e_msg, ai_messages.ModelRequest):
             assert f_dict["origin"] == "user"
@@ -404,12 +439,14 @@ async def test_conversations_append_to_conversation(w_user, w_miss):
         room_id=TEST_CONVO_ROOMID,
         message_history=OLD_AI_MESSAGES[:],
     )
-    testing = {TEST_CONVO_UUID: to_be_appended }
+    testing = {TEST_CONVO_UUID: to_be_appended}
 
     if not w_user:
         with pytest.raises(convos.NoUserConversations):
             await the_convos.append_to_conversation(
-                "nonesuch", TEST_CONVO_UUID, NEW_AI_MESSAGES,
+                "nonesuch",
+                TEST_CONVO_UUID,
+                NEW_AI_MESSAGES,
             )
     elif w_miss:
         with (
@@ -417,14 +454,18 @@ async def test_conversations_append_to_conversation(w_user, w_miss):
             pytest.raises(convos.UnknownConversation),
         ):
             await the_convos.append_to_conversation(
-                "testing", TEST_CONVO_UUID, NEW_AI_MESSAGES,
+                "testing",
+                TEST_CONVO_UUID,
+                NEW_AI_MESSAGES,
             )
     else:
         with (
             mock.patch.dict(the_convos._convos, testing=testing),
         ):
             await the_convos.append_to_conversation(
-                "testing", TEST_CONVO_UUID, NEW_AI_MESSAGES,
+                "testing",
+                TEST_CONVO_UUID,
+                NEW_AI_MESSAGES,
             )
 
             assert to_be_appended.message_history == (
@@ -444,7 +485,7 @@ async def test_conversations_delete_conversation(w_user, w_miss):
         room_id=TEST_CONVO_ROOMID,
         message_history=OLD_AI_MESSAGES[:],
     )
-    testing = {TEST_CONVO_UUID: to_be_deleted }
+    testing = {TEST_CONVO_UUID: to_be_deleted}
 
     if not w_user:
         with pytest.raises(convos.NoUserConversations):

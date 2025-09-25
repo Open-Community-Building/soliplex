@@ -1,4 +1,3 @@
-
 import fastapi
 from fastapi import responses
 from fastapi import security
@@ -11,15 +10,15 @@ from soliplex import util
 
 router = fastapi.APIRouter()
 
+depend_the_installation = installation.depend_the_installation
+
 
 @util.logfire_span("GET /v1/rooms")
 @router.get("/v1/rooms")
 async def get_rooms(
     request: fastapi.Request,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    the_installation: installation.Installation = depend_the_installation,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.ConfiguredRooms:
     user = auth.authenticate(the_installation, token)
     room_configs = the_installation.get_room_configs(user)
@@ -31,8 +30,7 @@ async def get_rooms(
     rc_items = sorted(room_configs.items(), key=_key)
 
     return {
-        room_id: models.Room.from_config(room)
-        for room_id, room in rc_items
+        room_id: models.Room.from_config(room) for room_id, room in rc_items
     }
 
 
@@ -41,10 +39,8 @@ async def get_rooms(
 async def get_room(
     request: fastapi.Request,
     room_id: str,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    the_installation: installation.Installation = depend_the_installation,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.Room:
     user = auth.authenticate(the_installation, token)
 
@@ -52,7 +48,8 @@ async def get_room(
         room_config = the_installation.get_room_config(room_id, user)
     except KeyError:
         raise fastapi.HTTPException(
-            status_code=404, detail=f"No such room: {room_id}",
+            status_code=404,
+            detail=f"No such room: {room_id}",
         ) from None
 
     return models.Room.from_config(room_config)
@@ -66,10 +63,8 @@ async def get_room(
 async def get_room_bg_image(
     request: fastapi.Request,
     room_id: str,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    the_installation: installation.Installation = depend_the_installation,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ):
     user = auth.authenticate(the_installation, token)
 
@@ -77,14 +72,16 @@ async def get_room_bg_image(
         room_config = the_installation.get_room_config(room_id, user)
     except KeyError:
         raise fastapi.HTTPException(
-            status_code=404, detail=f"No such room: {room_id}",
+            status_code=404,
+            detail=f"No such room: {room_id}",
         ) from None
 
     logo_image = room_config.get_logo_image()
 
     if logo_image is None:
         raise fastapi.HTTPException(
-            status_code=404, detail="No image for room",
+            status_code=404,
+            detail="No image for room",
         )
 
     return str(logo_image)
@@ -95,10 +92,8 @@ async def get_room_bg_image(
 async def get_room_mcp_token(
     request: fastapi.Request,
     room_id: str,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    the_installation: installation.Installation = depend_the_installation,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ):
     user = auth.authenticate(the_installation, token)
 
@@ -106,7 +101,8 @@ async def get_room_mcp_token(
         the_installation.get_room_config(room_id, user=user)
     except ValueError as e:
         raise fastapi.HTTPException(
-            status_code=404, detail=str(e),
+            status_code=404,
+            detail=str(e),
         ) from None
 
     token = mcp_auth.generate_url_safe_token(room_id, **user)

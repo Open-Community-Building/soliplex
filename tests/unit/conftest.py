@@ -15,7 +15,8 @@ def _auth_systems(n_auth_systems):
             title=f"Auth System #{i_auth_system}",
             token_validation_pem=f"PEM {i_auth_system:3d}",
             oauth_client_kwargs={"name": f"auth_system_{i_auth_system:03}"},
-        ) for i_auth_system in range(n_auth_systems)
+        )
+        for i_auth_system in range(n_auth_systems)
     ]
 
 

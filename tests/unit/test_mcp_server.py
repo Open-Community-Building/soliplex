@@ -44,7 +44,7 @@ TOOL_CONFIG_WO_MCP = mock.create_autospec(
     tool=tool_for_testing,
     tool_id="mcp_false_bare",
     allow_mcp=False,
-    tool_requires = config.ToolRequires.BARE,
+    tool_requires=config.ToolRequires.BARE,
 )
 TOOL_CONFIG_W_MCP_WO_REQ_CTX = mock.create_autospec(
     config.ToolConfig,
@@ -52,7 +52,7 @@ TOOL_CONFIG_W_MCP_WO_REQ_CTX = mock.create_autospec(
     tool=tool_for_testing,
     allow_mcp=True,
     tool_id="mcp_true_bare",
-    tool_requires = config.ToolRequires.BARE,
+    tool_requires=config.ToolRequires.BARE,
 )
 TOOL_CONFIG_W_MCP_W_REQ_CTX = mock.create_autospec(
     config.ToolConfig,
@@ -60,7 +60,7 @@ TOOL_CONFIG_W_MCP_W_REQ_CTX = mock.create_autospec(
     tool=tool_for_testing,
     tool_id="mcp_true_w_ctx",
     allow_mcp=True,
-    tool_requires = config.ToolRequires.FASTAPI_CONTEXT,
+    tool_requires=config.ToolRequires.FASTAPI_CONTEXT,
 )
 
 SDTC_WO_MCP = mock.create_autospec(
@@ -69,7 +69,7 @@ SDTC_WO_MCP = mock.create_autospec(
     tool=tool_for_testing,
     allow_mcp=False,
     tool_id="mcp_false_sdtc",
-    tool_requires = config.ToolRequires.TOOL_CONFIG,
+    tool_requires=config.ToolRequires.TOOL_CONFIG,
 )
 SDTC_W_MCP = mock.create_autospec(
     config.SearchDocumentsToolConfig,
@@ -77,19 +77,22 @@ SDTC_W_MCP = mock.create_autospec(
     tool=tool_for_testing,
     allow_mcp=True,
     tool_id="mcp_true_sdtc",
-    tool_requires = config.ToolRequires.TOOL_CONFIG,
+    tool_requires=config.ToolRequires.TOOL_CONFIG,
 )
 
 MCP_TOOL = object()
 
 
-@pytest.mark.parametrize("tool_config, hit, wrapper_type", [
-    (TOOL_CONFIG_WO_MCP, False, None),
-    (TOOL_CONFIG_W_MCP_W_REQ_CTX, False, None),
-    (TOOL_CONFIG_W_MCP_WO_REQ_CTX, True, None),
-    (SDTC_WO_MCP, False, None),
-    (SDTC_W_MCP, True, mcp_server.WithQueryMCPWrapper),
-])
+@pytest.mark.parametrize(
+    "tool_config, hit, wrapper_type",
+    [
+        (TOOL_CONFIG_WO_MCP, False, None),
+        (TOOL_CONFIG_W_MCP_W_REQ_CTX, False, None),
+        (TOOL_CONFIG_W_MCP_WO_REQ_CTX, True, None),
+        (SDTC_WO_MCP, False, None),
+        (SDTC_W_MCP, True, mcp_server.WithQueryMCPWrapper),
+    ],
+)
 def test_mcp_tool(tool_config, hit, wrapper_type):
     found = mcp_server.mcp_tool(tool_config)
 
@@ -110,18 +113,21 @@ def test_mcp_tool(tool_config, hit, wrapper_type):
 
 
 @pytest.mark.parametrize("allow_mcp", [False, True])
-@pytest.mark.parametrize("tool_configs, exp_mcp_tools", [
-    ({}, []),
-    ({"tool": TOOL_CONFIG_WO_MCP}, []),
-    ({"tool": TOOL_CONFIG_W_MCP_WO_REQ_CTX}, [MCP_TOOL]),
-    (
-        {
-            "tool1": TOOL_CONFIG_WO_MCP,
-            "tool2": TOOL_CONFIG_W_MCP_WO_REQ_CTX,
-        },
-        [MCP_TOOL]
-    ),
-])
+@pytest.mark.parametrize(
+    "tool_configs, exp_mcp_tools",
+    [
+        ({}, []),
+        ({"tool": TOOL_CONFIG_WO_MCP}, []),
+        ({"tool": TOOL_CONFIG_W_MCP_WO_REQ_CTX}, [MCP_TOOL]),
+        (
+            {
+                "tool1": TOOL_CONFIG_WO_MCP,
+                "tool2": TOOL_CONFIG_W_MCP_WO_REQ_CTX,
+            },
+            [MCP_TOOL],
+        ),
+    ],
+)
 @mock.patch("soliplex.mcp_server.mcp_tool")
 def test_room_mcp_tools(mcp_tool, tool_configs, exp_mcp_tools, allow_mcp):
     mcp_tool.side_effect = lambda tc: MCP_TOOL if tc.allow_mcp else None
@@ -163,15 +169,21 @@ def test_setup_mcp_for_rooms(fmcp_klass, fmtp_klass, rmt, w_max_age):
 
     assert set(found) == set(room_configs) - set(["room3"])  # keys
 
-    for (f_key, f_mcp_http) in found.items():
+    for f_key, f_mcp_http in found.items():
         assert f_mcp_http is fmcp_klass.return_value.http_app.return_value
-        assert mock.call(
-            f_key, tools=rmt.return_value, auth=fmtp_klass.return_value
-        ) in fmcp_klass.call_args_list
+        assert (
+            mock.call(
+                f_key, tools=rmt.return_value, auth=fmtp_klass.return_value
+            )
+            in fmcp_klass.call_args_list
+        )
         assert mock.call(room_configs[f_key]) in rmt.call_args_list
 
-        assert mock.call(
-            room_id=f_key,
-            the_installation=the_installation,
-            max_age=exp_max_age,
-        ) in fmtp_klass.call_args_list
+        assert (
+            mock.call(
+                room_id=f_key,
+                the_installation=the_installation,
+                max_age=exp_max_age,
+            )
+            in fmtp_klass.call_args_list
+        )

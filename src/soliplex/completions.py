@@ -15,7 +15,7 @@ def openai_chunk_repr(model, i_chunk, chunk):
         "id": str(i_chunk),
         "object": "chat.completion.chunk",
         "service_tier": "default",
-        "system_fingerprint":"ragserver",
+        "system_fingerprint": "ragserver",
         "usage": None,
         "created": int(time.time()),
         "model": model,
@@ -23,12 +23,12 @@ def openai_chunk_repr(model, i_chunk, chunk):
             {
                 "delta": {
                     "content": chunk,
-                    "function_call":None,
-                    "refusal":None,
-                    "role":None,
-                    "tool_calls":None,
+                    "function_call": None,
+                    "refusal": None,
+                    "role": None,
+                    "tool_calls": None,
                 },
-                "finish_reason":"stop",
+                "finish_reason": "stop",
                 "index": i_chunk,
                 "logprobs": None,
             }
@@ -43,13 +43,11 @@ async def stream_chat_responses(
     user_question: str,
     message_history: list[ai_messages.ModelMessage],
 ):
-
     async with agent.run_stream(
         user_question,
         message_history=message_history,
         deps=agent_deps,
     ) as response:
-
         i_chunk = 0
         place = 0
 
@@ -81,14 +79,15 @@ async def openai_chat_completion(
     try:
         return responses.StreamingResponse(
             stream_chat_responses(
-                agent, agent_deps, user_question, message_history,
+                agent,
+                agent_deps,
+                user_question,
+                message_history,
             ),
             media_type="text/event-stream",
         )
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
         raise fastapi.HTTPException(
-            status_code=500,
-            detail="An internal server error occurred."
+            status_code=500, detail="An internal server error occurred."
         ) from None
-

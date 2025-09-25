@@ -11,16 +11,16 @@ from soliplex import util
 
 router = fastapi.APIRouter()
 
+depend_the_installation = installation.depend_the_installation
+
 
 @router.get("/v1/rooms/{room_id}/quiz/{quiz_id}", response_model=None)
 async def get_quiz(
     request: fastapi.Request,
     room_id: str,
     quiz_id: str,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    the_installation: installation.Installation = depend_the_installation,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ):
     user = auth.authenticate(the_installation, token)
 
@@ -28,14 +28,16 @@ async def get_quiz(
         room_config = the_installation.get_room_config(room_id, user=user)
     except ValueError as e:
         raise fastapi.HTTPException(
-            status_code=404, detail=str(e),
+            status_code=404,
+            detail=str(e),
         ) from None
 
     try:
         quiz = room_config.quiz_map[quiz_id]
     except KeyError as e:
         raise fastapi.HTTPException(
-            status_code=404, detail=str(e),
+            status_code=404,
+            detail=str(e),
         ) from None
 
     # Remove the `_installation_config` to avoid infinite recursion
@@ -43,8 +45,7 @@ async def get_quiz(
     info = dataclasses.asdict(q_copy)
 
     info["questions"] = [
-        dataclasses.asdict(question)
-        for question in quiz.get_questions()
+        dataclasses.asdict(question) for question in quiz.get_questions()
     ]
     return util.scrub_private_keys(info)
 
@@ -59,10 +60,8 @@ async def post_quiz_question(
     quiz_id: str,
     question_uuid: str,
     answer: models.UserPromptClientMessage,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    the_installation: installation.Installation = depend_the_installation,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ):
     user = auth.authenticate(the_installation, token)
 
@@ -70,19 +69,22 @@ async def post_quiz_question(
         room_config = the_installation.get_room_config(room_id, user=user)
     except ValueError as e:
         raise fastapi.HTTPException(
-            status_code=404, detail=str(e),
+            status_code=404,
+            detail=str(e),
         ) from None
 
     try:
         quiz = room_config.quiz_map[quiz_id]
     except KeyError as e:
         raise fastapi.HTTPException(
-            status_code=404, detail=str(e),
+            status_code=404,
+            detail=str(e),
         ) from None
 
     try:
         return await quizzes.check_answer(quiz, question_uuid, answer.text)
     except quizzes.QuestionNotFound as e:
         raise fastapi.HTTPException(
-            status_code=404, detail=str(e),
+            status_code=404,
+            detail=str(e),
         ) from None

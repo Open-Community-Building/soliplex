@@ -1,4 +1,3 @@
-
 import fastapi
 from authlib.integrations import starlette_client
 from fastapi import responses
@@ -11,17 +10,20 @@ from soliplex import util
 
 router = fastapi.APIRouter()
 
+depend_the_installation = installation.depend_the_installation
+
+
 @router.get("/login")
 async def get_login(
-    the_installation: installation.Installation=
-        installation.depend_the_installation,
+    the_installation: installation.Installation = depend_the_installation,
 ):
     return {
         "systems": [
             {
                 "id": auth_system.id,
                 "title": auth_system.title,
-            } for auth_system in the_installation.oidc_auth_system_configs
+            }
+            for auth_system in the_installation.oidc_auth_system_configs
         ]
     }
 
@@ -31,8 +33,7 @@ async def get_login(
 async def get_login_system(
     request: fastapi.Request,
     system: str,
-    the_installation: installation.Installation=
-        installation.depend_the_installation,
+    the_installation: installation.Installation = depend_the_installation,
 ):
     if the_installation.auth_disabled:
         raise fastapi.HTTPException(
@@ -56,8 +57,7 @@ async def get_login_system(
 async def get_auth_system(
     request: fastapi.Request,
     system: str,
-    the_installation: installation.Installation=
-        installation.depend_the_installation,
+    the_installation: installation.Installation = depend_the_installation,
 ):
     if the_installation.auth_disabled:
         raise fastapi.HTTPException(
@@ -72,8 +72,7 @@ async def get_auth_system(
         tokendict = await oauth_app.authorize_access_token(request)
     except starlette_client.OAuthError as e:
         raise fastapi.HTTPException(
-            status_code=401,
-            detail=f"JWT validation failed {e}"
+            status_code=401, detail=f"JWT validation failed {e}"
         ) from None
 
     access_token = tokendict["access_token"]
@@ -95,14 +94,13 @@ async def get_auth_system(
 
 @router.get("/get_user_info")
 async def get_user_info(
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
-    token: security.HTTPAuthorizationCredentials=auth.oauth2_predicate,
+    the_installation: installation.Installation = depend_the_installation,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.UserInfo:
     if the_installation.auth_disabled:
         raise fastapi.HTTPException(
             status_code=404,
             detail="system in no-auth mode",
         )
-    
+
     return auth.authenticate(the_installation, token)

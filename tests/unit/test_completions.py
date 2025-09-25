@@ -68,13 +68,13 @@ def test_openai_chunk_repr(time_module):
     assert found.startswith("data: ")
     assert found.endswith("\n\n")
 
-    dumped = json.loads(found[len("data: "):-len("\n\n")])
+    dumped = json.loads(found[len("data: ") : -len("\n\n")])
 
     assert dumped["id"] == "999"
     assert dumped["model"] == MODEL
     assert dumped["created"] == 123456
 
-    choice, = dumped["choices"]
+    (choice,) = dumped["choices"]
     assert choice["index"] == 999
     assert choice["delta"]["content"] == CHUNK
 
@@ -100,7 +100,7 @@ async def test_stream_chat_responses(ocr, n_chunks):
 
     i_chunk = 1
     while remaining:
-        chunk = TEXT[:i_chunk * chunk_len]
+        chunk = TEXT[: i_chunk * chunk_len]
         remaining = remaining[chunk_len:]
         chunks.append(chunk)
         i_chunk += 1
@@ -116,7 +116,10 @@ async def test_stream_chat_responses(ocr, n_chunks):
     chunk_reprs = []
 
     async for cr in completions.stream_chat_responses(
-        agent, agent_deps, QUESTION, HISTORY,
+        agent,
+        agent_deps,
+        QUESTION,
+        HISTORY,
     ):
         chunk_reprs.append(cr)
 
@@ -124,15 +127,22 @@ async def test_stream_chat_responses(ocr, n_chunks):
 
     assert done_repr == "data: [DONE]\n\n"
 
-    for i_cr, (cr, ocr_call, chunk) in enumerate(zip(
-        chunk_reprs, ocr.call_args_list, chunks, strict=True,
-    )):
+    for i_cr, (cr, ocr_call, chunk) in enumerate(
+        zip(
+            chunk_reprs,
+            ocr.call_args_list,
+            chunks,
+            strict=True,
+        )
+    ):
         assert cr is ocr.return_value
         start_index = i_cr * chunk_len
         assert ocr_call.args == (MODEL, i_cr, chunk[start_index:])
 
     rs.assert_called_once_with(
-        QUESTION, message_history=HISTORY, deps=agent_deps,
+        QUESTION,
+        message_history=HISTORY,
+        deps=agent_deps,
     )
 
 
@@ -142,7 +152,6 @@ async def test_stream_chat_responses(ocr, n_chunks):
 @mock.patch("soliplex.completions.stream_chat_responses")
 @mock.patch("fastapi.responses.StreamingResponse")
 async def test_openai_chat_completion(sr_class, scp, w_history, w_exception):
-
     CR_MESSAGES = [
         {
             "role": "user",
@@ -153,10 +162,13 @@ async def test_openai_chat_completion(sr_class, scp, w_history, w_exception):
     agent_deps = mock.Mock(spec_set=())
 
     if w_history:
-        CR_MESSAGES.insert(0, {
-            "role": "model",
-            "content": "hello",
-        })
+        CR_MESSAGES.insert(
+            0,
+            {
+                "role": "model",
+                "content": "hello",
+            },
+        )
 
     chat_request = mock.create_autospec(models.ChatCompletionRequest)
     chat_request.model_dump.return_value = {
@@ -170,20 +182,24 @@ async def test_openai_chat_completion(sr_class, scp, w_history, w_exception):
     if w_exception:
         with pytest.raises(fastapi.HTTPException):
             await completions.openai_chat_completion(
-                agent, agent_deps, chat_request,
+                agent,
+                agent_deps,
+                chat_request,
             )
         return
     else:
         response = await completions.openai_chat_completion(
-            agent, agent_deps, chat_request,
+            agent,
+            agent_deps,
+            chat_request,
         )
 
     assert response is sr_class.return_value
 
     sr_class.assert_called_once_with(
-        scp.return_value, media_type="text/event-stream",
+        scp.return_value,
+        media_type="text/event-stream",
     )
 
     # TODO not passing history
     scp.assert_called_once_with(agent, agent_deps, "Why is blue?", [])
-

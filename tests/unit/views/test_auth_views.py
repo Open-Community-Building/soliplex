@@ -53,17 +53,21 @@ async def test_get_login_system(get_oauth, w_return_to, w_auth_disabled):
         qs = ""
         exp_path = "/"
 
-    request = fastapi.Request(scope={
-        "type": "http",
-        "query_string": qs,
-    })
+    request = fastapi.Request(
+        scope={
+            "type": "http",
+            "query_string": qs,
+        }
+    )
     ruf = request.url_for = mock.Mock(spec_set=())
     rqp = ruf.return_value.replace_query_params
 
     if w_auth_disabled:
         with pytest.raises(fastapi.HTTPException) as exc:
             await auth_views.get_login_system(
-                request, system, the_installation,
+                request,
+                system,
+                the_installation,
             )
 
         assert exc.value.status_code == 404
@@ -77,7 +81,9 @@ async def test_get_login_system(get_oauth, w_return_to, w_auth_disabled):
 
     else:
         found = await auth_views.get_login_system(
-            request, system, the_installation,
+            request,
+            system,
+            the_installation,
         )
 
         assert found is oidc.authorize_redirect.return_value
@@ -95,7 +101,11 @@ async def test_get_login_system(get_oauth, w_return_to, w_auth_disabled):
 @mock.patch("soliplex.auth.get_oauth")
 @mock.patch("soliplex.auth.authenticate")
 async def test_get_auth_system(
-    auth_fn, get_oauth, w_error, w_return_to, w_auth_disabled,
+    auth_fn,
+    get_oauth,
+    w_error,
+    w_return_to,
+    w_auth_disabled,
 ):
     system = "test_oauth_appname"
     the_installation = mock.create_autospec(installation.Installation)
@@ -109,10 +119,10 @@ async def test_get_auth_system(
         aat.side_effect = starlette_client.OAuthError("testing")
     else:
         aat.return_value = {
-            "access_token":"TOKEN",
-            "refresh_token":"RTOKEN",
-            "expires_in":"EXPIRES_IN",
-            "refresh_expires_in":"REFRESH_EXPIRES_IN",
+            "access_token": "TOKEN",
+            "refresh_token": "RTOKEN",
+            "expires_in": "EXPIRES_IN",
+            "refresh_expires_in": "REFRESH_EXPIRES_IN",
         }
 
     if w_error == "authenticate":
@@ -129,20 +139,22 @@ async def test_get_auth_system(
         exp_path = (
             "/another/path?token=TOKEN&refresh_token=RTOKEN"
             "&expires_in=EXPIRES_IN&refresh_expires_in=REFRESH_EXPIRES_IN"
-            )
+        )
         qs = "return_to=/another/path"
     else:
         exp_path = (
             "/?token=TOKEN&refresh_token=RTOKEN"
             "&expires_in=EXPIRES_IN&refresh_expires_in=REFRESH_EXPIRES_IN"
-            )
+        )
         qs = ""
 
-    request = fastapi.Request(scope={
-        "type": "http",
-        "query_string": qs,
-        "session": session,
-    })
+    request = fastapi.Request(
+        scope={
+            "type": "http",
+            "query_string": qs,
+            "session": session,
+        }
+    )
 
     aat = oidc.authorize_access_token = mock.AsyncMock()
 
@@ -150,16 +162,18 @@ async def test_get_auth_system(
         aat.side_effect = starlette_client.OAuthError("testing")
     else:
         aat.return_value = {
-            "access_token":"TOKEN",
-            "refresh_token":"RTOKEN",
-            "expires_in":"EXPIRES_IN",
-            "refresh_expires_in":"REFRESH_EXPIRES_IN",
-            }
+            "access_token": "TOKEN",
+            "refresh_token": "RTOKEN",
+            "expires_in": "EXPIRES_IN",
+            "refresh_expires_in": "REFRESH_EXPIRES_IN",
+        }
 
     if w_auth_disabled:
         with pytest.raises(fastapi.HTTPException) as exc:
             await auth_views.get_auth_system(
-                request, system, the_installation,
+                request,
+                system,
+                the_installation,
             )
 
         assert exc.value.status_code == 404
@@ -173,13 +187,17 @@ async def test_get_auth_system(
         if w_error is not None:
             with pytest.raises(fastapi.HTTPException) as exc:
                 await auth_views.get_auth_system(
-                    request, system, the_installation,
+                    request,
+                    system,
+                    the_installation,
                 )
 
             assert exc.value.status_code == 401
         else:
             response = await auth_views.get_auth_system(
-                request, system, the_installation,
+                request,
+                system,
+                the_installation,
             )
 
             assert isinstance(response, responses.RedirectResponse)

@@ -37,7 +37,9 @@ def generate_url_safe_token(salt: str, **kw) -> str:
     return serializer.dumps(kw)
 
 
-def validate_url_safe_token(salt: str, token: str, max_age: int=None) -> dict:
+def validate_url_safe_token(
+    salt: str, token: str, max_age: int = None
+) -> dict:
     """Validate a signed token for a given context
 
     'salt':
@@ -67,7 +69,6 @@ def validate_url_safe_token(salt: str, token: str, max_age: int=None) -> dict:
 
 
 class FastMCPTokenProvider(fmcp_server_auth.TokenVerifier):
-
     room_id: str
     max_age: int = None
 
@@ -84,14 +85,16 @@ class FastMCPTokenProvider(fmcp_server_auth.TokenVerifier):
         super().__init__()
 
     async def verify_token(
-        self, token: str,
+        self,
+        token: str,
     ) -> mcp_auth_provider.AccessToken | None:
-
         if self.auth_disabled:
             validated = token
         else:
             validated = validate_url_safe_token(
-                self.room_id, token, max_age=self.max_age,
+                self.room_id,
+                token,
+                max_age=self.max_age,
             )
 
         if validated is not None:

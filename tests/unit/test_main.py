@@ -18,12 +18,14 @@ def inst_path_kwargs(request):
     return kw
 
 
-@pytest.mark.parametrize("env_patch", [
-    {},
-    {"SOLIPLEX_INSTALLATION_PATH": ENVIRON_INST_PATH},
-])
+@pytest.mark.parametrize(
+    "env_patch",
+    [
+        {},
+        {"SOLIPLEX_INSTALLATION_PATH": ENVIRON_INST_PATH},
+    ],
+)
 def test_curry_lifespan(inst_path_kwargs, env_patch):
-
     with mock.patch.dict("os.environ", clear=True, **env_patch):
         found = main.curry_lifespan(**inst_path_kwargs)
 

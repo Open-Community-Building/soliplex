@@ -3,6 +3,7 @@
 If / when we move to a "persistent" history store, this module should firewall
 that choice away from the rest of the system.
 """
+
 import asyncio
 import dataclasses
 import typing
@@ -13,15 +14,17 @@ import typing_extensions
 from pydantic_ai import messages as ai_messages
 
 REQUEST_CONTEXT_PARTS = ("system-prompt", "user-prompt")
-RESPONSE_CONTEXT_PARTS = ("text", )
+RESPONSE_CONTEXT_PARTS = ("text",)
 
 
 # =============================================================================
 #   Impedance matching helpers for different message schemas
 # =============================================================================
 
+
 class _ConvoMessage(typing_extensions.TypedDict):
     """Format of messages streamed to the client during a conversation."""
+
     role: typing.Literal["user", "model"]
     timestamp: str
     content: str
@@ -59,6 +62,7 @@ def _to_convo_message(m: ai_messages.ModelMessage) -> _ConvoMessage | None:
 
 class _ConvoHistoryMessage(typing_extensions.TypedDict):
     """Format for messages fetched from a convo history."""
+
     origin: typing.Literal["user", "llm"]
     text: str
     timestamp: str | None
@@ -91,7 +95,8 @@ def _filter_context_message(
 ) -> ai_messages.ModelMessage | None:
     if isinstance(message, ai_messages.ModelRequest):
         context_parts = [
-            part for part in message.parts
+            part
+            for part in message.parts
             if part.part_kind in REQUEST_CONTEXT_PARTS
         ]
         if len(context_parts) > 0:
@@ -101,7 +106,8 @@ def _filter_context_message(
             )
     elif isinstance(message, ai_messages.ModelResponse):
         context_parts = [
-            part for part in message.parts
+            part
+            for part in message.parts
             if part.part_kind in RESPONSE_CONTEXT_PARTS
         ]
         if len(context_parts) > 0:
@@ -117,18 +123,20 @@ def _filter_context_message(
 def _filter_context_messages(
     messages: list[ai_messages.ModelMessage],
 ) -> list[ai_messages.ModelMessage]:
-    return filter(None, [
-        _filter_context_message(message) for message in messages
-    ])
+    return filter(
+        None, [_filter_context_message(message) for message in messages]
+    )
 
 
 # =============================================================================
 #   In-memory storage for room-based user conversations.
 # =============================================================================
 
+
 @dataclasses.dataclass
 class Conversation:
     """Conversation w/ message history for a user / room."""
+
     name: str
     room_id: str
     message_history: list[ai_messages.ModelMessage]
@@ -157,24 +165,22 @@ class UnknownConversation(fastapi.HTTPException):
     def __init__(self, user_name: str, convo_uuid: str):
         self.user_name = user_name
         self.convo_uuid = convo_uuid
-        super().__init__(
-            status_code=404,
-            detail=
-                f"Unknown conversation UUID: {convo_uuid} for user {user_name}"
+        message = (
+            f"Unknown conversation UUID: {convo_uuid} for user {user_name}"
         )
+        super().__init__(status_code=404, detail=message)
 
 
 class Conversations:
-
     def __init__(self):
         self._lock = asyncio.Lock()
         # {user_name -> {convo_uuid: Conversation}}
         self._convos = {}
 
     async def _find_user_conversations(
-        self, user_name: str,
+        self,
+        user_name: str,
     ) -> dict[str, Conversation]:
-
         user_convos = self._convos.get(user_name)
 
         if user_convos is None:
@@ -183,9 +189,10 @@ class Conversations:
         return user_convos.copy()
 
     async def _find_conversation(
-        self, user_name: str, convo_uuid: str,
+        self,
+        user_name: str,
+        convo_uuid: str,
     ) -> Conversation:
-
         user_convos = self._convos.get(user_name)
 
         if user_convos is None:
@@ -211,7 +218,9 @@ class Conversations:
             }
 
     async def get_conversation(
-        self, user_name: str, convo_uuid: str,
+        self,
+        user_name: str,
+        convo_uuid: str,
     ) -> dict:
         """Return the actual conversation instance
 
@@ -221,7 +230,9 @@ class Conversations:
             return await self._find_conversation(user_name, convo_uuid)
 
     async def get_conversation_info(
-        self, user_name: str, convo_uuid: str,
+        self,
+        user_name: str,
+        convo_uuid: str,
     ) -> dict:
         async with self._lock:
             convo = await self._find_conversation(user_name, convo_uuid)
@@ -243,7 +254,7 @@ class Conversations:
         user_name: str,
         room_id: str,
         convo_name: str,
-        new_messages: list[ai_messages.ModelMessage]=(),
+        new_messages: list[ai_messages.ModelMessage] = (),
     ) -> None:
         """Create a new conversation"""
         convo = Conversation(
@@ -282,7 +293,9 @@ class Conversations:
             convo.message_history.extend(new_messages)
 
     async def delete_conversation(
-        self, user_name: str, convo_uuid: str,
+        self,
+        user_name: str,
+        convo_uuid: str,
     ) -> None:
         """Remove a conversation"""
         async with self._lock:
@@ -290,13 +303,12 @@ class Conversations:
             try:
                 del convos[convo_uuid]
             except KeyError:
-                raise UnknownConversation(
-                    user_name, convo_uuid
-                ) from  None
+                raise UnknownConversation(user_name, convo_uuid) from None
             self._convos[user_name] = convos
 
 
 async def get_the_convos(request: fastapi.Request) -> Conversations:
     return request.state.the_convos
+
 
 depend_the_convos = fastapi.Depends(get_the_convos)

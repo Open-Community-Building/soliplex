@@ -109,7 +109,6 @@ async def get_chunks(**kwargs):
 
 
 async def _check_streaming_response(found):
-
     found_messages = []
 
     async def consume_streamed_messages(message):
@@ -148,15 +147,22 @@ async def _check_streaming_response(found):
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("w_auth_user, exp_user", [
-    ({}, UNKNOWN_USER),
-    (AUTH_USER, AUTH_USER),
-])
+@pytest.mark.parametrize(
+    "w_auth_user, exp_user",
+    [
+        ({}, UNKNOWN_USER),
+        (AUTH_USER, AUTH_USER),
+    ],
+)
 @pytest.mark.parametrize("w_error", [False, True])
 @mock.patch("soliplex.convos._filter_context_messages")
 @mock.patch("soliplex.auth.authenticate")
 async def test_post_convos_new(
-    auth_fn, fcm, w_error, w_auth_user, exp_user,
+    auth_fn,
+    fcm,
+    w_error,
+    w_auth_user,
+    exp_user,
 ):
     auth_fn.return_value = w_auth_user
 
@@ -164,11 +170,13 @@ async def test_post_convos_new(
         scope={"type": "http"},
     )
     convo_msg = models.NewConvoClientMessage(
-        text=USER_PROMPT, room_id=TEST_CONVO_ROOMID,
+        text=USER_PROMPT,
+        room_id=TEST_CONVO_ROOMID,
     )
     the_installation = _make_the_installation()
     the_convos = mock.create_autospec(
-        convos.Conversations, instance=True,
+        convos.Conversations,
+        instance=True,
     )
     token = object()
 
@@ -178,7 +186,6 @@ async def test_post_convos_new(
         gafr.side_effect = KeyError("testing")
 
     if w_error:
-
         with pytest.raises(fastapi.HTTPException):
             await convos_views.post_convos_new(
                 request=request,
@@ -198,7 +205,8 @@ async def test_post_convos_new(
         ctx_result.get_output.return_value = "Who knows? Not me!"
         ctx_result.timestamp = mock.Mock(spec_set=(), return_value=NOW)
         ctx_result.new_messages = mock.Mock(
-            spec_set=(), return_value=NEW_AI_MESSAGES,
+            spec_set=(),
+            return_value=NEW_AI_MESSAGES,
         )
 
         found = await convos_views.post_convos_new(
@@ -230,7 +238,8 @@ async def test_post_convos_new(
             fcm.return_value,
         )
         gafr.assert_called_once_with(
-            TEST_CONVO_ROOMID, user=w_auth_user,
+            TEST_CONVO_ROOMID,
+            user=w_auth_user,
         )
 
         fcm.assert_called_once_with(NEW_AI_MESSAGES)
@@ -239,15 +248,22 @@ async def test_post_convos_new(
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("w_auth_user, exp_user", [
-    ({}, UNKNOWN_USER),
-    (AUTH_USER, AUTH_USER),
-])
+@pytest.mark.parametrize(
+    "w_auth_user, exp_user",
+    [
+        ({}, UNKNOWN_USER),
+        (AUTH_USER, AUTH_USER),
+    ],
+)
 @pytest.mark.parametrize("w_error", [False, True])
 @mock.patch("soliplex.convos._filter_context_messages")
 @mock.patch("soliplex.auth.authenticate")
 async def test_post_convos_new_room(
-    auth_fn, fcm, w_error, w_auth_user, exp_user,
+    auth_fn,
+    fcm,
+    w_error,
+    w_auth_user,
+    exp_user,
 ):
     auth_fn.return_value = w_auth_user
 
@@ -257,7 +273,8 @@ async def test_post_convos_new_room(
     convo_msg = models.UserPromptClientMessage(text=USER_PROMPT)
     the_installation = _make_the_installation()
     the_convos = mock.create_autospec(
-        convos.Conversations, instance=True,
+        convos.Conversations,
+        instance=True,
     )
     token = object()
 
@@ -267,7 +284,6 @@ async def test_post_convos_new_room(
         gafr.side_effect = KeyError("testing")
 
     if w_error:
-
         with pytest.raises(fastapi.HTTPException):
             await convos_views.post_convos_new_room(
                 request=request,
@@ -289,7 +305,8 @@ async def test_post_convos_new_room(
         ctx_result.get_output.return_value = "Who knows? Not me!"
         ctx_result.timestamp = mock.Mock(spec_set=(), return_value=NOW)
         ctx_result.new_messages = mock.Mock(
-            spec_set=(), return_value=NEW_AI_MESSAGES,
+            spec_set=(),
+            return_value=NEW_AI_MESSAGES,
         )
 
         found = await convos_views.post_convos_new_room(
@@ -322,7 +339,8 @@ async def test_post_convos_new_room(
             fcm.return_value,
         )
         gafr.assert_called_once_with(
-            TEST_CONVO_ROOMID, user=w_auth_user,
+            TEST_CONVO_ROOMID,
+            user=w_auth_user,
         )
 
         fcm.assert_called_once_with(NEW_AI_MESSAGES)
@@ -332,17 +350,21 @@ async def test_post_convos_new_room(
 
 @pytest.mark.anyio
 @mock.patch("soliplex.auth.authenticate")
-@pytest.mark.parametrize("w_auth_user, exp_user_name", [
-    ({}, "<unknown>"),
-    (AUTH_USER, USER_NAME),
-])
+@pytest.mark.parametrize(
+    "w_auth_user, exp_user_name",
+    [
+        ({}, "<unknown>"),
+        (AUTH_USER, USER_NAME),
+    ],
+)
 async def test_get_convos(auth_fn, w_auth_user, exp_user_name):
     auth_fn.return_value = w_auth_user
 
     request = fastapi.Request(scope={"type": "http"})
     the_installation = _make_the_installation()
     the_convos = mock.create_autospec(
-        convos.Conversations, instance=True,
+        convos.Conversations,
+        instance=True,
     )
     token = object()
 
@@ -360,17 +382,21 @@ async def test_get_convos(auth_fn, w_auth_user, exp_user_name):
 
 @pytest.mark.anyio
 @mock.patch("soliplex.auth.authenticate")
-@pytest.mark.parametrize("w_auth_user, exp_user_name", [
-    ({}, "<unknown>"),
-    (AUTH_USER, USER_NAME),
-])
+@pytest.mark.parametrize(
+    "w_auth_user, exp_user_name",
+    [
+        ({}, "<unknown>"),
+        (AUTH_USER, USER_NAME),
+    ],
+)
 async def test_get_convo(auth_fn, w_auth_user, exp_user_name):
     auth_fn.return_value = w_auth_user
 
     request = fastapi.Request(scope={"type": "http"})
     the_installation = _make_the_installation()
     the_convos = mock.create_autospec(
-        convos.Conversations, instance=True,
+        convos.Conversations,
+        instance=True,
     )
     token = object()
 
@@ -385,20 +411,28 @@ async def test_get_convo(auth_fn, w_auth_user, exp_user_name):
     assert found is the_convos.get_conversation_info.return_value
 
     the_convos.get_conversation_info.assert_called_once_with(
-        exp_user_name, TEST_CONVO_UUID,
+        exp_user_name,
+        TEST_CONVO_UUID,
     )
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("w_auth_user, exp_user", [
-    ({}, UNKNOWN_USER),
-    (AUTH_USER, AUTH_USER),
-])
+@pytest.mark.parametrize(
+    "w_auth_user, exp_user",
+    [
+        ({}, UNKNOWN_USER),
+        (AUTH_USER, AUTH_USER),
+    ],
+)
 @pytest.mark.parametrize("w_error", [False, True])
 @mock.patch("soliplex.convos._filter_context_messages")
 @mock.patch("soliplex.auth.authenticate")
 async def test_post_convo(
-    auth_fn, fcm, w_error, w_auth_user, exp_user,
+    auth_fn,
+    fcm,
+    w_error,
+    w_auth_user,
+    exp_user,
 ):
     auth_fn.return_value = w_auth_user
 
@@ -407,10 +441,12 @@ async def test_post_convo(
     convo_msg = models.UserPromptClientMessage(text=USER_PROMPT)
 
     the_convos = mock.create_autospec(
-        convos.Conversations, instance=True,
+        convos.Conversations,
+        instance=True,
     )
     convo = mock.create_autospec(
-        convos.Conversation, instance=True,
+        convos.Conversation,
+        instance=True,
         room_id=TEST_CONVO_ROOMID,
         message_history=OLD_AI_MESSAGES,
     )
@@ -428,12 +464,13 @@ async def test_post_convo(
     ctx_result.stream = get_chunks
     ctx_result.timestamp = mock.Mock(spec_set=(), return_value=NOW)
     ctx_result.new_messages = mock.Mock(
-        spec_set=(), return_value=NEW_AI_MESSAGES,
+        spec_set=(),
+        return_value=NEW_AI_MESSAGES,
     )
 
     if w_error:
         with pytest.raises(fastapi.HTTPException) as exc:
-             await convos_views.post_convo(
+            await convos_views.post_convo(
                 request=request,
                 convo_uuid=TEST_CONVO_UUID,
                 convo_msg=convo_msg,
@@ -471,26 +508,33 @@ async def test_post_convo(
         )
 
         the_convos.get_conversation.assert_called_once_with(
-            exp_user["preferred_username"], TEST_CONVO_UUID,
+            exp_user["preferred_username"],
+            TEST_CONVO_UUID,
         )
 
         the_convos.append_to_conversation.assert_called_once_with(
-            exp_user["preferred_username"], TEST_CONVO_UUID, fcm.return_value,
+            exp_user["preferred_username"],
+            TEST_CONVO_UUID,
+            fcm.return_value,
         )
 
         fcm.assert_called_once_with(NEW_AI_MESSAGES)
 
     gafr.assert_called_once_with(
-        TEST_CONVO_ROOMID, user=w_auth_user,
+        TEST_CONVO_ROOMID,
+        user=w_auth_user,
     )
     auth_fn.assert_called_once_with(the_installation, token)
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("w_auth_user, exp_user_name", [
-    ({}, "<unknown>"),
-    (AUTH_USER, USER_NAME),
-])
+@pytest.mark.parametrize(
+    "w_auth_user, exp_user_name",
+    [
+        ({}, "<unknown>"),
+        (AUTH_USER, USER_NAME),
+    ],
+)
 @mock.patch("soliplex.auth.authenticate")
 async def test_delete_convo(auth_fn, w_auth_user, exp_user_name):
     auth_fn.return_value = w_auth_user
@@ -498,7 +542,8 @@ async def test_delete_convo(auth_fn, w_auth_user, exp_user_name):
     request = fastapi.Request(scope={"type": "http"})
     the_installation = _make_the_installation()
     the_convos = mock.create_autospec(
-        convos.Conversations, instance=True,
+        convos.Conversations,
+        instance=True,
     )
     token = object()
 
@@ -513,7 +558,8 @@ async def test_delete_convo(auth_fn, w_auth_user, exp_user_name):
     assert found is None  # no response body for 204
 
     the_convos.delete_conversation.assert_called_once_with(
-        exp_user_name, TEST_CONVO_UUID,
+        exp_user_name,
+        TEST_CONVO_UUID,
     )
 
     auth_fn.assert_called_once_with(the_installation, token)

@@ -48,8 +48,8 @@ def test_installation_oidc_auth_system_configs():
     the_installation = installation.Installation(i_config)
 
     assert (
-        the_installation.oidc_auth_system_configs is
-        i_config.oidc_auth_system_configs
+        the_installation.oidc_auth_system_configs
+        is i_config.oidc_auth_system_configs
     )
 
 
@@ -65,10 +65,9 @@ def test_installation_get_room_configs():
     assert the_installation.get_room_configs(test_user) == r_configs
 
 
-@pytest.mark.parametrize("w_room_id, raises", [
-    ("room_id", False),
-    ("nonesuch", True)
-])
+@pytest.mark.parametrize(
+    "w_room_id, raises", [("room_id", False), ("nonesuch", True)]
+)
 def test_installation_get_room_config(w_room_id, raises):
     r_config = mock.create_autospec(config.RoomConfig)
     r_configs = {"room_id": r_config}
@@ -99,10 +98,9 @@ def test_installation_get_completion_configs():
     assert the_installation.get_completion_configs(test_user) == c_configs
 
 
-@pytest.mark.parametrize("w_completion_id, raises", [
-    ("completion_id", False),
-    ("nonesuch", True)
-])
+@pytest.mark.parametrize(
+    "w_completion_id, raises", [("completion_id", False), ("nonesuch", True)]
+)
 def test_installation_get_completion_config(w_completion_id, raises):
     c_config = mock.create_autospec(config.CompletionConfig)
     c_configs = {"completion_id": c_config}
@@ -115,7 +113,8 @@ def test_installation_get_completion_config(w_completion_id, raises):
     if raises:
         with pytest.raises(KeyError):
             the_installation.get_completion_config(
-                w_completion_id, test_user,
+                w_completion_id,
+                test_user,
             )
     else:
         found = the_installation.get_completion_configs(test_user)
@@ -123,10 +122,9 @@ def test_installation_get_completion_config(w_completion_id, raises):
         assert found is c_configs
 
 
-@pytest.mark.parametrize("w_room_id, raises", [
-    ("room_id", False),
-    ("nonesuch", True)
-])
+@pytest.mark.parametrize(
+    "w_room_id, raises", [("room_id", False), ("nonesuch", True)]
+)
 @mock.patch("soliplex.agents.get_agent_from_configs")
 def test_installation_get_agent_for_room(gafc, w_room_id, raises):
     a_config = mock.create_autospec(config.AgentConfig)
@@ -168,10 +166,9 @@ def test_installation_get_agent_for_room(gafc, w_room_id, raises):
         gafc.assert_called_once_with(a_config, t_configs, mcp_configs)
 
 
-@pytest.mark.parametrize("w_completion_id, raises", [
-    ("completion_id", False),
-    ("nonesuch", True)
-])
+@pytest.mark.parametrize(
+    "w_completion_id, raises", [("completion_id", False), ("nonesuch", True)]
+)
 @mock.patch("soliplex.agents.get_agent_from_configs")
 def test_installation_get_agent_for_completion(gafc, w_completion_id, raises):
     a_config = mock.create_autospec(config.AgentConfig)
@@ -207,11 +204,13 @@ def test_installation_get_agent_for_completion(gafc, w_completion_id, raises):
     if raises:
         with pytest.raises(KeyError):
             the_installation.get_agent_for_completion(
-                w_completion_id, test_user,
+                w_completion_id,
+                test_user,
             )
     else:
         found = the_installation.get_agent_for_completion(
-            w_completion_id, test_user,
+            w_completion_id,
+            test_user,
         )
         assert found is gafc.return_value
         gafc.assert_called_once_with(a_config, t_configs, mcp_configs)
@@ -240,10 +239,7 @@ def _mock_mcp_app(key):
 
 @pytest.fixture
 def mcp_apps():
-    return {
-        key: _mock_mcp_app(key)
-        for key in ["room1", "room2"]
-    }
+    return {key: _mock_mcp_app(key) for key in ["room1", "room2"]}
 
 
 @pytest.mark.anyio
@@ -276,7 +272,9 @@ async def test_lifespan(load_installation, smfr, mcp_apps):
     assert isinstance(the_convos, convos.Conversations)
 
     for f_call, (key, mcp_app) in zip(
-        app.mount.call_args_list, mcp_apps.items(), strict=True,
+        app.mount.call_args_list,
+        mcp_apps.items(),
+        strict=True,
     ):
         assert f_call.args == ("/mcp/" + key, mcp_app)
 

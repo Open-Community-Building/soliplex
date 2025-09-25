@@ -95,7 +95,6 @@ def test_quiz_from_config(quiz_randomize, quiz_max_questions):
         assert quiz_model.max_questions is None
 
 
-
 def test_tool_from_config_w_toolconfig():
     def test_tool():
         """This is a test tool"""
@@ -144,7 +143,6 @@ def test_tool_from_config_w_sdtc(temp_dir):
     )
 
 
-
 def test_mcp_client_toolset_from_config_w_toolconfig():
     def test_tool():
         """This is a test tool"""
@@ -168,7 +166,6 @@ def test_mcp_client_toolset_from_config_w_toolconfig():
 
 
 def test_mcp_client_toolset_from_config_w_sdtc():
-
     mcp_ct_config = config.HTTP_MCP_ClientToolsetConfig(
         url="https://example.com/mcp",
         headers={"Authorization": "Bearer env:{BEARER_TOKEN}"},
@@ -206,7 +203,9 @@ def installation_config():
 
 
 def test_agent_from_config(
-    agent_provider_type, agent_provider_base_url, installation_config,
+    agent_provider_type,
+    agent_provider_base_url,
+    installation_config,
 ):
     agent_config = config.AgentConfig(
         id=AGENT_ID,
@@ -245,10 +244,9 @@ def room_tools(request):
     kw = {}
     if request.param:
         kw["tool_configs"] = {
-            "get_current_datetime":
-                config.ToolConfig(
-                    tool_name="soliplex.tools.get_current_datetime",
-                ),
+            "get_current_datetime": config.ToolConfig(
+                tool_name="soliplex.tools.get_current_datetime",
+            ),
         }
     return kw
 
@@ -265,6 +263,7 @@ def room_quizzes(request):
             )
         ]
     return kw
+
 
 @pytest.fixture
 def room_agent(installation_config):
@@ -393,7 +392,9 @@ def installation_quizzes_paths(request):
     return _from_param(request, "quizzes_paths")
 
 
-@pytest.fixture(scope="module", params=[
+@pytest.fixture(
+    scope="module",
+    params=[
         None,
         [INSTALLATION_OIDC_AUTH_SYSTEM_CONFIG],
     ],
@@ -436,51 +437,49 @@ def test_installation_from_config(
 
     if installation_environment:
         assert (
-            installation_model.environment ==
-            installation_environment["environment"]
+            installation_model.environment
+            == installation_environment["environment"]
         )
     else:
         assert installation_model.environment == {}
 
     if installation_oidc_paths:
         assert (
-            installation_model.oidc_paths ==
-            installation_oidc_paths["oidc_paths"]
+            installation_model.oidc_paths
+            == installation_oidc_paths["oidc_paths"]
         )
     else:
         assert installation_model.oidc_paths == [pathlib.Path("oidc")]
 
     if installation_room_paths:
         assert (
-            installation_model.room_paths ==
-            installation_room_paths["room_paths"]
+            installation_model.room_paths
+            == installation_room_paths["room_paths"]
         )
     else:
         assert installation_model.room_paths == [pathlib.Path("rooms")]
 
     if installation_completion_paths:
         assert (
-            installation_model.completion_paths ==
-            installation_completion_paths["completion_paths"]
+            installation_model.completion_paths
+            == installation_completion_paths["completion_paths"]
         )
     else:
-        assert (
-            installation_model.completion_paths ==
-            [pathlib.Path("completions")]
-        )
+        assert installation_model.completion_paths == [
+            pathlib.Path("completions")
+        ]
 
     if installation_quizzes_paths:
         assert (
-            installation_model.quizzes_paths ==
-            installation_quizzes_paths["quizzes_paths"]
+            installation_model.quizzes_paths
+            == installation_quizzes_paths["quizzes_paths"]
         )
     else:
         assert installation_model.quizzes_paths == [pathlib.Path("quizzes")]
 
     for found, expected in zip(
         installation_model.oidc_auth_systems,
-        installation_oidc_auth_system_configs[
-            "_oidc_auth_system_configs"
-        ],
-        strict=True):
+        installation_oidc_auth_system_configs["_oidc_auth_system_configs"],
+        strict=True,
+    ):
         assert found.id == expected.id

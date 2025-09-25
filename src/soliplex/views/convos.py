@@ -14,6 +14,8 @@ from soliplex import util
 
 router = fastapi.APIRouter()
 
+depend_the_installation = installation.depend_the_installation
+
 # =============================================================================
 #   API endpoints for convos
 # =============================================================================
@@ -24,11 +26,9 @@ router = fastapi.APIRouter()
 async def post_convos_new(
     request: fastapi.Request,
     convo_msg: models.NewConvoClientMessage,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
+    the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ):
     """Create a new convo, including room ID and URI with UUID"""
     user = auth.authenticate(the_installation, token)
@@ -42,20 +42,23 @@ async def post_convos_new(
 
     try:
         agent = the_installation.get_agent_for_room(
-            convo_msg.room_id, user=user,
+            convo_msg.room_id,
+            user=user,
         )
     except KeyError:
         raise fastapi.HTTPException(
-            status_code=404, detail=f"No such room: {convo_msg.room_id}",
+            status_code=404,
+            detail=f"No such room: {convo_msg.room_id}",
         ) from None
-
 
     agent_deps = models.AgentDependencies(
         user=user_profile,
     )
 
     async with agent.run_stream(
-        convo_msg.text, message_history=[], deps=agent_deps,
+        convo_msg.text,
+        message_history=[],
+        deps=agent_deps,
     ) as result:
         await result.get_output()
         new_messages = result.new_messages()
@@ -78,11 +81,9 @@ async def post_convos_new_room(
     request: fastapi.Request,
     room_id: str,
     convo_msg: models.UserPromptClientMessage,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
+    the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
     response_model=convos.Conversation,
 ):
     """Create a new convo, including room ID and URI with UUID"""
@@ -97,11 +98,13 @@ async def post_convos_new_room(
 
     try:
         agent = the_installation.get_agent_for_room(
-            room_id, user=user,
+            room_id,
+            user=user,
         )
     except KeyError:
         raise fastapi.HTTPException(
-            status_code=404, detail=f"No such room: {room_id}",
+            status_code=404,
+            detail=f"No such room: {room_id}",
         ) from None
 
     agent_deps = models.AgentDependencies(
@@ -109,7 +112,9 @@ async def post_convos_new_room(
     )
 
     async with agent.run_stream(
-        convo_msg.text, message_history=[], deps=agent_deps,
+        convo_msg.text,
+        message_history=[],
+        deps=agent_deps,
     ) as result:
         await result.get_output()
         new_messages = result.new_messages()
@@ -130,11 +135,9 @@ async def post_convos_new_room(
 @router.get("/v1/convos")
 async def get_convos(
     request: fastapi.Request,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
+    the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ):
     """Return a list of conversations, including room ID and URI with UUID"""
     user = auth.authenticate(the_installation, token)
@@ -148,11 +151,9 @@ async def get_convos(
 async def get_convo(
     request: fastapi.Request,
     convo_uuid: str,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
+    the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ):
     """Return the conversation, by id
 
@@ -170,11 +171,9 @@ async def post_convo(
     request: fastapi.Request,
     convo_uuid: str,
     convo_msg: models.UserPromptClientMessage,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
+    the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ):
     """Send another query to an existing convo.
 
@@ -194,11 +193,13 @@ async def post_convo(
 
     try:
         agent = the_installation.get_agent_for_room(
-            convo.room_id, user=user,
+            convo.room_id,
+            user=user,
         )
     except KeyError:
         raise fastapi.HTTPException(
-            status_code=404, detail=f"No such room: {convo.room_id}",
+            status_code=404,
+            detail=f"No such room: {convo.room_id}",
         ) from None
 
     agent_deps = models.AgentDependencies(
@@ -222,9 +223,11 @@ async def post_convo(
         )
 
         async with agent.run_stream(
-            text, message_history=convo.message_history, deps=agent_deps,
+            text,
+            message_history=convo.message_history,
+            deps=agent_deps,
         ) as result:
-            #output = await result.get_output()
+            # output = await result.get_output()
             async for text in result.stream(debounce_by=0.01):
                 # text here is a `str` and the frontend wants
                 # JSON encoded ModelResponse, so we create one
@@ -232,20 +235,26 @@ async def post_convo(
                 mr = ai_messages.ModelResponse(
                     parts=[text_part], timestamp=result.timestamp()
                 )
-                yield json.dumps(
-                    convos._to_convo_message(mr),
-                ).encode("utf-8") + b"\n"
+                yield (
+                    json.dumps(
+                        convos._to_convo_message(mr),
+                    ).encode("utf-8")
+                    + b"\n"
+                )
 
             new_messages = result.new_messages()
 
         context_messages = convos._filter_context_messages(new_messages)
 
         await the_convos.append_to_conversation(
-            user_name, convo_uuid, context_messages,
+            user_name,
+            convo_uuid,
+            context_messages,
         )
 
     return responses.StreamingResponse(
-        stream_messages(convo_msg.text, convo), media_type="text/plain",
+        stream_messages(convo_msg.text, convo),
+        media_type="text/plain",
     )
 
 
@@ -254,16 +263,12 @@ async def post_convo(
 async def delete_convo(
     request: fastapi.Request,
     convo_uuid: str,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
+    the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ):
-    """Delete an existing convo.
-    """
+    """Delete an existing convo."""
     user = auth.authenticate(the_installation, token)
     user_name = user.get("preferred_username", "<unknown>")
 
     await the_convos.delete_conversation(user_name, convo_uuid)
-

@@ -38,8 +38,8 @@ TOOL_CONFIG_WRAPPERS_BY_KIND = {
 
 def mcp_tool(tool_config: config.ToolConfig) -> fmcp_tools.Tool | None:
     if (
-        tool_config.allow_mcp and
-        tool_config.tool_requires != config.ToolRequires.FASTAPI_CONTEXT
+        tool_config.allow_mcp
+        and tool_config.tool_requires != config.ToolRequires.FASTAPI_CONTEXT
     ):
         wrapper_type = TOOL_CONFIG_WRAPPERS_BY_KIND.get(tool_config.kind)
 
@@ -65,9 +65,9 @@ def room_mcp_tools(room_config: config.RoomConfig) -> list[fmcp_tools.Tool]:
     if room_config.allow_mcp:
         tool_configs = room_config.tool_configs
         tools = [
-            mcpt for mcpt in [
-                mcp_tool(tool_config)
-                for tool_config in tool_configs.values()
+            mcpt
+            for mcpt in [
+                mcp_tool(tool_config) for tool_config in tool_configs.values()
             ]
             if mcpt is not None
         ]
@@ -99,7 +99,6 @@ def setup_mcp_for_rooms(the_installation: installation.Installation):
 
     for key, room_config in available_rooms.items():
         if room_config.allow_mcp:
-
             mcp = fmcp_server.FastMCP(
                 key,
                 tools=room_mcp_tools(room_config),

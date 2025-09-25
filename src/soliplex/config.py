@@ -21,6 +21,7 @@ from soliplex import util
 #   Exceptions raised during YAML config processing
 # ============================================================================
 
+
 class FromYamlException(ValueError):
     def __init__(self, config_path):
         self.config_path = config_path
@@ -60,6 +61,7 @@ class NoProviderKeyInEnvironment(ValueError):
 
 class RagDbExactlyOneOfStemOrOverride(TypeError):
     _config_path = None
+
     def __init__(self):
         super().__init__(
             "Configure exactly one of 'rag_lancedb_stem' or "
@@ -69,6 +71,7 @@ class RagDbExactlyOneOfStemOrOverride(TypeError):
 
 class RagDbFileNotFound(ValueError):
     _config_path = None
+
     def __init__(self, rag_db_filename):
         self.rag_db_filename = rag_db_filename
         super().__init__(f"RAG DB file not found: {rag_db_filename}")
@@ -114,7 +117,7 @@ class OIDCAuthSystemConfig:
     token_validation_pem: str
     client_id: str
     scope: str = None
-    client_secret: str = "" # "env:{JOSCE_CLIENT_SECRET}"
+    client_secret: str = ""  # "env:{JOSCE_CLIENT_SECRET}"
     oidc_client_pem_path: pathlib.Path = None
 
     # Set in 'from_yaml' below
@@ -132,7 +135,7 @@ class OIDCAuthSystemConfig:
         config["_config_path"] = config_path
 
         client_secret = config.pop("client_secret", "")
-        config["client_secret"] =  util.interpolate_env_vars(client_secret)
+        config["client_secret"] = util.interpolate_env_vars(client_secret)
 
         oidc_client_pem_path = config.pop("oidc_client_pem_path", None)
         if oidc_client_pem_path is not None:
@@ -163,7 +166,7 @@ class OIDCAuthSystemConfig:
             "client_secret": self.client_secret,
             "client_kwargs": client_kwargs,
             # added by the auth setup
-            #"authorize_state": main.SESSION_SECRET_KEY,
+            # "authorize_state": main.SESSION_SECRET_KEY,
         }
 
 
@@ -177,6 +180,7 @@ class AvailableOIDCAuthSystemConfigs:
 # ============================================================================
 #   Tool configuration types
 # ============================================================================
+
 
 class ToolRequires(enum.StrEnum):
     FASTAPI_CONTEXT = "fastapi_context"
@@ -249,7 +253,8 @@ class ToolConfig:
             tool_func_sig = inspect.signature(self.tool)
             wo_tc_sig = tool_func_sig.replace(
                 parameters=[
-                    param for param in tool_func_sig.parameters.values()
+                    param
+                    for param in tool_func_sig.parameters.values()
                     if param.name != "tool_config"
                 ]
             )
@@ -257,7 +262,7 @@ class ToolConfig:
                 functools.partial(self.tool, tool_config=self),
                 self.tool,
             )
-            tool_w_config.__signature__  = wo_tc_sig
+            tool_w_config.__signature__ = wo_tc_sig
 
             return tool_w_config
         else:
@@ -357,6 +362,7 @@ TOOL_CONFIG_CLASSES_BY_TOOL_NAME = {
     ]
 }
 
+
 def extract_tool_configs(
     installation_config: InstallationConfig,
     config_path: pathlib.Path,
@@ -369,7 +375,9 @@ def extract_tool_configs(
         tc_class = TOOL_CONFIG_CLASSES_BY_TOOL_NAME.get(tool_name, ToolConfig)
 
         tool_config = tc_class.from_yaml(
-            installation_config, config_path, t_config,
+            installation_config,
+            config_path,
+            t_config,
         )
         tool_configs[tool_config.kind] = tool_config
 
@@ -382,6 +390,7 @@ ToolConfigMap = dict[str, ToolConfig]
 @dataclasses.dataclass
 class Stdio_MCP_ClientToolsetConfig:
     """Configure an MCP client toolset which runs as a subprocess"""
+
     kind: typing.ClassVar[str] = "stdio"
     command: str
     args: list[str] = dataclasses.field(
@@ -434,6 +443,7 @@ class Stdio_MCP_ClientToolsetConfig:
 @dataclasses.dataclass
 class HTTP_MCP_ClientToolsetConfig:
     """Configure an MCP client toolset which makes calls over streaming HTTP"""
+
     kind: typing.ClassVar[str] = "http"
     url: str
     headers: dict[str, typing.Any] = dataclasses.field(
@@ -498,6 +508,7 @@ MCP_CONFIG_CLASSES_BY_TYPE = {
     "http": HTTP_MCP_ClientToolsetConfig,
 }
 
+
 def extract_mcp_client_toolset_configs(
     installation_config: InstallationConfig,
     config_path: pathlib.Path,
@@ -530,6 +541,7 @@ MCP_ClientToolsetConfigMap = dict[str, MCP_ClientToolsetConfig]
 #   Agent-related configuration types
 # ============================================================================
 
+
 class LLMProviderType(enum.StrEnum):
     OPENAI = "openai"
     OLLAMA = "ollama"
@@ -558,10 +570,8 @@ class AgentConfig:
     def __post_init__(self, system_prompt):
         if self.model_name is None:
             if self._installation_config is not None:
-                self.model_name = (
-                    self._installation_config.get_environment(
-                        "DEFAULT_AGENT_MODEL",
-                    )
+                self.model_name = self._installation_config.get_environment(
+                    "DEFAULT_AGENT_MODEL",
                 )
 
         if system_prompt is not None:
@@ -632,6 +642,7 @@ class AgentConfig:
 #   Quiz-related configuration types
 # ============================================================================
 
+
 class QuizQuestionType(enum.StrEnum):
     QA = "qa"
     FILL_BLANK = "fill-blank"
@@ -656,7 +667,6 @@ class QuizQuestion:
 
 @dataclasses.dataclass
 class QuizConfig:
-
     id: str
     question_file: dataclasses.InitVar[str] = None
     _question_file_stem: str = None
@@ -675,15 +685,15 @@ class QuizConfig:
                 self._question_file_path_override = question_file
             else:
                 if question_file.endswith(".json"):
-                    question_file = question_file[:-len(".json")]
+                    question_file = question_file[: -len(".json")]
 
                 self._question_file_stem = question_file
         if (
-            self._question_file_stem is None and
-            self._question_file_path_override is None
+            self._question_file_stem is None
+            and self._question_file_path_override is None
         ) or (
-            self._question_file_stem is not None and
-            self._question_file_path_override is not None
+            self._question_file_stem is not None
+            and self._question_file_path_override is not None
         ):
             raise QCExactlyOneOfStemOrOverride()
 
@@ -708,9 +718,7 @@ class QuizConfig:
 
     @property
     def provider_base_url(self):
-        return self._installation_config.get_environment(
-            "OLLAMA_BASE_URL"
-        )
+        return self._installation_config.get_environment("OLLAMA_BASE_URL")
 
     @property
     def question_file_path(self) -> pathlib.Path:
@@ -725,11 +733,10 @@ class QuizConfig:
 
     @staticmethod
     def _make_question(question: dict) -> QuizQuestion:
-
         metadata = QuizQuestionMetadata(
             uuid=question["metadata"]["uuid"],
-            type = question["metadata"]["type"],
-            options = question["metadata"].get("options", []),
+            type=question["metadata"]["type"],
+            options=question["metadata"].get("options", []),
         )
         return QuizQuestion(
             inputs=question["inputs"],
@@ -754,7 +761,7 @@ class QuizConfig:
         quiz_json = json.loads(self.question_file_path.read_text())
         return {
             q_dict["metadata"]["uuid"]: self._make_question(q_dict)
-                for q_dict in quiz_json["cases"]
+            for q_dict in quiz_json["cases"]
         }
 
     def get_questions(self) -> list[QuizQuestion]:
@@ -767,7 +774,7 @@ class QuizConfig:
             random.shuffle(questions)
 
         if self.max_questions is not None:
-            questions = questions[:self.max_questions]
+            questions = questions[: self.max_questions]
 
         return questions
 
@@ -781,6 +788,7 @@ class QuizConfig:
 # ============================================================================
 #   Room-related configuration types
 # ============================================================================
+
 
 @dataclasses.dataclass
 class RoomConfig:
@@ -797,7 +805,7 @@ class RoomConfig:
     #
     # Room UI options
     #
-    _order: str = None   # defaults to 'id'
+    _order: str = None  # defaults to 'id'
     welcome_message: str = None
     suggestions: list[str] = dataclasses.field(
         default_factory=list,
@@ -807,11 +815,9 @@ class RoomConfig:
     #
     # Tool options
     #
-    tool_configs: ToolConfigMap = (
-        dataclasses.field(default_factory=dict)
-    )
-    mcp_client_toolset_configs: MCP_ClientToolsetConfigMap = (
-        dataclasses.field(default_factory=dict)
+    tool_configs: ToolConfigMap = dataclasses.field(default_factory=dict)
+    mcp_client_toolset_configs: MCP_ClientToolsetConfigMap = dataclasses.field(
+        default_factory=dict
     )
 
     #
@@ -859,12 +865,16 @@ class RoomConfig:
         )
 
         config["tool_configs"] = extract_tool_configs(
-            installation_config, config_path, config,
+            installation_config,
+            config_path,
+            config,
         )
 
         config["mcp_client_toolset_configs"] = (
             extract_mcp_client_toolset_configs(
-                installation_config, config_path, config,
+                installation_config,
+                config_path,
+                config,
             )
         )
 
@@ -894,9 +904,7 @@ class RoomConfig:
     @property
     def quiz_map(self) -> dict[str, QuizConfig]:
         if self._quiz_map is None:
-            self._quiz_map = {
-                quiz.id: quiz for quiz in self.quizzes
-            }
+            self._quiz_map = {quiz.id: quiz for quiz in self.quizzes}
 
         return self._quiz_map
 
@@ -911,6 +919,7 @@ class RoomConfig:
 # ============================================================================
 #   Completions endpoint-related configuration types
 # ============================================================================
+
 
 @dataclasses.dataclass
 class CompletionConfig:
@@ -963,12 +972,16 @@ class CompletionConfig:
         )
 
         config["tool_configs"] = extract_tool_configs(
-            installation_config, config_path, config,
+            installation_config,
+            config_path,
+            config,
         )
 
         config["mcp_client_toolset_configs"] = (
             extract_mcp_client_toolset_configs(
-                installation_config, config_path, config,
+                installation_config,
+                config_path,
+                config,
             )
         )
 
@@ -979,11 +992,13 @@ class CompletionConfig:
 #   Installation configuration types
 # ============================================================================
 
+
 def _check_is_dict(config_yaml):
     if not isinstance(config_yaml, dict):
         raise NotADict(config_yaml)
 
     return config_yaml
+
 
 def _load_config_yaml(config_path: pathlib.Path) -> dict:
     """Load a YAML config file"""
@@ -1003,7 +1018,8 @@ def _load_config_yaml(config_path: pathlib.Path) -> dict:
 
 
 def _find_configs(
-    to_search: pathlib.Path, filename_yaml: str,
+    to_search: pathlib.Path,
+    filename_yaml: str,
 ) -> typing.Sequence[tuple[pathlib.Path, dict]]:
     """Yield a sequence of YAML configs found under 'to_search'
 
@@ -1022,7 +1038,6 @@ def _find_configs(
         yield config_file, _load_config_yaml(config_file)
 
     except NoSuchConfig:
-
         for sub in sorted(to_search.glob("*")):
             if sub.is_dir():
                 sub_config = sub / filename_yaml
@@ -1030,22 +1045,25 @@ def _find_configs(
                     yield sub_config, _load_config_yaml(sub_config)
                 except NoSuchConfig:
                     continue
-            else:   # pragma: NO COVER
+            else:  # pragma: NO COVER
                 pass
 
 
 _find_room_configs = functools.partial(
-    _find_configs, filename_yaml="room_config.yaml",
+    _find_configs,
+    filename_yaml="room_config.yaml",
 )
 
 _find_completion_configs = functools.partial(
-    _find_configs, filename_yaml="completion_config.yaml",
+    _find_configs,
+    filename_yaml="completion_config.yaml",
 )
 
 
 @dataclasses.dataclass
 class InstallationConfig:
     """Configuration for a set of rooms, completion, etc."""
+
     #
     # Required metadata
     #
@@ -1121,8 +1139,7 @@ class InstallationConfig:
 
         if isinstance(environment, list):
             config["environment"] = {
-                item["name"]: item["value"]
-                for item in environment
+                item["name"]: item["value"] for item in environment
             }
 
         return cls(**config)
@@ -1141,7 +1158,6 @@ class InstallationConfig:
             self.quizzes_paths = ["./quizzes"]
 
         if self._config_path is not None:
-
             parent_dir = self._config_path.parent
 
             self.oidc_paths = [
@@ -1177,9 +1193,7 @@ class InstallationConfig:
 
             oidc_client_pem_path = config_yaml.get("oidc_client_pem_path")
             if oidc_client_pem_path is not None:
-                oidc_client_pem_path = (
-                    oidc_path / oidc_client_pem_path
-                )
+                oidc_client_pem_path = oidc_path / oidc_client_pem_path
 
             for auth_system_yaml in config_yaml["auth_systems"]:
                 if "oidc_client_pem_path" not in auth_system_yaml:
@@ -1187,7 +1201,9 @@ class InstallationConfig:
                         oidc_client_pem_path
                     )
                 oas_config = OIDCAuthSystemConfig.from_yaml(
-                    self, oidc_config, auth_system_yaml,
+                    self,
+                    oidc_config,
+                    auth_system_yaml,
                 )
                 oas_configs.append(oas_config)
 
@@ -1212,7 +1228,9 @@ class InstallationConfig:
                 config_id = config_yaml["id"]
                 if config_id not in room_configs:
                     room_configs[config_id] = RoomConfig.from_yaml(
-                        self, config_path, config_yaml,
+                        self,
+                        config_path,
+                        config_yaml,
                     )
 
         return room_configs
@@ -1235,10 +1253,10 @@ class InstallationConfig:
                 #      first-past-the-post for any conflict on completion ID.
                 config_id = config_yaml["id"]
                 if config_id not in completion_configs:
-                    completion_configs[config_id] = (
-                        CompletionConfig.from_yaml(
-                            self, config_path, config_yaml,
-                        )
+                    completion_configs[config_id] = CompletionConfig.from_yaml(
+                        self,
+                        config_path,
+                        config_yaml,
                     )
 
         return completion_configs
@@ -1252,9 +1270,7 @@ class InstallationConfig:
 
     def reload_configurations(self):
         """Load all dependent configuration sets"""
-        self._oidc_auth_system_configs = (
-            self._load_oidc_auth_system_configs()
-        )
+        self._oidc_auth_system_configs = self._load_oidc_auth_system_configs()
         self._room_configs = self._load_room_configs()
         self._completion_configs = self._load_completion_configs()
 

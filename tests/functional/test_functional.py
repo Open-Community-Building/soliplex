@@ -27,6 +27,7 @@ def test_health_check(client):
     assert response.status_code == 200
     assert response.text == "OK"
 
+
 @mock.patch("soliplex.auth.authenticate")
 def test_rooms_endpoints(auth_fn, client):
     get_rooms_response = client.get("/api/v1/rooms")
@@ -39,8 +40,8 @@ def test_rooms_endpoints(auth_fn, client):
     assert get_room_response.status_code == 200
     ext_room_info = get_room_response.json()
 
-    #assert ext_room_info["name"] == room_info["name"]
-    #assert ext_room_info["description"] == room_info["description"]
+    # assert ext_room_info["name"] == room_info["name"]
+    # assert ext_room_info["description"] == room_info["description"]
     assert ext_room_info["suggestions"] == room_info["suggestions"]
     assert ext_room_info["welcome_message"] == room_info["welcome_message"]
     assert (
@@ -71,9 +72,9 @@ def test_post_convos_new_rooms(auth_fn, client):
         room_ids = random.sample(room_ids, int(max_rooms))
 
     for room_id in room_ids:
-
         response = client.post(
-            f"/api/v1/convos/new/{room_id}", json=identity_query,
+            f"/api/v1/convos/new/{room_id}",
+            json=identity_query,
         )
         assert response.status_code == 200
 
@@ -89,12 +90,13 @@ def test_post_convos_new_rooms(auth_fn, client):
         assert llm_msg["origin"] == "llm"
 
         response = client.post(
-            f"/api/v1/convos/{convo_uuid}", json=time_query,
+            f"/api/v1/convos/{convo_uuid}",
+            json=time_query,
         )
         assert response.status_code == 200
 
         # Response is NLD JSON.
-        #old_convo_json = response.json()
+        # old_convo_json = response.json()
         user_msg, *llm_messages = [
             json.loads(line) for line in response.text.splitlines()
         ]
@@ -109,7 +111,6 @@ def test_post_convos_new_rooms(auth_fn, client):
 
 @mock.patch("soliplex.auth.authenticate")
 def test_get_quiz_post_quiz_question(auth_fn, client):
-
     auth_fn.return_value = {
         "name": "Phreddy Phlyntstone",
         "email": "phreddy@example.com",

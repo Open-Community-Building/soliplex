@@ -1,4 +1,3 @@
-
 import pydantic_ai
 from pydantic_ai.models import openai as openai_models
 from pydantic_ai.providers import ollama as ollama_providers
@@ -80,9 +79,10 @@ EXPECTED ANSWER: {question.expected_output}"""
 
 
 async def check_answer(
-    quiz: config.QuizConfig, question_uuid: str, answer: str,
+    quiz: config.QuizConfig,
+    question_uuid: str,
+    answer: str,
 ) -> bool:
-
     try:
         question = quiz.get_question(question_uuid)
     except KeyError:
@@ -90,7 +90,7 @@ async def check_answer(
 
     if question.metadata.type == config.QuizQuestionType.MULTIPLE_CHOICE:
         answer = answer.strip().lower()
-        correct = (answer == question.expected_output.lower())
+        correct = answer == question.expected_output.lower()
 
     else:
         correct = await check_answer_with_agent(quiz, question, answer)
@@ -102,4 +102,3 @@ async def check_answer(
             "correct": "false",
             "expected_output": question.expected_output,
         }
-

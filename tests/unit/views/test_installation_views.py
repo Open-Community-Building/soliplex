@@ -20,11 +20,12 @@ async def test_get_installation(auth_fn, fc):
     token = object()
 
     found = await installation_views.get_installation(
-        request, the_installation=the_installation, token=token,
+        request,
+        the_installation=the_installation,
+        token=token,
     )
 
     assert found is fc.return_value
 
     fc.assert_called_once_with(i_config)
     auth_fn.assert_called_once_with(the_installation, token)
-

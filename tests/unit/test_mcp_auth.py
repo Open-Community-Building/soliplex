@@ -36,7 +36,8 @@ def test_generate_url_safe_token(idusts_klass, gusts):
     usts.dumps.assert_called_once_with(to_sign)
 
     idusts_klass.assert_called_once_with(
-        secret_key=gusts.return_value, salt=URL_SAFE_TOKEN_SALT,
+        secret_key=gusts.return_value,
+        salt=URL_SAFE_TOKEN_SALT,
     )
 
 
@@ -58,7 +59,9 @@ def test_validate_url_safe_token(idusts_klass, gusts, w_max_age, w_valid):
 
     if w_max_age is not None:
         found = mcp_auth.validate_url_safe_token(
-            URL_SAFE_TOKEN_SALT, token, max_age=w_max_age,
+            URL_SAFE_TOKEN_SALT,
+            token,
+            max_age=w_max_age,
         )
     else:
         found = mcp_auth.validate_url_safe_token(URL_SAFE_TOKEN_SALT, token)
@@ -71,7 +74,8 @@ def test_validate_url_safe_token(idusts_klass, gusts, w_max_age, w_valid):
     usts.loads_unsafe.assert_called_once_with(token, **exp_kw)
 
     idusts_klass.assert_called_once_with(
-        secret_key=gusts.return_value, salt=URL_SAFE_TOKEN_SALT,
+        secret_key=gusts.return_value,
+        salt=URL_SAFE_TOKEN_SALT,
     )
 
 
@@ -83,12 +87,12 @@ def the_installation():
 @pytest.mark.parametrize("w_max_age", [None, 3600])
 @pytest.mark.parametrize("w_auth_disabled", [False, True])
 def test_fmcptokenprovider_ctor(the_installation, w_auth_disabled, w_max_age):
-
     the_installation.auth_disabled = w_auth_disabled
 
     if w_max_age is not None:
         found = mcp_auth.FastMCPTokenProvider(
-            ROOM_ID, the_installation, max_age=w_max_age)
+            ROOM_ID, the_installation, max_age=w_max_age
+        )
     else:
         found = mcp_auth.FastMCPTokenProvider(ROOM_ID, the_installation)
 
@@ -103,18 +107,25 @@ def test_fmcptokenprovider_ctor(the_installation, w_auth_disabled, w_max_age):
 @pytest.mark.parametrize("w_auth_disabled", [False, True])
 @mock.patch("soliplex.mcp_auth.validate_url_safe_token")
 async def test_fmcptokenprovider_verify_token(
-    vust, the_installation, w_auth_disabled, w_max_age, w_hit,
+    vust,
+    the_installation,
+    w_auth_disabled,
+    w_max_age,
+    w_hit,
 ):
     TOKEN = "DEADBEEF"
     REAL_USER = {
-        "name": "Bharney Rhybble", "email": "bharney@example.com",
+        "name": "Bharney Rhybble",
+        "email": "bharney@example.com",
     }
 
     the_installation.auth_disabled = w_auth_disabled
 
     if w_max_age is not None:
         fmtp = mcp_auth.FastMCPTokenProvider(
-            ROOM_ID, the_installation, max_age=w_max_age,
+            ROOM_ID,
+            the_installation,
+            max_age=w_max_age,
         )
     else:
         fmtp = mcp_auth.FastMCPTokenProvider(ROOM_ID, the_installation)

@@ -9,12 +9,14 @@ from fastapi import security
 from soliplex import installation
 
 oauth2_scheme = security.OAuth2PasswordBearer(
-    tokenUrl="token", auto_error=False,
+    tokenUrl="token",
+    auto_error=False,
 )
 oauth2_predicate = fastapi.Depends(oauth2_scheme)
 
 
 _session_secret_key: bytes = None
+
 
 def _get_session_secret_key() -> bytes:
     global _session_secret_key
@@ -27,13 +29,13 @@ def _get_session_secret_key() -> bytes:
 
 _oauth = None
 
+
 def get_oauth(
     the_installation: installation.Installation,
 ) -> starlette_client.OAuth:
     global _oauth
 
     if _oauth is None:
-
         config_data = {
             "SESSION_SECRET_KEY": _get_session_secret_key(),
         }
@@ -62,20 +64,19 @@ def authenticate(
 
     if token is None:
         raise fastapi.HTTPException(
-            status_code=401,
-            detail="JWT validation failed (no token)"
+            status_code=401, detail="JWT validation failed (no token)"
         )
 
     for auth_system in the_installation.oidc_auth_system_configs:
         payload = validate_access_token(
-            token, auth_system.token_validation_pem,
+            token,
+            auth_system.token_validation_pem,
         )
         if payload is not None:
             return payload
 
     raise fastapi.HTTPException(
-        status_code=401,
-        detail="JWT validation failed (invalid token)"
+        status_code=401, detail="JWT validation failed (invalid token)"
     )
 
 

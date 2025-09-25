@@ -25,7 +25,7 @@ AUTHSYSTEM_TOKEN_VALIDATION_PEM = """\
         -----END PUBLIC KEY-----
 """
 
-WO_OIDC_PEM_OIDC_CONFIG_YAML=f"""
+WO_OIDC_PEM_OIDC_CONFIG_YAML = f"""
 auth_systems:
   - id: "{AUTHSYSTEM_ID}"
     title: "{AUTHSYSTEM_TITLE}"
@@ -36,7 +36,7 @@ auth_systems:
 {AUTHSYSTEM_TOKEN_VALIDATION_PEM}
 """
 
-W_OIDC_PEM_OIDC_CONFIG_YAML=f"""
+W_OIDC_PEM_OIDC_CONFIG_YAML = f"""
 oidc_client_pem_path: "{OIDC_CLIENT_PEM_PATH}"
 
 {WO_OIDC_PEM_OIDC_CONFIG_YAML}
@@ -48,7 +48,6 @@ EXISTING = object()
 @pytest.mark.parametrize("w_before", [None, EXISTING])
 @mock.patch("os.urandom")
 def test__get_session_secret_key(urandom, w_before):
-
     with mock.patch.multiple(auth, _session_secret_key=w_before):
         found = auth._get_session_secret_key()
 
@@ -64,7 +63,11 @@ def test__get_session_secret_key(urandom, w_before):
 @mock.patch("starlette.config.Config")
 @mock.patch("authlib.integrations.starlette_client.OAuth")
 def test_get_oauth_wo_initialized(
-    oauth_klass, config_klass, gssk, temp_dir, with_auth_systems,
+    oauth_klass,
+    config_klass,
+    gssk,
+    temp_dir,
+    with_auth_systems,
 ):
     the_installation = mock.create_autospec(installation.Installation)
     the_installation.oidc_auth_system_configs = with_auth_systems
@@ -78,18 +81,18 @@ def test_get_oauth_wo_initialized(
 
     oauth_klass.assert_called_once_with(config_klass.return_value)
 
-    expected_config = {
-        "SESSION_SECRET_KEY": gssk.return_value
-    }
+    expected_config = {"SESSION_SECRET_KEY": gssk.return_value}
 
     config_klass.assert_called_once_with(environ=expected_config)
 
     for registered, auth_system in zip(
-        found.register.call_args_list, with_auth_systems, strict=True,
+        found.register.call_args_list,
+        with_auth_systems,
+        strict=True,
     ):
         assert (
-            registered.kwargs["name"] ==
-            auth_system.oauth_client_kwargs["name"]
+            registered.kwargs["name"]
+            == auth_system.oauth_client_kwargs["name"]
         )
 
 
@@ -106,7 +109,8 @@ def test_get_oauth_w_initialized():
 @pytest.mark.parametrize("w_auth_disabled", [False, True])
 def test_authenticate_w_token_none(w_auth_disabled):
     DUMMY_USER = {
-        "name": "Phreddy Phlyntstone", "email": "phreddy@example.com",
+        "name": "Phreddy Phlyntstone",
+        "email": "phreddy@example.com",
     }
     the_installation = mock.create_autospec(installation.Installation)
     the_installation.auth_disabled = w_auth_disabled
@@ -129,7 +133,8 @@ def test_authenticate(vat, with_auth_systems, w_hit):
     FIRST_USER = {"test": "pydio"}
     SECOND_USER = {"test": "josce"}
     DUMMY_USER = {
-        "name": "Phreddy Phlyntstone", "email": "phreddy@example.com",
+        "name": "Phreddy Phlyntstone",
+        "email": "phreddy@example.com",
     }
     the_installation = mock.create_autospec(installation.Installation)
     the_installation.auth_disabled = len(with_auth_systems) == 0
@@ -163,16 +168,19 @@ def test_authenticate(vat, with_auth_systems, w_hit):
             if w_hit == "first":
                 assert found is FIRST_USER
                 vat.assert_called_once_with(
-                    token, with_auth_systems[0].token_validation_pem,
+                    token,
+                    with_auth_systems[0].token_validation_pem,
                 )
             else:
                 assert found is SECOND_USER
                 first_call, second_call = vat.call_args_list
                 assert first_call == mock.call(
-                    token, with_auth_systems[0].token_validation_pem,
+                    token,
+                    with_auth_systems[0].token_validation_pem,
                 )
                 assert second_call == mock.call(
-                    token, with_auth_systems[1].token_validation_pem,
+                    token,
+                    with_auth_systems[1].token_validation_pem,
                 )
 
 

@@ -13,8 +13,10 @@ from soliplex import config
 #   These models omit private / implementation fields
 # ============================================================================
 
+
 class Quiz(pydantic.BaseModel):
     """Metadata about a quiz"""
+
     id: str
     title: str
     randomize: bool
@@ -28,6 +30,7 @@ class Quiz(pydantic.BaseModel):
             randomize=quiz_config.randomize,
             max_questions=quiz_config.max_questions,
         )
+
 
 ConfiguredQuizzes = dict[str, Quiz]
 
@@ -51,6 +54,7 @@ class Tool(pydantic.BaseModel):
             extra_parameters=tool_config.get_extra_parameters(),
         )
 
+
 ConfiguredTools = dict[str, Tool]
 
 
@@ -66,6 +70,7 @@ class MCPClientToolset(pydantic.BaseModel):
             allowed_tools=mcp_ct_config.allowed_tools,
             toolset_params=mcp_ct_config.toolset_params,
         )
+
 
 ConfiguredMCPClientToolsets = dict[str, MCPClientToolset]
 
@@ -120,15 +125,17 @@ class Room(pydantic.BaseModel):
             },
             mcp_client_toolsets={
                 key: MCPClientToolset.from_config(mcp_ct_config)
-                for (key, mcp_ct_config)
-                    in room_config.mcp_client_toolset_configs.items()
+                for (
+                    key,
+                    mcp_ct_config,
+                ) in room_config.mcp_client_toolset_configs.items()
             },
             quizzes={
-                quiz.id: Quiz.from_config(quiz)
-                for quiz in room_config.quizzes
+                quiz.id: Quiz.from_config(quiz) for quiz in room_config.quizzes
             },
             agent=Agent.from_config(room_config.agent_config),
         )
+
 
 ConfiguredRooms = dict[str, Room]
 
@@ -146,11 +153,14 @@ class Completion(pydantic.BaseModel):
             name=completion_config.name,
             tools={
                 key: Tool.from_config(tool_config)
-                for (key, tool_config)
-                    in completion_config.tool_configs.items()
+                for (
+                    key,
+                    tool_config,
+                ) in completion_config.tool_configs.items()
             },
             agent=Agent.from_config(completion_config.agent_config),
         )
+
 
 ConfiguredCompletions = dict[str, Completion]
 
@@ -172,6 +182,7 @@ class OIDCAuthSystem(pydantic.BaseModel):
 
 class Installation(pydantic.BaseModel):
     """Configuration for a set of rooms, completions, etc."""
+
     id: str
     secrets: list[str] = []
     environment: dict[str, str] = {}
@@ -198,6 +209,7 @@ class Installation(pydantic.BaseModel):
             oidc_auth_systems=oidc_auth_systems,
         )
 
+
 # ============================================================================
 #   API interaction models
 # ============================================================================
@@ -210,9 +222,11 @@ class MCPToken(pydantic.BaseModel):
     room_id: str
     mcp_token: str
 
+
 # ----------------------------------------------------------------------------
 #   Tool-related models
 # ----------------------------------------------------------------------------
+
 
 class UserProfile(pydantic.BaseModel):
     given_name: str

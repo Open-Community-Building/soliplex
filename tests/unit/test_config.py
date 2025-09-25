@@ -37,7 +37,7 @@ BARE_AUTHSYSTEM_CONFIG_KW = {
     "token_validation_pem": AUTHSYSTEM_TOKEN_VALIDATION_PEM,
     "client_id": AUTHSYSTEM_CLIENT_ID,
 }
-BARE_AUTHSYSTEM_CONFIG_YAML=f"""
+BARE_AUTHSYSTEM_CONFIG_YAML = f"""
 auth_systems:
   - id: "{AUTHSYSTEM_ID}"
     title: "{AUTHSYSTEM_TITLE}"
@@ -58,7 +58,7 @@ auth_systems:
 AUTHSYSTEM_SCOPE = "test one two three"
 W_SCOPE_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
 W_SCOPE_AUTHSYSTEM_CONFIG_KW["scope"] = AUTHSYSTEM_SCOPE
-W_SCOPE_AUTHSYSTEM_CONFIG_YAML=f"""
+W_SCOPE_AUTHSYSTEM_CONFIG_YAML = f"""
 {BARE_AUTHSYSTEM_CONFIG_YAML}
     scope: "{AUTHSYSTEM_SCOPE}"
 """
@@ -67,7 +67,7 @@ W_PEM_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
 W_PEM_AUTHSYSTEM_CONFIG_KW["oidc_client_pem_path"] = (
     ABSOLUTE_OIDC_CLIENT_PEM_PATH
 )
-W__AUTHSYSTEM_CONFIG_YAML=f"""
+W__AUTHSYSTEM_CONFIG_YAML = f"""
 {BARE_AUTHSYSTEM_CONFIG_YAML}
     oidc_client_pem_path: "{ABSOLUTE_OIDC_CLIENT_PEM_PATH}"
 """
@@ -77,7 +77,7 @@ W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
 W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW["client_secret"] = (
     AUTHSYSTEM_CLIENT_SECRET_LIT
 )
-W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_YAML=f"""
+W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_YAML = f"""
 {BARE_AUTHSYSTEM_CONFIG_YAML}
     client_secret: "{AUTHSYSTEM_CLIENT_SECRET_LIT}"
 """
@@ -87,7 +87,7 @@ W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
 W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW["client_secret"] = (
     AUTHSYSTEM_CLIENT_SECRET_ENV
 )
-W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_YAML=f"""
+W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_YAML = f"""
 {BARE_AUTHSYSTEM_CONFIG_YAML}
     client_secret: "{AUTHSYSTEM_CLIENT_SECRET_ENV}"
 """
@@ -96,7 +96,7 @@ AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_REL_NAME = "cacert.pem"
 AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_REL = "./cacert.pem"
 W_OIDC_CPP_REL_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
 W_OIDC_CPP_REL_KW["oidc_client_pem_path"] = AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_REL
-W_OIDC_CPP_REL_CONFIG_YAML=f"""
+W_OIDC_CPP_REL_CONFIG_YAML = f"""
 {BARE_AUTHSYSTEM_CONFIG_YAML}
     oidc_client_pem_path: "{AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_REL}"
 """
@@ -104,7 +104,7 @@ W_OIDC_CPP_REL_CONFIG_YAML=f"""
 AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS = "/path/to/cacert.pem"
 W_OIDC_CPP_ABS_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
 W_OIDC_CPP_ABS_KW["oidc_client_pem_path"] = AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS
-W_OIDC_CPP_ABS_CONFIG_YAML=f"""
+W_OIDC_CPP_ABS_CONFIG_YAML = f"""
 {BARE_AUTHSYSTEM_CONFIG_YAML}
     oidc_client_pem_path: "{AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS}"
 """
@@ -257,9 +257,7 @@ QUESTIONS = [
         inputs=QUESTION_2,
         expected_output=ANSWER_2,
         metadata=config.QuizQuestionMetadata(
-            type=TYPE_2,
-            uuid=Q_UUID_2,
-            options=OPTIONS_2
+            type=TYPE_2, uuid=Q_UUID_2, options=OPTIONS_2
         ),
     ),
 ]
@@ -297,11 +295,12 @@ FULL_ROOM_CONFIG_KW = {
     ),
     "quizzes": [
         config.QuizConfig(
-            id=TEST_QUIZ_ID, question_file=TEST_QUIZ_OVR,
+            id=TEST_QUIZ_ID,
+            question_file=TEST_QUIZ_OVR,
         ),
     ],
     "allow_mcp": True,
-    "tool_configs" : {
+    "tool_configs": {
         "get_current_datetime": config.ToolConfig(
             tool_name="soliplex.tools.get_current_datetime",
             allow_mcp=True,
@@ -320,7 +319,7 @@ FULL_ROOM_CONFIG_KW = {
             ],
             env={
                 "foo": "bar",
-            }
+            },
         ),
         "http_test": config.HTTP_MCP_ClientToolsetConfig(
             url=HTTP_MCP_URL,
@@ -393,7 +392,7 @@ FULL_COMPLETION_CONFIG_KW = {
         id=f"completion-{COMPLETION_ID}",
         system_prompt=SYSTEM_PROMPT,
     ),
-    "tool_configs" : {
+    "tool_configs": {
         "get_current_datetime": config.ToolConfig(
             tool_name="soliplex.tools.get_current_datetime",
         ),
@@ -410,7 +409,7 @@ FULL_COMPLETION_CONFIG_KW = {
             ],
             env={
                 "foo": "bar",
-            }
+            },
         ),
         "http_test": config.HTTP_MCP_ClientToolsetConfig(
             url=HTTP_MCP_URL,
@@ -525,8 +524,7 @@ oidc_paths:
 
 W_OIDC_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW = {
     "id": INSTALLATION_ID,
-    "oidc_paths": [
-    ],
+    "oidc_paths": [],
 }
 W_OIDC_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML = f"""\
 id: "{INSTALLATION_ID}"
@@ -553,8 +551,7 @@ room_paths:
 
 W_ROOM_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW = {
     "id": INSTALLATION_ID,
-    "room_paths": [
-    ],
+    "room_paths": [],
 }
 W_ROOM_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML = f"""\
 id: "{INSTALLATION_ID}"
@@ -581,8 +578,7 @@ completion_paths:
 
 W_COMPLETION_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW = {
     "id": INSTALLATION_ID,
-    "completion_paths": [
-    ],
+    "completion_paths": [],
 }
 W_COMPLETION_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML = f"""\
 id: "{INSTALLATION_ID}"
@@ -609,8 +605,7 @@ quizzes_paths:
 
 W_QUIZZES_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW = {
     "id": INSTALLATION_ID,
-    "quizzes_paths": [
-    ],
+    "quizzes_paths": [],
 }
 W_QUIZZES_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML = f"""\
 id: "{INSTALLATION_ID}"
@@ -624,14 +619,18 @@ def installation_config():
     return mock.create_autospec(config.InstallationConfig)
 
 
-@pytest.mark.parametrize("w_config", [
-    BARE_AUTHSYSTEM_CONFIG_KW.copy(),
-    W_SCOPE_AUTHSYSTEM_CONFIG_KW.copy(),
-    W_PEM_AUTHSYSTEM_CONFIG_KW.copy(),
-])
+@pytest.mark.parametrize(
+    "w_config",
+    [
+        BARE_AUTHSYSTEM_CONFIG_KW.copy(),
+        W_SCOPE_AUTHSYSTEM_CONFIG_KW.copy(),
+        W_PEM_AUTHSYSTEM_CONFIG_KW.copy(),
+    ],
+)
 def test_authsystem_from_yaml(installation_config, temp_dir, w_config):
     expected = config.OIDCAuthSystemConfig(
-        _installation_config=installation_config, **w_config,
+        _installation_config=installation_config,
+        **w_config,
     )
 
     oidc_client_pem_path = w_config.get("oidc_client_pem_path")
@@ -645,56 +644,72 @@ def test_authsystem_from_yaml(installation_config, temp_dir, w_config):
     expected._config_path = temp_dir
 
     found = config.OIDCAuthSystemConfig.from_yaml(
-        installation_config, temp_dir, w_config,
+        installation_config,
+        temp_dir,
+        w_config,
     )
 
     assert found == expected
 
 
-@pytest.mark.parametrize("w_config, exp_secret, env_patch", [
-    (
-        W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW,
-        AUTHSYSTEM_CLIENT_SECRET_LIT,
-        {},
-    ),
-    (
-        W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW,
-        AUTHSYSTEM_CLIENT_SECRET_ENV,
-        {"CLIENT_SECRET_ENV": AUTHSYSTEM_CLIENT_SECRET_LIT},
-    ),
-])
+@pytest.mark.parametrize(
+    "w_config, exp_secret, env_patch",
+    [
+        (
+            W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW,
+            AUTHSYSTEM_CLIENT_SECRET_LIT,
+            {},
+        ),
+        (
+            W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW,
+            AUTHSYSTEM_CLIENT_SECRET_ENV,
+            {"CLIENT_SECRET_ENV": AUTHSYSTEM_CLIENT_SECRET_LIT},
+        ),
+    ],
+)
 def test_authsystem_from_yaml_w_client_secret(
-    installation_config, temp_dir, w_config, exp_secret, env_patch,
+    installation_config,
+    temp_dir,
+    w_config,
+    exp_secret,
+    env_patch,
 ):
     expected = config.OIDCAuthSystemConfig(
-        _installation_config=installation_config, **w_config,
+        _installation_config=installation_config,
+        **w_config,
     )
     expected.client_secret = AUTHSYSTEM_CLIENT_SECRET_LIT
     expected._config_path = temp_dir
 
     with mock.patch.dict("os.environ", clear=True, **env_patch):
         found = config.OIDCAuthSystemConfig.from_yaml(
-            installation_config, temp_dir, w_config,
+            installation_config,
+            temp_dir,
+            w_config,
         )
 
     assert found == expected
 
 
-@pytest.mark.parametrize("w_config, exp_path", [
-    (
-        W_OIDC_CPP_REL_KW,
-        "{temp_dir}/{rel_name}"
-    ),
-    (
-        W_OIDC_CPP_ABS_KW,
-        AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS,
-    )
-])
+@pytest.mark.parametrize(
+    "w_config, exp_path",
+    [
+        (W_OIDC_CPP_REL_KW, "{temp_dir}/{rel_name}"),
+        (
+            W_OIDC_CPP_ABS_KW,
+            AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS,
+        ),
+    ],
+)
 def test_authsystem_from_yaml_w_oid_cpp(
-    installation_config, temp_dir, w_config, exp_path,
+    installation_config,
+    temp_dir,
+    w_config,
+    exp_path,
 ):
     expected = config.OIDCAuthSystemConfig(
-        _installation_config=installation_config, **w_config,
+        _installation_config=installation_config,
+        **w_config,
     )
     config_path = expected._config_path = temp_dir / "config.yaml"
 
@@ -708,7 +723,9 @@ def test_authsystem_from_yaml_w_oid_cpp(
     expected.oidc_client_pem_path = pathlib.Path(exp_path)
 
     found = config.OIDCAuthSystemConfig.from_yaml(
-        installation_config, config_path, w_config,
+        installation_config,
+        config_path,
+        w_config,
     )
 
     assert found == expected
@@ -722,18 +739,28 @@ def test_authsystem_server_metadata_url():
     )
 
 
-@pytest.mark.parametrize("w_config, exp_client_kwargs, exp_secret", [
-    (BARE_AUTHSYSTEM_CONFIG_KW.copy(), {}, ""),
-    (
-        W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW,
-        {},
-        AUTHSYSTEM_CLIENT_SECRET_LIT,
-    ),
-    (W_SCOPE_AUTHSYSTEM_CONFIG_KW, {"scope": AUTHSYSTEM_SCOPE}, ""),
-    (W_OIDC_CPP_ABS_KW, {"verify": AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS}, ""),
-])
+@pytest.mark.parametrize(
+    "w_config, exp_client_kwargs, exp_secret",
+    [
+        (BARE_AUTHSYSTEM_CONFIG_KW.copy(), {}, ""),
+        (
+            W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW,
+            {},
+            AUTHSYSTEM_CLIENT_SECRET_LIT,
+        ),
+        (W_SCOPE_AUTHSYSTEM_CONFIG_KW, {"scope": AUTHSYSTEM_SCOPE}, ""),
+        (
+            W_OIDC_CPP_ABS_KW,
+            {"verify": AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS},
+            "",
+        ),
+    ],
+)
 def test_authsystem_oauth_client_args(
-    temp_dir, w_config, exp_client_kwargs, exp_secret,
+    temp_dir,
+    w_config,
+    exp_client_kwargs,
+    exp_secret,
 ):
     inst = config.OIDCAuthSystemConfig(**w_config)
     exp_url = (
@@ -746,7 +773,7 @@ def test_authsystem_oauth_client_args(
     assert found["server_metadata_url"] == exp_url
     assert found["client_id"] == AUTHSYSTEM_CLIENT_ID
     assert found["client_secret"] == exp_secret
-    assert found["client_kwargs"] ==  exp_client_kwargs
+    assert found["client_kwargs"] == exp_client_kwargs
 
 
 def test_toolconfig_from_yaml(installation_config, temp_dir):
@@ -790,7 +817,6 @@ def test_toolconfig_tool_id():
 
 @pytest.mark.parametrize("w_existing", [False, True])
 def test_toolconfig_tool(w_existing):
-
     def existing():  # pragma: NO COVER
         pass
 
@@ -845,8 +871,7 @@ def TEST_TOOL_W_CTX_W_PARAM_W_TC(
     "This is a test"
 
 
-def TEST_TOOL_WO_CTX_WO_PARAM_WO_TC(
-) -> str:
+def TEST_TOOL_WO_CTX_WO_PARAM_WO_TC() -> str:
     "This is a test"
 
 
@@ -869,12 +894,14 @@ def TEST_TOOL_WO_CTX_W_PARAM_W_TC(
     "This is a test"
 
 
-@pytest.mark.parametrize("test_tool", [
-    TEST_TOOL_W_CTX_WO_PARAM_W_TC,
-    TEST_TOOL_W_CTX_W_PARAM_W_TC,
-])
+@pytest.mark.parametrize(
+    "test_tool",
+    [
+        TEST_TOOL_W_CTX_WO_PARAM_W_TC,
+        TEST_TOOL_W_CTX_W_PARAM_W_TC,
+    ],
+)
 def test_toolconfig_tool_requires_w_conflict(test_tool):
-
     tool_config = config.ToolConfig(
         tool_name="soliplex.tools.test_tool",
     )
@@ -884,16 +911,18 @@ def test_toolconfig_tool_requires_w_conflict(test_tool):
             _ = tool_config.tool_requires
 
 
-@pytest.mark.parametrize("test_tool", [
-    TEST_TOOL_W_CTX_WO_PARAM_WO_TC,
-    TEST_TOOL_W_CTX_W_PARAM_WO_TC,
-    TEST_TOOL_WO_CTX_WO_PARAM_WO_TC,
-    TEST_TOOL_WO_CTX_W_PARAM_WO_TC,
-    TEST_TOOL_WO_CTX_WO_PARAM_W_TC,
-    TEST_TOOL_WO_CTX_W_PARAM_W_TC,
-])
+@pytest.mark.parametrize(
+    "test_tool",
+    [
+        TEST_TOOL_W_CTX_WO_PARAM_WO_TC,
+        TEST_TOOL_W_CTX_W_PARAM_WO_TC,
+        TEST_TOOL_WO_CTX_WO_PARAM_WO_TC,
+        TEST_TOOL_WO_CTX_W_PARAM_WO_TC,
+        TEST_TOOL_WO_CTX_WO_PARAM_W_TC,
+        TEST_TOOL_WO_CTX_W_PARAM_W_TC,
+    ],
+)
 def test_toolconfig_tool_description(test_tool):
-
     tool_config = config.ToolConfig(
         tool_name="soliplex.tools.test_tool",
     )
@@ -904,16 +933,18 @@ def test_toolconfig_tool_description(test_tool):
     assert found == test_tool.__doc__.strip()
 
 
-@pytest.mark.parametrize("test_tool, expected", [
-    (TEST_TOOL_W_CTX_WO_PARAM_WO_TC, config.ToolRequires.FASTAPI_CONTEXT),
-    (TEST_TOOL_W_CTX_W_PARAM_WO_TC, config.ToolRequires.FASTAPI_CONTEXT),
-    (TEST_TOOL_WO_CTX_WO_PARAM_WO_TC, config.ToolRequires.BARE),
-    (TEST_TOOL_WO_CTX_W_PARAM_WO_TC, config.ToolRequires.BARE),
-    (TEST_TOOL_WO_CTX_WO_PARAM_W_TC, config.ToolRequires.TOOL_CONFIG),
-    (TEST_TOOL_WO_CTX_W_PARAM_W_TC, config.ToolRequires.TOOL_CONFIG),
-])
+@pytest.mark.parametrize(
+    "test_tool, expected",
+    [
+        (TEST_TOOL_W_CTX_WO_PARAM_WO_TC, config.ToolRequires.FASTAPI_CONTEXT),
+        (TEST_TOOL_W_CTX_W_PARAM_WO_TC, config.ToolRequires.FASTAPI_CONTEXT),
+        (TEST_TOOL_WO_CTX_WO_PARAM_WO_TC, config.ToolRequires.BARE),
+        (TEST_TOOL_WO_CTX_W_PARAM_WO_TC, config.ToolRequires.BARE),
+        (TEST_TOOL_WO_CTX_WO_PARAM_W_TC, config.ToolRequires.TOOL_CONFIG),
+        (TEST_TOOL_WO_CTX_W_PARAM_W_TC, config.ToolRequires.TOOL_CONFIG),
+    ],
+)
 def test_toolconfig_tool_requires(test_tool, expected):
-
     tool_config = config.ToolConfig(
         tool_name="soliplex.tools.test_tool",
     )
@@ -924,16 +955,18 @@ def test_toolconfig_tool_requires(test_tool, expected):
     assert found == expected
 
 
-@pytest.mark.parametrize("test_tool, exp_wrapped", [
-    (TEST_TOOL_W_CTX_WO_PARAM_WO_TC, False),
-    (TEST_TOOL_W_CTX_W_PARAM_WO_TC, False),
-    (TEST_TOOL_WO_CTX_WO_PARAM_WO_TC, False),
-    (TEST_TOOL_WO_CTX_W_PARAM_WO_TC, False),
-    (TEST_TOOL_WO_CTX_WO_PARAM_W_TC, True),
-    (TEST_TOOL_WO_CTX_W_PARAM_W_TC, True),
-])
+@pytest.mark.parametrize(
+    "test_tool, exp_wrapped",
+    [
+        (TEST_TOOL_W_CTX_WO_PARAM_WO_TC, False),
+        (TEST_TOOL_W_CTX_W_PARAM_WO_TC, False),
+        (TEST_TOOL_WO_CTX_WO_PARAM_WO_TC, False),
+        (TEST_TOOL_WO_CTX_W_PARAM_WO_TC, False),
+        (TEST_TOOL_WO_CTX_WO_PARAM_W_TC, True),
+        (TEST_TOOL_WO_CTX_W_PARAM_W_TC, True),
+    ],
+)
 def test_toolconfig_tool_with_config(test_tool, exp_wrapped):
-
     tool_config = config.ToolConfig(
         tool_name="soliplex.tools.test_tool",
     )
@@ -964,12 +997,15 @@ def test_toolconfig_get_extra_parameters():
     assert tool_config.get_extra_parameters() == {}
 
 
-@pytest.mark.parametrize("stem, override, which", [
-    (None, None, None),
-    ("testing", "/dev/null", None),
-    ("testing", None, "stem"),
-    (None, "./override", "override"),
-])
+@pytest.mark.parametrize(
+    "stem, override, which",
+    [
+        (None, None, None),
+        ("testing", "/dev/null", None),
+        ("testing", None, "stem"),
+        (None, "./override", "override"),
+    ],
+)
 def test_sdtc_ctor(installation_config, temp_dir, stem, override, which):
     db_rag_path = temp_dir / "db" / "rag"
     db_rag_path.mkdir(parents=True)
@@ -1003,7 +1039,6 @@ def test_sdtc_ctor(installation_config, temp_dir, stem, override, which):
         sdt_config = config.SearchDocumentsToolConfig(**kw)
 
     if which is not None and stem != "nonesuch":
-
         if which == "stem":
             expected = from_stem
         else:
@@ -1024,16 +1059,18 @@ def test_sdtc_ctor(installation_config, temp_dir, stem, override, which):
         assert sdt_config.get_extra_parameters() == expected_ep
 
 
-@pytest.mark.parametrize("stem, override, which", [
-    (None, None, None),
-    ("testing", "/dev/null", None),
-    ("testing", None, "stem"),
-    ("nonesuch", None, "stem"),
-    (None, "./foo.lancedb", "override"),
-    (None, "./nonesuch", "override"),
-])
+@pytest.mark.parametrize(
+    "stem, override, which",
+    [
+        (None, None, None),
+        ("testing", "/dev/null", None),
+        ("testing", None, "stem"),
+        ("nonesuch", None, "stem"),
+        (None, "./foo.lancedb", "override"),
+        (None, "./nonesuch", "override"),
+    ],
+)
 def test_sdtc_from_yaml(installation_config, temp_dir, stem, override, which):
-
     db_rag_path = temp_dir / "db" / "rag"
     db_rag_path.mkdir(parents=True)
 
@@ -1197,10 +1234,13 @@ def test_http_mctc_tool_kwargs(iev, w_query_params, w_headers):
         assert mock.call(cfg_value) in iev.call_args_list
 
 
-@pytest.mark.parametrize("kw", [
-    EMPTY_AGENT_CONFIG_KW.copy(),
-    BARE_AGENT_CONFIG_KW.copy(),
-])
+@pytest.mark.parametrize(
+    "kw",
+    [
+        EMPTY_AGENT_CONFIG_KW.copy(),
+        BARE_AGENT_CONFIG_KW.copy(),
+    ],
+)
 def test_agentconfig_ctor(installation_config, kw):
     kw["_installation_config"] = installation_config
 
@@ -1210,8 +1250,8 @@ def test_agentconfig_ctor(installation_config, kw):
         assert found.model_name == kw["model_name"]
     else:
         assert (
-            found.model_name is
-                installation_config.get_environment.return_value
+            found.model_name
+            is installation_config.get_environment.return_value
         )
 
 
@@ -1227,7 +1267,10 @@ def test_agentconfig_ctor(installation_config, kw):
     ],
 )
 def test_agentconfig_from_yaml(
-    installation_config, temp_dir, config_yaml, expected_kw,
+    installation_config,
+    temp_dir,
+    config_yaml,
+    expected_kw,
 ):
     yaml_file = temp_dir / "test.yaml"
     yaml_file.write_text(config_yaml)
@@ -1244,20 +1287,27 @@ def test_agentconfig_from_yaml(
         yaml_dict = yaml.safe_load(stream)
 
     found = config.AgentConfig.from_yaml(
-        installation_config, yaml_file, yaml_dict,
+        installation_config,
+        yaml_file,
+        yaml_dict,
     )
 
     assert found == expected
 
 
 @pytest.mark.parametrize("w_config_path", [False, True])
-@pytest.mark.parametrize("agent_config_kw", [
-    EMPTY_AGENT_CONFIG_KW.copy(),
-    BARE_AGENT_CONFIG_KW.copy(),
-    W_PROMPT_FILE_AGENT_CONFIG_KW.copy(),
-])
+@pytest.mark.parametrize(
+    "agent_config_kw",
+    [
+        EMPTY_AGENT_CONFIG_KW.copy(),
+        BARE_AGENT_CONFIG_KW.copy(),
+        W_PROMPT_FILE_AGENT_CONFIG_KW.copy(),
+    ],
+)
 def test_agentconfig_get_system_prompt(
-    temp_dir, agent_config_kw, w_config_path,
+    temp_dir,
+    agent_config_kw,
+    w_config_path,
 ):
     agent_config_kw = agent_config_kw.copy()
 
@@ -1275,7 +1325,6 @@ def test_agentconfig_get_system_prompt(
         return
 
     if agent_config._config_path:
-
         if agent_config._system_prompt_path is not None:
             expected = SYSTEM_PROMPT
         else:
@@ -1310,7 +1359,7 @@ def test_agentconfig_llm_provider_kw(installation_config, w_pbu, w_pke):
         # TODO: use installation_config secrets
         env_patch[PROVIDER_KEY_ENVVAR] = PROVIDER_KEY_VALUE
 
-    elif w_pke is None: # no envvar set, should raise
+    elif w_pke is None:  # no envvar set, should raise
         kw["provider_key_envvar"] = PROVIDER_KEY_ENVVAR
 
     aconfig = config.AgentConfig(
@@ -1318,7 +1367,6 @@ def test_agentconfig_llm_provider_kw(installation_config, w_pbu, w_pke):
     )
 
     with mock.patch.dict("os.environ", clear=True, **env_patch):
-
         if w_pke is None:
             with pytest.raises(config.NoProviderKeyInEnvironment):
                 aconfig.llm_provider_kw  # noqa B018 noraise
@@ -1350,7 +1398,7 @@ def qa_question():
             uuid=QA_QUESTION_UUID,
             type=QUESTION_TYPE_QA,
             options=None,
-        )
+        ),
     )
 
 
@@ -1363,7 +1411,7 @@ def mc_question():
             uuid=MC_QUESTION_UUID,
             type=QUESTION_TYPE_MC,
             options=MC_OPTIONS,
-        )
+        ),
     )
 
 
@@ -1375,11 +1423,9 @@ def quiz_questions(qa_question, mc_question):
 @pytest.fixture
 def quiz_json(quiz_questions):
     return {
-        "cases": [
-            dataclasses.asdict(question)
-            for question in quiz_questions
-        ]
+        "cases": [dataclasses.asdict(question) for question in quiz_questions]
     }
+
 
 @pytest.fixture
 def populated_quiz(temp_dir, quiz_json):
@@ -1404,13 +1450,20 @@ def test_quizconfig_ctor_exclusive():
         )
 
 
-@pytest.mark.parametrize("qf, exp_stem, exp_ovr", [
-    ("foo.json", "foo", None),
-    ("bar", "bar", None),
-    ("/path/to/foo.json", None, "/path/to/foo.json"),
-])
+@pytest.mark.parametrize(
+    "qf, exp_stem, exp_ovr",
+    [
+        ("foo.json", "foo", None),
+        ("bar", "bar", None),
+        ("/path/to/foo.json", None, "/path/to/foo.json"),
+    ],
+)
 def test_quizconfig_ctor_w_question_file(
-    installation_config, temp_dir, qf, exp_stem, exp_ovr,
+    installation_config,
+    temp_dir,
+    qf,
+    exp_stem,
+    exp_ovr,
 ):
     qp_1 = temp_dir / "qp_1"
     qp_1.mkdir()
@@ -1443,7 +1496,6 @@ def test_quizconfig_ctor_w_question_file(
 
 
 def test_quizconfig_from_yaml_exceptions(installation_config, temp_dir):
-
     config_kw = {
         "id": TEST_QUIZ_ID,
         "title": TEST_QUIZ_TITLE,
@@ -1453,7 +1505,9 @@ def test_quizconfig_from_yaml_exceptions(installation_config, temp_dir):
 
     with pytest.raises(config.FromYamlException) as exc:
         config.QuizConfig.from_yaml(
-            installation_config, config_path, config_kw,
+            installation_config,
+            config_path,
+            config_kw,
         )
 
     assert exc.value.config_path == config_path
@@ -1467,7 +1521,10 @@ def test_quizconfig_from_yaml_exceptions(installation_config, temp_dir):
     ],
 )
 def test_quizconfig_from_yaml(
-    installation_config, temp_dir, config_yaml, expected_kw,
+    installation_config,
+    temp_dir,
+    config_yaml,
+    expected_kw,
 ):
     expected = config.QuizConfig(**expected_kw)
 
@@ -1483,10 +1540,13 @@ def test_quizconfig_from_yaml(
         yaml_dict = yaml.safe_load(stream)
 
     found = config.QuizConfig.from_yaml(
-        installation_config, yaml_file, yaml_dict,
+        installation_config,
+        yaml_file,
+        yaml_dict,
     )
 
     assert found == expected
+
 
 def test_quizconfig_provider_url(installation_config):
     ic_environ = {"OLLAMA_BASE_URL": OLLAMA_BASE_URL}
@@ -1502,7 +1562,8 @@ def test_quizconfig_provider_url(installation_config):
 
 
 def test_quizconfig__load_questions_file_miss_w_stem(
-    installation_config, temp_dir,
+    installation_config,
+    temp_dir,
 ):
     installation_config.quizzes_paths = [temp_dir]
     qc = config.QuizConfig(
@@ -1516,7 +1577,8 @@ def test_quizconfig__load_questions_file_miss_w_stem(
 
 
 def test_quizconfig__load_questions_file_miss_w_override(
-    installation_config, temp_dir,
+    installation_config,
+    temp_dir,
 ):
     qc = config.QuizConfig(
         id=TEST_QUIZ_ID,
@@ -1532,13 +1594,16 @@ def test_quizconfig__load_questions_file(temp_dir, populated_quiz, quiz_json):
     expected_questions = quiz_json["cases"]
 
     qc = config.QuizConfig(
-        id=TEST_QUIZ_ID, question_file=str(populated_quiz),
+        id=TEST_QUIZ_ID,
+        question_file=str(populated_quiz),
     )
 
     found = qc.get_questions()
 
     for f_question, e_question in zip(
-        found, expected_questions, strict=True,
+        found,
+        expected_questions,
+        strict=True,
     ):
         assert f_question.inputs == e_question["inputs"]
         assert f_question.expected_output == e_question["expected_output"]
@@ -1577,10 +1642,15 @@ def test_quizconfig_get_questions(quiz_questions, w_loaded, w_max_questions):
 
 @mock.patch("random.shuffle")
 def test_quizconfig_get_questions_w_randomize(
-    shuffle, temp_dir, populated_quiz, quiz_json,
+    shuffle,
+    temp_dir,
+    populated_quiz,
+    quiz_json,
 ):
     qc = config.QuizConfig(
-        id=TEST_QUIZ_ID, question_file=str(populated_quiz), randomize=True,
+        id=TEST_QUIZ_ID,
+        question_file=str(populated_quiz),
+        randomize=True,
     )
 
     found = qc.get_questions()
@@ -1595,7 +1665,8 @@ def test_quizconfig_get_question(w_loaded, w_miss):
     expected = object()
 
     qc = config.QuizConfig(
-        id=TEST_QUIZ_ID, question_file="ignored.json",
+        id=TEST_QUIZ_ID,
+        question_file="ignored.json",
     )
     q_map = {}
 
@@ -1624,7 +1695,10 @@ def test_quizconfig_get_question(w_loaded, w_miss):
     ],
 )
 def test_roomconfig_from_yaml(
-    installation_config, temp_dir, config_yaml, expected_kw,
+    installation_config,
+    temp_dir,
+    config_yaml,
+    expected_kw,
 ):
     expected = config.RoomConfig(**expected_kw)
 
@@ -1667,10 +1741,13 @@ def test_roomconfig_from_yaml(
         yaml_dict = yaml.safe_load(stream)
 
     found = config.RoomConfig.from_yaml(
-        installation_config, yaml_file, yaml_dict,
+        installation_config,
+        yaml_file,
+        yaml_dict,
     )
 
     assert found == expected
+
 
 @pytest.mark.parametrize("w_existing", [False, True])
 def test_roomconfig_quiz_map(w_existing):
@@ -1680,7 +1757,8 @@ def test_roomconfig_quiz_map(w_existing):
             config.QuizConfig,
             id=f"quiz-{iq}",
             question_file=f"ignored-{iq}.json",
-        ) for iq in range(NUM_QUIZZES)
+        )
+        for iq in range(NUM_QUIZZES)
     ]
 
     existing = object()
@@ -1698,7 +1776,9 @@ def test_roomconfig_quiz_map(w_existing):
 
     else:
         for (_f_id, f_quiz), e_quiz in zip(
-            found.items(), quizzes, strict=True,
+            found.items(),
+            quizzes,
+            strict=True,
         ):
             assert f_quiz is e_quiz
 
@@ -1724,7 +1804,8 @@ def test_roomconfig_sort_key(w_order):
 
 @pytest.mark.parametrize("w_config_path", [False, True])
 @pytest.mark.parametrize(
-    "room_config_kw", [BARE_ROOM_CONFIG_KW, FULL_ROOM_CONFIG_KW],
+    "room_config_kw",
+    [BARE_ROOM_CONFIG_KW, FULL_ROOM_CONFIG_KW],
 )
 def test_roomconfig_get_logo_image(temp_dir, room_config_kw, w_config_path):
     room_config_kw = room_config_kw.copy()
@@ -1761,7 +1842,10 @@ def test_roomconfig_get_logo_image(temp_dir, room_config_kw, w_config_path):
     ],
 )
 def test_completionconfig_from_yaml(
-    installation_config, temp_dir, config_yaml, expected_kw,
+    installation_config,
+    temp_dir,
+    config_yaml,
+    expected_kw,
 ):
     if "name" not in expected_kw:
         expected_kw = expected_kw.copy()
@@ -1796,7 +1880,9 @@ def test_completionconfig_from_yaml(
         yaml_dict = yaml.safe_load(stream)
 
     found = config.CompletionConfig.from_yaml(
-        installation_config, yaml_file, yaml_dict,
+        installation_config,
+        yaml_file,
+        yaml_dict,
     )
 
     assert found == expected
@@ -1813,14 +1899,17 @@ def test__load_config_yaml_w_missing(temp_dir):
     assert exc.value.config_path == missing_cfg
 
 
-@pytest.mark.parametrize("invalid", [
-    b"\xDE\xAD\xBE\xEF",    # raises UnicodeDecodeError
-    "",                     # parses as None
-    "123",                  # parses as int
-    "4.56",                 # parses as float
-    '"foo"',                # parses as str
-    '- "abc"\n- "def"',     # parses as list of str
-])
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        b"\xde\xad\xbe\xef",  # raises UnicodeDecodeError
+        "",  # parses as None
+        "123",  # parses as int
+        "4.56",  # parses as float
+        '"foo"',  # parses as str
+        '- "abc"\n- "def"',  # parses as list of str
+    ],
+)
 def test__load_config_yaml_w_invalid(temp_dir, invalid):
     config_path = temp_dir / "oidc"
     config_path.mkdir()
@@ -1859,7 +1948,7 @@ def test__find_configs_w_multiple(temp_dir):
 
     for thing_id in sorted(THING_IDS):
         thing_path = temp_dir / thing_id
-        if thing_id == "baz":    # file, not dir
+        if thing_id == "baz":  # file, not dir
             thing_path.write_text("DEADBEEF")
         elif thing_id == "qux":  # empty dir
             thing_path.mkdir()
@@ -1873,7 +1962,9 @@ def test__find_configs_w_multiple(temp_dir):
     found_things = list(config._find_configs(temp_dir, CONFIG_FILENAME))
 
     for (f_key, f_thing), (e_key, e_thing) in zip(
-        sorted(found_things), sorted(expected_things), strict=True,
+        sorted(found_things),
+        sorted(expected_things),
+        strict=True,
     ):
         assert f_key == e_key
         assert f_thing == e_thing
@@ -1906,79 +1997,83 @@ def test_installationconfig_get_environment(w_hit, w_default):
         assert found is None
 
 
-
-@pytest.mark.parametrize("config_yaml, expected_kw", [
-    (BARE_INSTALLATION_CONFIG_YAML, BARE_INSTALLATION_CONFIG_KW),
-    (W_SECRETS_INSTALLATION_CONFIG_YAML, W_SECRETS_INSTALLATION_CONFIG_KW),
-    (
-        W_ENVIRONMENT_LIST_INSTALLATION_CONFIG_YAML,
-        W_ENVIRONMENT_INSTALLATION_CONFIG_KW,
-    ),
-    (
-        W_ENVIRONMENT_MAPPING_INSTALLATION_CONFIG_YAML,
-        W_ENVIRONMENT_INSTALLATION_CONFIG_KW,
-    ),
-    (
-        W_OIDC_PATHS_INSTALLATION_CONFIG_YAML,
-        W_OIDC_PATHS_INSTALLATION_CONFIG_KW,
-    ),
-    (
-        W_OIDC_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
-        W_OIDC_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW,
-    ),
-    (
-        W_ROOM_PATHS_INSTALLATION_CONFIG_YAML,
-        W_ROOM_PATHS_INSTALLATION_CONFIG_KW,
-    ),
-    (
-        W_ROOM_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
-        W_ROOM_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW,
-    ),
-    (
-        W_COMPLETION_PATHS_INSTALLATION_CONFIG_YAML,
-        W_COMPLETION_PATHS_INSTALLATION_CONFIG_KW,
-    ),
-    (
-        W_COMPLETION_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
-        W_COMPLETION_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW,
-    ),
-    (
-        W_QUIZZES_PATHS_INSTALLATION_CONFIG_YAML,
-        W_QUIZZES_PATHS_INSTALLATION_CONFIG_KW,
-    ),
-    (
-        W_QUIZZES_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
-        W_QUIZZES_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW,
-    ),
-])
+@pytest.mark.parametrize(
+    "config_yaml, expected_kw",
+    [
+        (BARE_INSTALLATION_CONFIG_YAML, BARE_INSTALLATION_CONFIG_KW),
+        (W_SECRETS_INSTALLATION_CONFIG_YAML, W_SECRETS_INSTALLATION_CONFIG_KW),
+        (
+            W_ENVIRONMENT_LIST_INSTALLATION_CONFIG_YAML,
+            W_ENVIRONMENT_INSTALLATION_CONFIG_KW,
+        ),
+        (
+            W_ENVIRONMENT_MAPPING_INSTALLATION_CONFIG_YAML,
+            W_ENVIRONMENT_INSTALLATION_CONFIG_KW,
+        ),
+        (
+            W_OIDC_PATHS_INSTALLATION_CONFIG_YAML,
+            W_OIDC_PATHS_INSTALLATION_CONFIG_KW,
+        ),
+        (
+            W_OIDC_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
+            W_OIDC_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW,
+        ),
+        (
+            W_ROOM_PATHS_INSTALLATION_CONFIG_YAML,
+            W_ROOM_PATHS_INSTALLATION_CONFIG_KW,
+        ),
+        (
+            W_ROOM_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
+            W_ROOM_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW,
+        ),
+        (
+            W_COMPLETION_PATHS_INSTALLATION_CONFIG_YAML,
+            W_COMPLETION_PATHS_INSTALLATION_CONFIG_KW,
+        ),
+        (
+            W_COMPLETION_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
+            W_COMPLETION_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW,
+        ),
+        (
+            W_QUIZZES_PATHS_INSTALLATION_CONFIG_YAML,
+            W_QUIZZES_PATHS_INSTALLATION_CONFIG_KW,
+        ),
+        (
+            W_QUIZZES_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
+            W_QUIZZES_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW,
+        ),
+    ],
+)
 def test_installationconfig_from_yaml(
-    installation_config, temp_dir, config_yaml, expected_kw,
+    installation_config,
+    temp_dir,
+    config_yaml,
+    expected_kw,
 ):
     expected = config.InstallationConfig(**expected_kw)
 
     yaml_file = temp_dir / "installation.yaml"
     yaml_file.write_text(config_yaml)
     expected = dataclasses.replace(
-        expected, _config_path=yaml_file,
+        expected,
+        _config_path=yaml_file,
     )
 
     if "oidc_paths" in expected_kw:
         exp_oidc_paths = [
-            temp_dir / oidc_path
-            for oidc_path in expected_kw["oidc_paths"]
+            temp_dir / oidc_path for oidc_path in expected_kw["oidc_paths"]
         ]
     else:
-        exp_oidc_paths=[temp_dir / "oidc"]
+        exp_oidc_paths = [temp_dir / "oidc"]
 
     expected = dataclasses.replace(expected, oidc_paths=exp_oidc_paths)
 
     if "room_paths" in expected_kw:
         exp_room_paths = [
-            temp_dir / room_path
-            for room_path in expected_kw["room_paths"]
+            temp_dir / room_path for room_path in expected_kw["room_paths"]
         ]
     else:
-        exp_room_paths=[temp_dir / "rooms"]
+        exp_room_paths = [temp_dir / "rooms"]
 
     expected = dataclasses.replace(expected, room_paths=exp_room_paths)
 
@@ -1990,14 +2085,20 @@ def test_installationconfig_from_yaml(
     assert found == expected
 
 
-@pytest.mark.parametrize("w_pem_path", [
-    ABSOLUTE_OIDC_CLIENT_PEM_PATH,
-    RELATIVE_OIDC_CLIENT_PEM_PATH,
-])
+@pytest.mark.parametrize(
+    "w_pem_path",
+    [
+        ABSOLUTE_OIDC_CLIENT_PEM_PATH,
+        RELATIVE_OIDC_CLIENT_PEM_PATH,
+    ],
+)
 @pytest.mark.parametrize("w_pem", [False, "bare_top", "bare_authsys"])
 @mock.patch("soliplex.config._load_config_yaml")
 def test_installationconfig_oidc_auth_system_configs_wo_existing(
-    lcy, temp_dir, w_pem, w_pem_path,
+    lcy,
+    temp_dir,
+    w_pem,
+    w_pem_path,
 ):
     if w_pem_path.startswith("."):
         exp_oidc_client_pem_path = temp_dir / "oidc_bare" / w_pem_path
@@ -2005,9 +2106,7 @@ def test_installationconfig_oidc_auth_system_configs_wo_existing(
         exp_oidc_client_pem_path = pathlib.Path(w_pem_path)
 
     bare_config_yaml = {
-        "auth_systems": [
-            BARE_AUTHSYSTEM_CONFIG_KW.copy()
-        ],
+        "auth_systems": [BARE_AUTHSYSTEM_CONFIG_KW.copy()],
     }
 
     if w_pem == "bare_top":
@@ -2020,9 +2119,7 @@ def test_installationconfig_oidc_auth_system_configs_wo_existing(
         exp_oidc_client_pem_path = None
 
     w_scope_config_yaml = {
-        "auth_systems": [
-            W_SCOPE_AUTHSYSTEM_CONFIG_KW.copy()
-        ],
+        "auth_systems": [W_SCOPE_AUTHSYSTEM_CONFIG_KW.copy()],
     }
 
     lcy.side_effect = [bare_config_yaml, w_scope_config_yaml]
@@ -2092,7 +2189,9 @@ def test_installationconfig_room_configs_wo_existing(temp_dir):
         room_config = room_path / "room_config.yaml"
         room_config.write_text(
             BARE_ROOM_CONFIG_YAML.replace(
-                f'id: "{ROOM_ID}"', f'id: "{room_id}"', 1,
+                f'id: "{ROOM_ID}"',
+                f'id: "{room_id}"',
+                1,
             ),
         )
 
@@ -2118,8 +2217,10 @@ def test_installationconfig_room_configs_wo_existing_w_conflict(temp_dir):
         room_config = room_path / "room_config.yaml"
         room_config.write_text(
             BARE_ROOM_CONFIG_YAML.replace(
-                #f'id: "{ROOM_ID}"', f'id: "{room_id}"', 1, # conflict on ID
-                f'name: "{ROOM_NAME}"', f'name: "{room_path.name}"', 1,
+                # f'id: "{ROOM_ID}"', f'id: "{room_id}"', 1, # conflict on ID
+                f'name: "{ROOM_NAME}"',
+                f'name: "{room_path.name}"',
+                1,
             )
         )
 
@@ -2163,7 +2264,9 @@ def test_installationconfig_completion_configs_wo_existing(temp_dir):
         completion_config = completion_path / "completion_config.yaml"
         completion_config.write_text(
             BARE_COMPLETION_CONFIG_YAML.replace(
-                f'id: "{COMPLETION_ID}"', f'id: "{completion_id}"', 1,
+                f'id: "{COMPLETION_ID}"',
+                f'id: "{completion_id}"',
+                1,
             ),
         )
 
@@ -2191,9 +2294,9 @@ def test_installationconfig_completion_configs_wo_existing_w_conflict(
         completion_config = completion_path / "completion_config.yaml"
         completion_config.write_text(
             FULL_COMPLETION_CONFIG_YAML.replace(
-                #f'id: "{COMPLETION_ID}"',
-                #f'id: "{completion_id}"',
-                #1, # conflict on ID
+                # f'id: "{COMPLETION_ID}"',
+                # f'id: "{completion_id}"',
+                # 1, # conflict on ID
                 f'name: "{COMPLETION_NAME}"',
                 f'name: "{completion_path.name}"',
                 1,
@@ -2242,17 +2345,15 @@ def test_installationconfig_reload_configurations():
         i_config.reload_configurations()
 
     assert (
-        i_config._oidc_auth_system_configs is
-        patched["_load_oidc_auth_system_configs"].return_value
+        i_config._oidc_auth_system_configs
+        is patched["_load_oidc_auth_system_configs"].return_value
     )
 
-    assert (
-        i_config._room_configs is patched["_load_room_configs"].return_value
-    )
+    assert i_config._room_configs is patched["_load_room_configs"].return_value
 
     assert (
-        i_config._completion_configs is
-        patched["_load_completion_configs"].return_value
+        i_config._completion_configs
+        is patched["_load_completion_configs"].return_value
     )
 
 
@@ -2262,7 +2363,7 @@ def populated_temp_dir(temp_dir):
     default.write_text('id: "testing"')
 
     not_a_yaml_file = temp_dir / "not_a_yaml_file.yaml"
-    not_a_yaml_file.write_bytes(b"\xDE\xAD\xBE\xEF")
+    not_a_yaml_file.write_bytes(b"\xde\xad\xbe\xef")
 
     there_but_no_config = temp_dir / "there-but-no-config"
     there_but_no_config.mkdir()
@@ -2280,17 +2381,20 @@ def populated_temp_dir(temp_dir):
     return temp_dir
 
 
-@pytest.mark.parametrize("rel_path, raises, expected_id", [
-    (".", False, "testing"),
-    ("./installation.yaml", False, "testing"),
-    ("no_such_filename.yaml", config.NoSuchConfig, None),
-    ("not_a_yaml_file.yaml", config.FromYamlException, None),
-    ("/dev/null", config.NoSuchConfig, None),
-    ("./not-there", config.NoSuchConfig, None),
-    ("./there-but-no-config", config.NoSuchConfig, None),
-    ("./there-with-config", False, "there-with-config"),
-    ("./alt-config/filename.yaml", False, "alt-config"),
-])
+@pytest.mark.parametrize(
+    "rel_path, raises, expected_id",
+    [
+        (".", False, "testing"),
+        ("./installation.yaml", False, "testing"),
+        ("no_such_filename.yaml", config.NoSuchConfig, None),
+        ("not_a_yaml_file.yaml", config.FromYamlException, None),
+        ("/dev/null", config.NoSuchConfig, None),
+        ("./not-there", config.NoSuchConfig, None),
+        ("./there-but-no-config", config.NoSuchConfig, None),
+        ("./there-with-config", False, "there-with-config"),
+        ("./alt-config/filename.yaml", False, "alt-config"),
+    ],
+)
 def test_load_installation(populated_temp_dir, rel_path, raises, expected_id):
     target = populated_temp_dir / rel_path
 

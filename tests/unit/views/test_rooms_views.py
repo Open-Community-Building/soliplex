@@ -22,7 +22,6 @@ def room_configs(request):
 @mock.patch("soliplex.auth.authenticate")
 @mock.patch("soliplex.models.Room.from_config")
 async def test_get_rooms(fc, auth_fn, room_configs):
-
     request = mock.create_autospec(fastapi.Request)
 
     the_installation = mock.create_autospec(installation.Installation)
@@ -30,11 +29,13 @@ async def test_get_rooms(fc, auth_fn, room_configs):
     token = object()
 
     found = await rooms_views.get_rooms(
-        request, the_installation=the_installation, token=token,
+        request,
+        the_installation=the_installation,
+        token=token,
     )
 
     for (found_key, found_room), room_id, fc_call in zip(
-        found.items(),   # should already be sorted
+        found.items(),  # should already be sorted
         sorted(room_configs),
         fc.call_args_list,
         strict=True,
@@ -90,7 +91,8 @@ async def test_get_room(fc, auth_fn, room_configs):
         fc.assert_called_once_with(room_configs[ROOM_ID])
 
     the_installation.get_room_config.assert_called_once_with(
-        ROOM_ID, auth_fn.return_value,
+        ROOM_ID,
+        auth_fn.return_value,
     )
     auth_fn.assert_called_once_with(the_installation, token)
 
@@ -120,7 +122,6 @@ async def test_get_room_bg_image(auth_fn, temp_dir, w_image, room_configs):
             room_configs[ROOM_ID].get_logo_image.return_value = image_path
         else:
             room_configs[ROOM_ID].get_logo_image.return_value = None
-
 
     if ROOM_ID not in room_configs:
         with pytest.raises(fastapi.HTTPException) as exc:
@@ -156,7 +157,8 @@ async def test_get_room_bg_image(auth_fn, temp_dir, w_image, room_configs):
             assert exc.value.detail == "No image for room"
 
     the_installation.get_room_config.assert_called_once_with(
-        ROOM_ID, auth_fn.return_value,
+        ROOM_ID,
+        auth_fn.return_value,
     )
     auth_fn.assert_called_once_with(the_installation, token)
 
@@ -165,9 +167,7 @@ async def test_get_room_bg_image(auth_fn, temp_dir, w_image, room_configs):
 @pytest.mark.parametrize("w_error", [False, True])
 @mock.patch("soliplex.mcp_auth.generate_url_safe_token")
 @mock.patch("soliplex.auth.authenticate")
-async def test_get_room_mcp_token(
-    auth_fn, gust, w_error
-):
+async def test_get_room_mcp_token(auth_fn, gust, w_error):
     ROOM_ID = "test-room"
     ROOM_CONFIG = object()
     MCP_TOKEN = gust.return_value = "DEADBEEF"
@@ -178,7 +178,8 @@ async def test_get_room_mcp_token(
 
     token = object()
     wylma = auth_fn.return_value = {
-        "full_name": "Wylma Phlyntstone", "email": "wylma@exmple.com",
+        "full_name": "Wylma Phlyntstone",
+        "email": "wylma@exmple.com",
     }
 
     if w_error:
@@ -214,6 +215,7 @@ async def test_get_room_mcp_token(
         gust.assert_called_once_with(ROOM_ID, **wylma)
 
     the_installation.get_room_config.assert_called_once_with(
-        ROOM_ID, user=auth_fn.return_value,
+        ROOM_ID,
+        user=auth_fn.return_value,
     )
     auth_fn.assert_called_once_with(the_installation, token)

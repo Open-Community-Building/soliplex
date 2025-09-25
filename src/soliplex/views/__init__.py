@@ -1,10 +1,10 @@
-
 import fastapi
 from fastapi import responses
 
 from soliplex import util
 
 router = fastapi.APIRouter()
+
 
 #   'process_control' canary
 @util.logfire_span("GET /ok")
@@ -17,10 +17,10 @@ async def health_check():
 @util.logfire_span("GET /check-headers")
 @router.get("/check-headers")
 async def check_headers(request: fastapi.Request):  # pragma: NO COVER
-    return_to="https://google.com"
+    return_to = "https://google.com"
     redirect_uri = request.url_for("health_check")
     redirect_uri = redirect_uri.replace_query_params(return_to=return_to)
-    #redirect_uri = redirect_uri.replace(netloc=redirect_uri.netloc + '/api')
+    # redirect_uri = redirect_uri.replace(netloc=redirect_uri.netloc + '/api')
     return {
         "X-Forwarded-For": request.headers.get("x-forwarded-for"),
         "X-Forwarded-Proto": request.headers.get("x-forwarded-proto"),

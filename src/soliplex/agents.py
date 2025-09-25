@@ -12,7 +12,6 @@ from soliplex import models
 _agent_cache: dict[str, pydantic_ai.Agent] = {}
 
 
-
 def make_ai_tool(tool_config) -> ai_tools.Tool:
     tool_func = tool_config.tool_with_config
 
@@ -44,13 +43,11 @@ def get_agent_from_configs(
             provider = openai_providers.OpenAIProvider(**provider_kw)
 
         tools = [
-            make_ai_tool(tool_config)
-            for tool_config in tool_configs.values()
+            make_ai_tool(tool_config) for tool_config in tool_configs.values()
         ]
         toolsets = [
-            make_mcp_client_toolset(mcp_client_toolset_config)
-            for mcp_client_toolset_config
-                in mcp_client_toolset_configs.values()
+            make_mcp_client_toolset(mctc)
+            for mctc in mcp_client_toolset_configs.values()
         ]
 
         _agent_cache[agent_config.id] = pydantic_ai.Agent(

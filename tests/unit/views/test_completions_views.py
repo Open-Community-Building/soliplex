@@ -30,6 +30,7 @@ UNKNOWN_USER = {
     "email": "<unknown>",
 }
 
+
 @pytest.fixture(scope="module", params=[(), COMPLETION_IDS])
 def completion_configs(request):
     return {
@@ -45,17 +46,17 @@ async def test_get_chat_completions(fc, auth_fn, completion_configs):
     request = mock.create_autospec(fastapi.Request)
 
     the_installation = mock.create_autospec(installation.Installation)
-    the_installation.get_completion_configs.return_value = (
-        completion_configs
-    )
+    the_installation.get_completion_configs.return_value = completion_configs
     token = object()
 
     found = await completions_views.get_chat_completions(
-        request, the_installation=the_installation, token=token,
+        request,
+        the_installation=the_installation,
+        token=token,
     )
 
     for (found_key, found_completion), completion_id, fc_call in zip(
-        found.items(),   # should already be sorted
+        found.items(),  # should already be sorted
         sorted(completion_configs),
         fc.call_args_list,
         strict=True,
@@ -115,16 +116,20 @@ async def test_get_chat_completion(fc, auth_fn, completion_configs):
         fc.assert_called_once_with(completion_configs[COMPLETION_ID])
 
     the_installation.get_completion_config.assert_called_once_with(
-        COMPLETION_ID, auth_fn.return_value,
+        COMPLETION_ID,
+        auth_fn.return_value,
     )
     auth_fn.assert_called_once_with(the_installation, token)
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("w_auth_user, exp_user", [
-    ({}, UNKNOWN_USER),
-    (AUTH_USER, AUTH_USER),
-])
+@pytest.mark.parametrize(
+    "w_auth_user, exp_user",
+    [
+        ({}, UNKNOWN_USER),
+        (AUTH_USER, AUTH_USER),
+    ],
+)
 @mock.patch("soliplex.auth.authenticate")
 async def test_post_chat_completion_miss(auth_fn, w_auth_user, exp_user):
     auth_fn.return_value = w_auth_user
@@ -135,13 +140,15 @@ async def test_post_chat_completion_miss(auth_fn, w_auth_user, exp_user):
     the_installation = mock.create_autospec(installation.Installation)
     token = object()
 
-    the_installation.get_agent_for_completion.side_effect = (
-        KeyError("testing")
-    )
+    the_installation.get_agent_for_completion.side_effect = KeyError("testing")
 
     with pytest.raises(fastapi.HTTPException) as exc:
         await completions_views.post_chat_completion(
-            request, "nonesuch", chat_request, the_installation, token,
+            request,
+            "nonesuch",
+            chat_request,
+            the_installation,
+            token,
         )
 
     assert exc.value.status_code == 404
@@ -150,15 +157,22 @@ async def test_post_chat_completion_miss(auth_fn, w_auth_user, exp_user):
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("w_auth_user, exp_user", [
-    ({}, UNKNOWN_USER),
-    (AUTH_USER, AUTH_USER),
-])
+@pytest.mark.parametrize(
+    "w_auth_user, exp_user",
+    [
+        ({}, UNKNOWN_USER),
+        (AUTH_USER, AUTH_USER),
+    ],
+)
 @pytest.mark.parametrize("w_msg", [False, True])
 @mock.patch("soliplex.completions.openai_chat_completion")
 @mock.patch("soliplex.auth.authenticate")
 async def test_post_chat_completion_hit(
-    auth_fn, occ, w_msg, w_auth_user, exp_user,
+    auth_fn,
+    occ,
+    w_msg,
+    w_auth_user,
+    exp_user,
 ):
     auth_fn.return_value = w_auth_user
 
@@ -177,7 +191,11 @@ async def test_post_chat_completion_hit(
     token = object()
 
     response = await completions_views.post_chat_completion(
-        request, COMPLETION_ID, chat_request, the_installation, token,
+        request,
+        COMPLETION_ID,
+        chat_request,
+        the_installation,
+        token,
     )
 
     assert response is occ.return_value

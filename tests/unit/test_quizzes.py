@@ -26,7 +26,7 @@ def qa_question():
         metadata=config.QuizQuestionMetadata(
             uuid=QA_QUESTION_UUID,
             type=QUESTION_TYPE_QA,
-        )
+        ),
     )
 
 
@@ -39,7 +39,7 @@ def mc_question():
             uuid=MC_QUESTION_UUID,
             type=QUESTION_TYPE_MC,
             options=MC_OPTIONS,
-        )
+        ),
     )
 
 
@@ -70,7 +70,10 @@ def a_quiz(qa_question, mc_question, installation_config):
 @mock.patch("pydantic_ai.models.openai.OpenAIChatModel")
 @mock.patch("pydantic_ai.Agent")
 def test_get_quiz_judge_agent(
-    agent_klass, model_klass, provider_klass, a_quiz,
+    agent_klass,
+    model_klass,
+    provider_klass,
+    a_quiz,
 ):
     found = quizzes.get_quiz_judge_agent(a_quiz)
 
@@ -88,7 +91,8 @@ def test_get_quiz_judge_agent(
     )
 
     provider_klass.assert_called_once_with(
-        base_url=OLLAMA_BASE_URL + "/v1", api_key="dummy",
+        base_url=OLLAMA_BASE_URL + "/v1",
+        api_key="dummy",
     )
 
 
@@ -100,13 +104,15 @@ async def test_check_answer_with_agent(gqja, qa_question, a_quiz):
     answer = "Who knows?"
 
     found = await quizzes.check_answer_with_agent(
-        a_quiz, qa_question, answer,
+        a_quiz,
+        qa_question,
+        answer,
     )
 
     assert found is a_run.return_value.output.equivalent
 
-    a_run_call, = a_run.await_args_list
-    prompt, = a_run_call.args
+    (a_run_call,) = a_run.await_args_list
+    (prompt,) = a_run_call.args
     lines = prompt.splitlines()
     assert f"QUESTION: {INPUTS}" in lines
     assert f"ANSWER: {answer}" in lines

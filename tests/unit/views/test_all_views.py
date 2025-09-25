@@ -1,4 +1,3 @@
-
 import pytest
 
 from soliplex import views

@@ -5,11 +5,8 @@ from pydantic_ai import mcp as ai_mcp
 
 
 def _filter_tools(offered_tools, allowed_tools):
-
     if allowed_tools:
-        tools = [
-            tool for tool in offered_tools if tool.name in allowed_tools
-        ]
+        tools = [tool for tool in offered_tools if tool.name in allowed_tools]
 
     else:
         tools = offered_tools
@@ -18,13 +15,12 @@ def _filter_tools(offered_tools, allowed_tools):
 
 
 class Stdio_MCP_Client_Toolset(ai_mcp.MCPServerStdio):
-
     def __init__(
         self,
         command: str,
         args: list[str],
         env: dict[str, str],
-        allowed_tools: list[str]=None,
+        allowed_tools: list[str] = None,
     ):  # pragma: NO COVER
         super().__init__(command=command, args=args, env=env)
         self._allowed_tools = allowed_tools or ()
@@ -57,7 +53,6 @@ class Stdio_MCP_Client_Toolset(ai_mcp.MCPServerStdio):
 
 
 class HTTP_MCP_Client_Toolset(ai_mcp.MCPServerStreamableHTTP):
-
     def __init__(
         self,
         url: str,

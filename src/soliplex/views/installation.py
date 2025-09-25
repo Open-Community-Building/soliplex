@@ -1,4 +1,3 @@
-
 import fastapi
 from fastapi import security
 
@@ -9,13 +8,14 @@ from soliplex import util
 
 router = fastapi.APIRouter()
 
+depend_the_installation = installation.depend_the_installation
+
 
 @util.logfire_span("GET /v1/installation")
 @router.get("/v1/installation", response_model=models.Installation)
 async def get_installation(
     request: fastapi.Request,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
+    the_installation: installation.Installation = depend_the_installation,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ):
     auth.authenticate(the_installation, token)

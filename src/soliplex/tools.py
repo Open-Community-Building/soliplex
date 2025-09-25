@@ -18,7 +18,7 @@ async def get_current_datetime() -> str:
 
 async def search_documents(
     query: str,
-    tool_config: config.SearchDocumentsToolConfig=None,
+    tool_config: config.SearchDocumentsToolConfig = None,
 ) -> list[models.SearchResult]:
     """
     Search the document knowledge base for relevant information based on the user's query.
@@ -31,14 +31,15 @@ async def search_documents(
         relevance scores, and, optionally, document URIs.
     """  # noqa: E501  The first line is important to the LLM.
     async with rag_client.HaikuRAG(tool_config.rag_lancedb_path) as rag:
-
         results = await rag.search(
-            query, limit=tool_config.search_documents_limit,
+            query,
+            limit=tool_config.search_documents_limit,
         )
 
         if tool_config.expand_context_radius > 0:
             results = await rag.expand_context(
-                results, radius=tool_config.expand_context_radius,
+                results,
+                radius=tool_config.expand_context_radius,
             )
 
         def _search_results(doc, score):
@@ -46,7 +47,7 @@ async def search_documents(
                 return models.SearchResult(
                     content=doc.content,
                     score=score,
-                    document_uri=doc.document_uri
+                    document_uri=doc.document_uri,
                 )
             else:
                 return models.SearchResult(
@@ -54,4 +55,4 @@ async def search_documents(
                     score=score,
                 )
 
-        return [_search_results(doc, score) for doc, score in results ]
+        return [_search_results(doc, score) for doc, score in results]

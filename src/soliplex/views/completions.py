@@ -13,15 +13,15 @@ from soliplex import util
 
 router = fastapi.APIRouter()
 
+depend_the_installation = installation.depend_the_installation
+
 
 @util.logfire_span("GET /v1/chat/completions")
 @router.get("/v1/chat/completions")
 async def get_chat_completions(
     request: fastapi.Request,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    the_installation: installation.Installation = depend_the_installation,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.ConfiguredCompletions:
     user = auth.authenticate(the_installation, token)
     completion_configs = the_installation.get_completion_configs(user)
@@ -37,15 +37,14 @@ async def get_chat_completions(
 async def get_chat_completion(
     request: fastapi.Request,
     completion_id: str,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    the_installation: installation.Installation = depend_the_installation,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.Completion:
     user = auth.authenticate(the_installation, token)
     try:
         completion_config = the_installation.get_completion_config(
-            completion_id, user,
+            completion_id,
+            user,
         )
     except KeyError:
         raise fastapi.HTTPException(
@@ -61,10 +60,8 @@ async def post_chat_completion(
     request: fastapi.Request,
     completion_id: str,
     chat_request: models.ChatCompletionRequest,
-    the_installation: installation.Installation =
-        installation.depend_the_installation,
-    token: security.HTTPAuthorizationCredentials =
-        auth.oauth2_predicate,
+    the_installation: installation.Installation = depend_the_installation,
+    token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ):
     user = auth.authenticate(the_installation, token)
     user_profile = models.UserProfile(
@@ -76,7 +73,8 @@ async def post_chat_completion(
 
     try:
         agent = the_installation.get_agent_for_completion(
-            completion_id, user,
+            completion_id,
+            user,
         )
     except KeyError:
         raise fastapi.HTTPException(
@@ -88,5 +86,7 @@ async def post_chat_completion(
     )
 
     return await completions.openai_chat_completion(
-        agent, agent_deps, chat_request,
+        agent,
+        agent_deps,
+        chat_request,
     )
