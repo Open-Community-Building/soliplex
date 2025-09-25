@@ -171,8 +171,7 @@ class OIDCAuthSystem(pydantic.BaseModel):
     server_url: str
     token_validation_pem: str
     client_id: str
-    scope: str = None
-    oidc_client_pem_path: pathlib.Path | None = None
+    scope: str | None = None
 
     @classmethod
     def from_config(cls, oas_config: config.OIDCAuthSystemConfig):
@@ -180,6 +179,9 @@ class OIDCAuthSystem(pydantic.BaseModel):
             dataclasses.replace(oas_config, _installation_config=None)
         )
         return cls(**kwargs)
+
+
+ConfiguredOIDCAuthSystems = dict[str, OIDCAuthSystem]
 
 
 class Installation(pydantic.BaseModel):

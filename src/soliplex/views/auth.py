@@ -1,3 +1,5 @@
+import dataclasses
+
 import fastapi
 from authlib.integrations import starlette_client
 from fastapi import responses
@@ -16,15 +18,16 @@ depend_the_installation = installation.depend_the_installation
 @router.get("/login")
 async def get_login(
     the_installation: installation.Installation = depend_the_installation,
-):
+) -> models.ConfiguredOIDCAuthSystems:
+    # Remove `_installation_config` to avoid infinite recursion
+    auth_system_copies = [
+        dataclasses.replace(auth_system, _installation_config=None)
+        for auth_system in the_installation.oidc_auth_system_configs
+    ]
+
     return {
-        "systems": [
-            {
-                "id": auth_system.id,
-                "title": auth_system.title,
-            }
-            for auth_system in the_installation.oidc_auth_system_configs
-        ]
+        auth_system.id: models.OIDCAuthSystem.from_config(auth_system)
+        for auth_system in auth_system_copies
     }
 
 

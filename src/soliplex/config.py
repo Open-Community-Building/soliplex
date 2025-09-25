@@ -1146,7 +1146,6 @@ class InstallationConfig:
         dotenv_file = config_path.parent / ".env"
 
         if dotenv_file.is_file():
-
             with dotenv_file.open() as stream:
                 dotenv_env = dotenv.dotenv_values(stream=stream)
 
