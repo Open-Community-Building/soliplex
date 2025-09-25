@@ -1,6 +1,4 @@
 import json
-import pathlib
-import tempfile
 from unittest import mock
 
 import fastapi

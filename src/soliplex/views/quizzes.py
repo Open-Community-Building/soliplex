@@ -42,7 +42,6 @@ async def get_quiz(
     q_copy = dataclasses.replace(quiz, _installation_config=None)
     info = dataclasses.asdict(q_copy)
 
-    questions = quiz.get_questions()
     info["questions"] = [
         dataclasses.asdict(question)
         for question in quiz.get_questions()
