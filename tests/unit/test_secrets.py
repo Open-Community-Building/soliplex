@@ -11,6 +11,11 @@ ENV_VAR_NAME = "TEST_ENV_VAR"
 SECRET_VALUE = "DEADBEEF"
 ERROR_MISS = object()
 
+SECRET_NAME_1 = "TEST_SECRET"
+SECRET_NAME_2 = "OTHER_SECRET"
+SECRET_CONFIG_1 = config.SecretConfig(SECRET_NAME_1)
+SECRET_CONFIG_2 = config.SecretConfig(SECRET_NAME_2)
+
 NoRaise = contextlib.nullcontext()
 EnvVarNotFound = pytest.raises(secrets.SecretEnvVarNotFound)
 FilePathNotFound = pytest.raises(secrets.SecretFilePathNotFound)
@@ -146,3 +151,30 @@ def test_secret_ctor_w_sources(o_ur, sources, expectation, expected):
 
     if expected is not ERROR_MISS:
         assert found == expected
+
+
+@pytest.mark.parametrize(
+    "secret_configs, expectation",
+    [
+        ((), NoRaise),
+        ([SECRET_CONFIG_1], ExcGroup),
+        ([SECRET_CONFIG_1, SECRET_CONFIG_2], ExcGroup),
+    ],
+)
+@mock.patch("soliplex.secrets.get_secret")
+def test_check_secrets(gs, secret_configs, expectation):
+    gs.side_effect = secrets.SecretError("testing")
+
+    with mock.patch("os.environ", clear=True):
+        with expectation as expected:
+            secrets.check_secrets(secret_configs)
+
+    if expected is not None:
+        assert len(expected.value.exceptions) == len(secret_configs)
+
+        for secret_config, gs_call in zip(
+            secret_configs,
+            gs.call_args_list,
+            strict=True,
+        ):
+            assert gs_call == mock.call(secret_config)

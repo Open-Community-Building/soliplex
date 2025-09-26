@@ -47,6 +47,15 @@ class SecretSourcesFailed(ExceptionGroup, SecretError):
         )
 
 
+class SecretsNotFound(ExceptionGroup, SecretError):
+    def __init__(self, secret_names, excs):
+        self.secret_names = secret_names
+        super().__init__(
+            f"Secrets not found: {secret_names}",
+            excs,
+        )
+
+
 def get_env_var_secret(source: config.EnvVarSecretSource):
     try:
         return os.environ[source.env_var_name]
@@ -116,3 +125,18 @@ def get_secret(secret_config: config.SecretConfig) -> str:
             excs.append(exc)
 
     raise SecretSourcesFailed(secret_config.secret_name, excs)
+
+
+def check_secrets(secret_configs: list[config.SecretConfig]) -> None:
+    failed_names = []
+    excs = []
+
+    for secret_config in secret_configs:
+        try:
+            get_secret(secret_config)
+        except SecretError as exc:
+            failed_names.append(secret_config.secret_name)
+            excs.append(exc)
+
+    if failed_names:
+        raise SecretsNotFound(",".join(failed_names), excs)

@@ -7,40 +7,72 @@ import pytest
 from soliplex import config
 from soliplex import convos
 from soliplex import installation
+from soliplex import secrets
 
 KEY = "test-key"
 VALUE = "test-value"
 DEFAULT = "test-default"
 
-SECRET_NAME = "test-secret"
-SECRET_CONFIG = mock.create_autospec(config.SecretConfig)
+SECRET_NAME_1 = "TEST_SECRET"
+SECRET_NAME_2 = "OTHER_SECRET"
+SECRET_CONFIG_1 = config.SecretConfig(SECRET_NAME_1)
+SECRET_CONFIG_2 = config.SecretConfig(SECRET_NAME_2)
 MISS_ERROR = object()
 
 NoSuchSecret = pytest.raises(KeyError)
+RaisesSecretError = pytest.raises(secrets.SecretError)
 NoRaise = contextlib.nullcontext()
 
 
 @pytest.mark.parametrize(
-    "secret_map, expectation, expected",
+    "secret_map, expectation",
     [
-        ({}, NoSuchSecret, MISS_ERROR),
-        ({SECRET_NAME: SECRET_CONFIG}, NoRaise, None),
+        ({}, NoSuchSecret),
+        ({SECRET_NAME_1: SECRET_CONFIG_1}, NoRaise),
     ],
 )
 @mock.patch("soliplex.secrets.get_secret")
-def test_installation_get_secret(gs, secret_map, expectation, expected):
+def test_installation_get_secret(gs, secret_map, expectation):
     i_config = mock.create_autospec(
         config.InstallationConfig,
         secret_map=secret_map,
     )
     the_installation = installation.Installation(i_config)
 
-    with expectation:
-        found = the_installation.get_secret(SECRET_NAME)
+    with mock.patch("os.environ", clear=True):
+        with expectation as expected:
+            found = the_installation.get_secret(SECRET_NAME_1)
 
-    if expected is not MISS_ERROR:
+    if expected is None:
         assert found is gs.return_value
-        gs.assert_called_once_with(SECRET_CONFIG)
+        gs.assert_called_once_with(SECRET_CONFIG_1)
+    else:
+        gs.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "secret_configs, expectation",
+    [
+        ((), NoRaise),
+        ([SECRET_CONFIG_1], RaisesSecretError),
+        ([SECRET_CONFIG_1, SECRET_CONFIG_2], RaisesSecretError),
+    ],
+)
+@mock.patch("soliplex.secrets.check_secrets")
+def test_installation_check_secrets(cs, secret_configs, expectation):
+    i_config = mock.create_autospec(
+        config.InstallationConfig,
+    )
+    i_config.secrets = secret_configs
+    the_installation = installation.Installation(i_config)
+
+    with expectation as expected:
+        if expected is not None:
+            cs.side_effect = secrets.SecretError("testing")
+
+        the_installation.check_secrets()
+
+    cs.assert_called_once_with(secret_configs)
 
 
 @pytest.mark.parametrize("w_default", [False, True])
@@ -273,19 +305,29 @@ def mcp_apps():
 
 
 @pytest.mark.anyio
+@mock.patch("soliplex.secrets.check_secrets")
 @mock.patch("soliplex.mcp_server.setup_mcp_for_rooms")
 @mock.patch("soliplex.config.load_installation")
-async def test_lifespan(load_installation, smfr, mcp_apps):
+async def test_lifespan(
+    load_installation,
+    smfr,
+    cs,
+    mcp_apps,
+):
     INSTALLATION_PATH = "/path/to/installation"
 
     smfr.return_value = mcp_apps
 
-    i_config = mock.create_autospec(config.InstallationConfig)
+    i_config = mock.create_autospec(config.InstallationConfig, secrets=())
     load_installation.return_value = i_config
     app = mock.create_autospec(fastapi.FastAPI)
 
     found = [
-        item async for item in installation.lifespan(app, INSTALLATION_PATH)
+        item
+        async for item in installation.lifespan(
+            app,
+            INSTALLATION_PATH,
+        )
     ]
 
     assert len(found) == 1
@@ -308,4 +350,5 @@ async def test_lifespan(load_installation, smfr, mcp_apps):
     ):
         assert f_call.args == ("/mcp/" + key, mcp_app)
 
+    cs.assert_called_once_with(the_installation._config.secrets)
     smfr.assert_called_once_with(the_installation)
