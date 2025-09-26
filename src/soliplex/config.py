@@ -6,7 +6,6 @@ import functools
 import importlib
 import inspect
 import json
-import os
 import pathlib
 import random
 import typing
@@ -52,12 +51,6 @@ class ToolRequirementConflict(ValueError):
         super().__init__(
             f"Tool {tool_name} requires both context and tool config"
         )
-
-
-class NoProviderKeyInEnvironment(ValueError):
-    def __init__(self, envvar):
-        self.envvar = envvar
-        super().__init__(f"No API key in environment: {envvar}")
 
 
 class RagDbExactlyOneOfStemOrOverride(TypeError):
@@ -562,7 +555,7 @@ class AgentConfig:
 
     provider_type: LLMProviderType = LLMProviderType.OLLAMA
     provider_base_url: str = None  # installation config provides default
-    provider_key_envvar: str = None  # envvar name containing API key
+    provider_key: str = None  # 'secret containing API key
 
     # Set by `from_yaml` factory
     _installation_config: InstallationConfig = None
@@ -627,14 +620,10 @@ class AgentConfig:
             "base_url": f"{provider_base_url}/v1",
         }
 
-        if self.provider_key_envvar is not None:
-            # TODO: replace with _installation_config.secrets lookup
-            provider_key = os.getenv(self.provider_key_envvar)
-
-            if provider_key is None:
-                raise NoProviderKeyInEnvironment(self.provider_key_envvar)
-
-            provider_kw["api_key"] = provider_key
+        if self.provider_key is not None:
+            provider_kw["api_key"] = self._installation_config.get_secret(
+                self.provider_key
+            )
 
         return provider_kw
 
@@ -1199,6 +1188,13 @@ class InstallationConfig:
             }
 
         return self._secrets_map
+
+    def get_secret(self, secret_name) -> str:
+        import soliplex.secrets as secrets_module  # avoid cycle
+
+        secret_name = secrets_module.strip_secret_prefix(secret_name)
+        secret_config = self.secrets_map[secret_name]
+        return secrets_module.get_secret(secret_config)
 
     #
     # Map values similar to 'os.environ'.

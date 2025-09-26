@@ -130,12 +130,12 @@ agent:
   provider_base_url: "https://provider.example.com/api"
   ```
 
-- `provider_key_envvar` (a string, default's to None) should be the
-  *name* of the environment variable holding the LLM provider's API key
-  (*not* the value of the API key).
+- `provider_key` (a string, default's to None) should be the
+  *name* of the scret holding the LLM provider's API key
+  (*not* the value of the API key), prefixed with `secret:`
 
   ```yaml
-  provider_key_envvar: "FOO_PROVIDER_API_KEY"
+  provider_key: "secret:FOO_PROVIDER_API_KEY"
   ```
 
 - `tools` should be a list of mappings, with at least the key

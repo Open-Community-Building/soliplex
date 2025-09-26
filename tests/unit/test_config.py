@@ -462,6 +462,8 @@ id: "{INSTALLATION_ID}"
 
 SECRET_NAME_1 = "TEST_SECRET_ONE"
 SECRET_NAME_2 = "TEST_SECRET_TWO"
+SECRET_CONFIG_1 = config.SecretConfig(SECRET_NAME_1)
+SECRET_CONFIG_2 = config.SecretConfig(SECRET_NAME_2)
 SECRET_ENV_VAR = "OTHER_ENV_VAR"
 SECRET_FILE_PATH = "./very_seekrit"
 SECRET_COMAND = "cat"
@@ -1367,52 +1369,45 @@ def test_agentconfig_get_system_prompt(
             assert agent_config.get_system_prompt() is None
 
 
-@pytest.mark.parametrize("w_pke", [False, True, None])
-@pytest.mark.parametrize("w_pbu", [False, True])
-def test_agentconfig_llm_provider_kw(installation_config, w_pbu, w_pke):
+@pytest.mark.parametrize("has_pk", [False, True])
+@pytest.mark.parametrize("has_base_url", [False, True])
+def test_agentconfig_llm_provider_kw(
+    installation_config,
+    has_base_url,
+    has_pk,
+):
     ic_environ = {"OLLAMA_BASE_URL": OLLAMA_BASE_URL}
     installation_config.get_environment = ic_environ.get
 
     kw = {"_installation_config": installation_config}
 
-    if w_pbu:
-        kw["provider_base_url"] = PROVIDER_BASE_URL
+    if has_base_url:
+        expected_base_url = kw["provider_base_url"] = PROVIDER_BASE_URL
+    else:
+        expected_base_url = OLLAMA_BASE_URL
 
-    env_patch = {}
+    expected = {
+        "base_url": expected_base_url + "/v1",
+    }
 
-    if w_pke:
-        kw["provider_key_envvar"] = PROVIDER_KEY_ENVVAR
-        # TODO: use installation_config secrets
-        env_patch[PROVIDER_KEY_ENVVAR] = PROVIDER_KEY_VALUE
-
-    elif w_pke is None:  # no envvar set, should raise
-        kw["provider_key_envvar"] = PROVIDER_KEY_ENVVAR
+    if has_pk:
+        kw["provider_key"] = "secret:SECRET_NAME"
+        expected["api_key"] = installation_config.get_secret.return_value
 
     aconfig = config.AgentConfig(
         id="test-agent", system_prompt="You are a test", **kw
     )
 
-    with mock.patch.dict("os.environ", clear=True, **env_patch):
-        if w_pke is None:
-            with pytest.raises(config.NoProviderKeyInEnvironment):
-                aconfig.llm_provider_kw  # noqa B018 noraise
+    found = aconfig.llm_provider_kw
 
-        else:
-            found = aconfig.llm_provider_kw
+    assert found == expected
 
-            if w_pbu:
-                expected_base_url = PROVIDER_BASE_URL
-            else:
-                expected_base_url = OLLAMA_BASE_URL
-
-            expected = {
-                "base_url": expected_base_url + "/v1",
-            }
-
-            if w_pke:
-                expected["api_key"] = PROVIDER_KEY_VALUE
-
-            assert found == expected
+    if has_pk:
+        installation_config.get_secret.assert_called_once_with(
+            "secret:SECRET_NAME"
+        )
+    else:
+        installation_config.get_secret.assert_not_called()
 
 
 @pytest.fixture
@@ -2093,6 +2088,35 @@ def test_installationconfig_secrets_map_w_existing():
     found = i_config.secrets_map
 
     assert found is already
+
+
+NoSuchSecret = pytest.raises(KeyError)
+NoRaise = contextlib.nullcontext()
+
+
+@pytest.mark.parametrize(
+    "secret_map, expectation",
+    [
+        ({}, NoSuchSecret),
+        ({SECRET_NAME_1: SECRET_CONFIG_1}, NoRaise),
+    ],
+)
+@mock.patch("soliplex.secrets.get_secret")
+def test_installationconfig_get_secret(gs, secret_map, expectation):
+    i_config = config.InstallationConfig(
+        id="test-ic",
+        _secrets_map=secret_map,
+    )
+
+    with mock.patch("os.environ", clear=True):
+        with expectation as expected:
+            found = i_config.get_secret(f"secret:{SECRET_NAME_1}")
+
+    if expected is None:
+        assert found is gs.return_value
+        gs.assert_called_once_with(SECRET_CONFIG_1)
+    else:
+        gs.assert_not_called()
 
 
 @pytest.mark.parametrize("w_default", [False, True])

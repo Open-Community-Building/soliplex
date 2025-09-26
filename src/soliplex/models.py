@@ -81,7 +81,7 @@ class Agent(pydantic.BaseModel):
     system_prompt: str
     provider_type: config.LLMProviderType  # enum, not dataclass
     provider_base_url: str
-    provider_key_envvar: str
+    provider_key: str
 
     @classmethod
     def from_config(cls, agent_config: config.AgentConfig):
@@ -92,7 +92,7 @@ class Agent(pydantic.BaseModel):
             system_prompt=agent_config.get_system_prompt(),
             provider_type=agent_config.provider_type,
             provider_base_url=llm_provider_kw["base_url"],
-            provider_key_envvar=agent_config.provider_key_envvar or "dummy",
+            provider_key=agent_config.provider_key or "dummy",
         )
 
 
