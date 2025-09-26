@@ -81,7 +81,7 @@ class Agent(pydantic.BaseModel):
     system_prompt: str
     provider_type: config.LLMProviderType  # enum, not dataclass
     provider_base_url: str
-    provider_key_envvar: str
+    provider_key: str
 
     @classmethod
     def from_config(cls, agent_config: config.AgentConfig):
@@ -92,7 +92,7 @@ class Agent(pydantic.BaseModel):
             system_prompt=agent_config.get_system_prompt(),
             provider_type=agent_config.provider_type,
             provider_base_url=llm_provider_kw["base_url"],
-            provider_key_envvar=agent_config.provider_key_envvar or "dummy",
+            provider_key=agent_config.provider_key or "dummy",
         )
 
 
@@ -184,11 +184,38 @@ class OIDCAuthSystem(pydantic.BaseModel):
 ConfiguredOIDCAuthSystems = dict[str, OIDCAuthSystem]
 
 
+class SecretSource(pydantic.BaseModel):
+    kind: str
+    extra_arguments: dict[str, typing.Any]
+
+    @classmethod
+    def from_config(cls, source_config: config.SecretSource):
+        return cls(
+            kind=source_config.kind,
+            extra_arguments=source_config.extra_arguments,
+        )
+
+
+class Secret(pydantic.BaseModel):
+    secret_name: str
+    sources: list[SecretSource]
+
+    @classmethod
+    def from_config(cls, secret_config: config.SecretConfig):
+        return cls(
+            secret_name=secret_config.secret_name,
+            sources=[
+                SecretSource.from_config(source)
+                for source in secret_config.sources
+            ],
+        )
+
+
 class Installation(pydantic.BaseModel):
     """Configuration for a set of rooms, completions, etc."""
 
     id: str
-    secrets: list[str] = []
+    secrets: list[Secret] = []
     environment: dict[str, str] = {}
     oidc_paths: list[pathlib.Path] = []
     room_paths: list[pathlib.Path] = []
@@ -202,9 +229,13 @@ class Installation(pydantic.BaseModel):
             OIDCAuthSystem.from_config(oas_config)
             for oas_config in installation_config.oidc_auth_system_configs
         ]
+        secrets = [
+            Secret.from_config(secret_config)
+            for secret_config in installation_config.secrets
+        ]
         return cls(
             id=installation_config.id,
-            secrets=installation_config.secrets,
+            secrets=secrets,
             environment=installation_config.environment,
             oidc_paths=installation_config.oidc_paths,
             room_paths=installation_config.room_paths,

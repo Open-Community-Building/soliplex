@@ -1,22 +1,17 @@
 from __future__ import annotations  # forward refs
 
-import os
-
 from fastmcp.server.auth import auth as fmcp_server_auth
 from itsdangerous import url_safe as id_url_safe
 from mcp.server.auth import provider as mcp_auth_provider
 
 from soliplex import installation
 
-URL_SAFE_TOKEN_SECRET_ENV = "SOLIPLEX_URL_SAFE_TOKEN_SECRET"
 
-
-def get_url_safe_token_secret():
-    return os.environ[URL_SAFE_TOKEN_SECRET_ENV]
-
-
-def generate_url_safe_token(salt: str, **kw) -> str:
+def generate_url_safe_token(secret_key: str, salt: str, **kw) -> str:
     """Generate a signed token for a given context
+
+    'secret_key':
+        Key use for symmetric encryption of the token.
 
     'salt':
         the "context" for the token (e.g., a room ID), to prevent reuse
@@ -31,16 +26,19 @@ def generate_url_safe_token(salt: str, **kw) -> str:
         to verify token age (see 'validate_url_safe_token').
     """
     serializer = id_url_safe.URLSafeTimedSerializer(
-        secret_key=get_url_safe_token_secret(),
+        secret_key=secret_key,
         salt=salt,
     )
     return serializer.dumps(kw)
 
 
 def validate_url_safe_token(
-    salt: str, token: str, max_age: int = None
+    secret_key: str, salt: str, token: str, max_age: int = None
 ) -> dict:
     """Validate a signed token for a given context
+
+    'secret_key':
+        Key use for symmetric encryption of the token.
 
     'salt':
         the "context" for the token (e.g., a room ID), to prevent reuse of
@@ -58,7 +56,7 @@ def validate_url_safe_token(
         'None'.
     """
     serializer = id_url_safe.URLSafeTimedSerializer(
-        secret_key=get_url_safe_token_secret(),
+        secret_key=secret_key,
         salt=salt,
     )
 
@@ -81,6 +79,7 @@ class FastMCPTokenProvider(fmcp_server_auth.TokenVerifier):
         self.room_id = room_id
         self.max_age = max_age
         self.auth_disabled = the_installation.auth_disabled
+        self.secret_key = the_installation.get_secret("URL_SAFE_TOKEN_SECRET")
 
         super().__init__()
 
@@ -92,6 +91,7 @@ class FastMCPTokenProvider(fmcp_server_auth.TokenVerifier):
             validated = token
         else:
             validated = validate_url_safe_token(
+                self.secret_key,
                 self.room_id,
                 token,
                 max_age=self.max_age,

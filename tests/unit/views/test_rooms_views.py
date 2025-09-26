@@ -212,7 +212,14 @@ async def test_get_room_mcp_token(auth_fn, gust, w_error):
         }
         assert found.model_dump() == expected
 
-        gust.assert_called_once_with(ROOM_ID, **wylma)
+        gust.assert_called_once_with(
+            the_installation.get_secret.return_value,
+            ROOM_ID,
+            **wylma,
+        )
+        the_installation.get_secret.assert_called_once_with(
+            "URL_SAFE_TOKEN_SECRET"
+        )
 
     the_installation.get_room_config.assert_called_once_with(
         ROOM_ID,

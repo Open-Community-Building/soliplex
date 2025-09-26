@@ -2,7 +2,6 @@ import asyncio
 import contextlib
 import functools
 import logging
-import os
 import pathlib
 import re
 import subprocess
@@ -37,21 +36,6 @@ def scrub_private_keys(
                     value = [scrub_private_keys(item) for item in value]
             scrubbed[key] = value
     return scrubbed
-
-
-def interpolate_env_vars(source: str) -> str:
-    """Interplate environment variables into a string
-
-    'source'
-        the string containing potential format replacements to be
-        filled using environment variables
-    """
-    if not source.startswith("env:"):
-        return source
-
-    stripped = source[len("env:") :]
-
-    return stripped.format(**os.environ)
 
 
 def get_git_hash_for_file(file_path: str):

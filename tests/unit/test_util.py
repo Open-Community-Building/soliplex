@@ -38,25 +38,6 @@ def test_scrub_private_keys(to_scrub, expected):
     assert found == expected
 
 
-@pytest.mark.parametrize(
-    "source, env_patch, expected",
-    [
-        ("no_env_prefix", {}, "no_env_prefix"),
-        ("no_env_prefix", {"foo": "bar"}, "no_env_prefix"),
-        ("env:{foo}", {"foo": "bar"}, "bar"),
-        ("env:Testing {foo}", {"foo": "bar"}, "Testing bar"),
-        ("env:{foo}", {"foo": "bar", "baz": "qux"}, "bar"),
-        ("env:{baz}-{foo}", {"foo": "bar", "baz": "qux"}, "qux-bar"),
-        ("env:Pfx {baz}-{foo}", {"foo": "bar", "baz": "qux"}, "Pfx qux-bar"),
-    ],
-)
-def test_interpolate_env_vars(source, env_patch, expected):
-    with mock.patch.dict("os.environ", clear=True, **env_patch):
-        found = util.interpolate_env_vars(source)
-
-    assert found == expected
-
-
 def test_get_git_hash_for_file_w_override_text_file(temp_dir):
     HASH = "abc9876543210"
 

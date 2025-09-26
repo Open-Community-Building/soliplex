@@ -6,7 +6,6 @@ import functools
 import importlib
 import inspect
 import json
-import os
 import pathlib
 import random
 import typing
@@ -15,8 +14,6 @@ from urllib import parse as url_parse
 
 import dotenv
 import yaml
-
-from soliplex import util
 
 # ============================================================================
 #   Exceptions raised during YAML config processing
@@ -52,12 +49,6 @@ class ToolRequirementConflict(ValueError):
         super().__init__(
             f"Tool {tool_name} requires both context and tool config"
         )
-
-
-class NoProviderKeyInEnvironment(ValueError):
-    def __init__(self, envvar):
-        self.envvar = envvar
-        super().__init__(f"No API key in environment: {envvar}")
 
 
 class RagDbExactlyOneOfStemOrOverride(TypeError):
@@ -102,6 +93,14 @@ class QuestionFileNotFoundWithOverride(ValueError):
         super().__init__(f"'{override}' file not found")
 
 
+class NotASecret(ValueError):
+    def __init__(self, config_str):
+        self.config_str = config_str
+        super().__init__(
+            f"Config '{config_str}' must be prefixed with 'secret:'"
+        )
+
+
 # ============================================================================
 #   OIDC Authentication system configuration types
 # ============================================================================
@@ -135,9 +134,6 @@ class OIDCAuthSystemConfig:
         config["_installation_config"] = installation_config
         config["_config_path"] = config_path
 
-        client_secret = config.pop("client_secret", "")
-        config["client_secret"] = util.interpolate_env_vars(client_secret)
-
         oidc_client_pem_path = config.pop("oidc_client_pem_path", None)
         if oidc_client_pem_path is not None:
             config["oidc_client_pem_path"] = (
@@ -160,11 +156,18 @@ class OIDCAuthSystemConfig:
         if self.oidc_client_pem_path is not None:
             client_kwargs["verify"] = str(self.oidc_client_pem_path)
 
+        try:
+            client_secret = self._installation_config.get_secret(
+                self.client_secret
+            )
+        except Exception:
+            client_secret = self.client_secret
+
         return {
             "name": self.id,
             "server_metadata_url": self.server_metadata_url,
             "client_id": self.client_id,
-            "client_secret": self.client_secret,
+            "client_secret": client_secret,
             "client_kwargs": client_kwargs,
             # added by the auth setup
             # "authorize_state": main.SESSION_SECRET_KEY,
@@ -430,7 +433,7 @@ class Stdio_MCP_ClientToolsetConfig:
     @property
     def tool_kwargs(self) -> dict:
         env_map = {
-            key: util.interpolate_env_vars(value)
+            key: self._installation_config.get_environment(value, value)
             for (key, value) in self.env.items()
         }
         return {
@@ -485,13 +488,13 @@ class HTTP_MCP_ClientToolsetConfig:
         url = self.url
 
         headers = {
-            key: util.interpolate_env_vars(value)
+            key: self._installation_config.get_environment(value, value)
             for (key, value) in self.headers.items()
         }
 
         if self.query_params:
             qp = {
-                key: util.interpolate_env_vars(value)
+                key: self._installation_config.get_environment(value, value)
                 for (key, value) in self.query_params.items()
             }
             qs = url_parse.urlencode(qp)
@@ -562,7 +565,7 @@ class AgentConfig:
 
     provider_type: LLMProviderType = LLMProviderType.OLLAMA
     provider_base_url: str = None  # installation config provides default
-    provider_key_envvar: str = None  # envvar name containing API key
+    provider_key: str = None  # 'secret containing API key
 
     # Set by `from_yaml` factory
     _installation_config: InstallationConfig = None
@@ -627,14 +630,10 @@ class AgentConfig:
             "base_url": f"{provider_base_url}/v1",
         }
 
-        if self.provider_key_envvar is not None:
-            # TODO: replace with _installation_config.secrets lookup
-            provider_key = os.getenv(self.provider_key_envvar)
-
-            if provider_key is None:
-                raise NoProviderKeyInEnvironment(self.provider_key_envvar)
-
-            provider_kw["api_key"] = provider_key
+        if self.provider_key is not None:
+            provider_kw["api_key"] = self._installation_config.get_secret(
+                self.provider_key
+            )
 
         return provider_kw
 
@@ -990,6 +989,137 @@ class CompletionConfig:
 
 
 # ============================================================================
+#   Secrets configuration types
+# ============================================================================
+
+
+class _BaseSecretSource:
+    @classmethod
+    def from_yaml(cls, config_path: pathlib.Path, config: dict):
+        config["_config_path"] = config_path
+        return cls(**config)
+
+
+@dataclasses.dataclass
+class EnvVarSecretSource(_BaseSecretSource):
+    kind: typing.ClassVar[str] = "env_var"
+    secret_name: str
+    env_var_name: str | None = None
+    _config_path: pathlib.Path = None
+
+    def __post_init__(self):
+        if self.env_var_name is None:
+            self.env_var_name = self.secret_name
+
+    @property
+    def extra_arguments(self) -> dict[str, typing.Any]:
+        return {"env_var_name": self.env_var_name}
+
+
+@dataclasses.dataclass
+class FilePathSecretSource(_BaseSecretSource):
+    kind: typing.ClassVar[str] = "file_path"
+    secret_name: str
+    file_path: str
+    _config_path: pathlib.Path = None
+
+    @property
+    def extra_arguments(self) -> dict[str, typing.Any]:
+        return {"file_path": self.file_path}
+
+
+@dataclasses.dataclass
+class SubprocessSecretSource(_BaseSecretSource):
+    kind: typing.ClassVar[str] = "subprocess"
+    secret_name: str
+    command: str
+    args: list[str] | tuple[str] = ()
+    _config_path: pathlib.Path = None
+
+    @property
+    def command_line(self) -> str:
+        listed = [self.command, *self.args]
+        return " ".join(listed)
+
+    @property
+    def extra_arguments(self) -> dict[str, typing.Any]:
+        return {"command_line": self.command_line}
+
+
+@dataclasses.dataclass
+class RandomCharsSecretSource(_BaseSecretSource):
+    kind: typing.ClassVar[str] = "random_chars"
+    secret_name: str
+    n_chars: int = 32
+    _config_path: pathlib.Path = None
+
+    @property
+    def extra_arguments(self) -> dict[str, typing.Any]:
+        return {"n_chars": self.n_chars}
+
+
+SecretSource = (
+    EnvVarSecretSource
+    | FilePathSecretSource
+    | SubprocessSecretSource
+    | RandomCharsSecretSource
+)
+
+
+SecretSources = list[SecretSource]
+
+
+SourceClassesByKind = {
+    klass.kind: klass
+    for klass in [
+        EnvVarSecretSource,
+        FilePathSecretSource,
+        SubprocessSecretSource,
+        RandomCharsSecretSource,
+    ]
+}
+
+
+@dataclasses.dataclass
+class SecretConfig:
+    secret_name: str
+    sources: SecretSources = None
+
+    # Set in 'from_yaml' below
+    _config_path: pathlib.Path = None
+
+    def __post_init__(self):
+        if self.sources is None:
+            self.sources = [EnvVarSecretSource(self.secret_name)]
+
+    @classmethod
+    def from_yaml(cls, config_path: pathlib.Path, config: dict | str):
+        if isinstance(config, str):
+            config = {
+                "secret_name": config,
+                "sources": [
+                    {"kind": "env_var", "env_var_name": config},
+                ],
+            }
+
+        config["_config_path"] = config_path
+        source_configs = config.pop("sources", None)
+
+        sources = []
+
+        for source_config in source_configs:
+            source_config["secret_name"] = config["secret_name"]
+            source_kind = source_config.pop("kind")
+            source_klass = SourceClassesByKind[source_kind]
+            source_inst = source_klass.from_yaml(config_path, source_config)
+            sources.append(source_inst)
+
+        config["sources"] = sources
+
+        return cls(**config)
+
+
+# ============================================================================
 #   Installation configuration types
 # ============================================================================
 
@@ -1061,6 +1191,13 @@ _find_completion_configs = functools.partial(
 )
 
 
+def strip_secret_prefix(config_str: str) -> str:
+    if not config_str.startswith("secret:"):
+        raise NotASecret(config_str)
+
+    return config_str[len("secret:") :]
+
+
 @dataclasses.dataclass
 class InstallationConfig:
     """Configuration for a set of rooms, completion, etc."""
@@ -1073,9 +1210,28 @@ class InstallationConfig:
     #
     # Secrets name values looked up from env vars or other sources.
     #
-    secrets: list[str] = dataclasses.field(
+    secrets: list[SecretConfig] = dataclasses.field(
         default_factory=list,
     )
+    _secrets_map: dict[str, SecretConfig] = None
+
+    @property
+    def secrets_map(self) -> dict[str, SecretConfig]:
+        if self._secrets_map is None:
+            self._secrets_map = {
+                secret_config.secret_name: secret_config
+                for secret_config in self.secrets
+            }
+
+        return self._secrets_map
+
+    def get_secret(self, secret_name) -> str:
+        from soliplex import secrets as secrets_module  # avoid cycle
+
+        secret_name = strip_secret_prefix(secret_name)
+        secret_config = self.secrets_map[secret_name]
+        return secrets_module.get_secret(secret_config)
+
     #
     # Map values similar to 'os.environ'.
     #
@@ -1137,6 +1293,12 @@ class InstallationConfig:
         config["_config_path"] = config_path
 
         environment = config.get("environment")
+
+        secret_configs = [
+            SecretConfig.from_yaml(config_path, secret_config)
+            for secret_config in config.pop("secrets", ())
+        ]
+        config["secrets"] = secret_configs
 
         if isinstance(environment, list):
             config["environment"] = {

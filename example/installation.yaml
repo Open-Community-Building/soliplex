@@ -24,6 +24,13 @@ secrets:
   - "SMITHERY_AI_API_KEY"
   - "SMITHERY_AI_PROFILE"
 
+  # MCP room token generation / validation secret
+  - secret_name: "URL_SAFE_TOKEN_SECRET"
+    sources:
+      - kind: "env_var"
+        env_var_name: "SOLIPLEX_URL_SAFE_TOKEN_SECRET"
+      - kind: "random_chars"
+
 #==========================================================================
 # Environment Variables
 #==========================================================================

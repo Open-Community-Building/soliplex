@@ -105,5 +105,6 @@ async def get_room_mcp_token(
             detail=str(e),
         ) from None
 
-    token = mcp_auth.generate_url_safe_token(room_id, **user)
+    secret = the_installation.get_secret("URL_SAFE_TOKEN_SECRET")
+    token = mcp_auth.generate_url_safe_token(secret, room_id, **user)
     return models.MCPToken(room_id=room_id, mcp_token=token)

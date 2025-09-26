@@ -82,14 +82,15 @@ W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_YAML = f"""
     client_secret: "{AUTHSYSTEM_CLIENT_SECRET_LIT}"
 """
 
-AUTHSYSTEM_CLIENT_SECRET_ENV = "env:{CLIENT_SECRET_ENV}"
-W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
-W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW["client_secret"] = (
-    AUTHSYSTEM_CLIENT_SECRET_ENV
+CLIENT_SECRET_NAME = "TEST_OIDC_CLIENT_SECRET"
+AUTHSYSTEM_CLIENT_SECRET_SECRET = f"secret:{CLIENT_SECRET_NAME}"
+W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
+W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_KW["client_secret"] = (
+    AUTHSYSTEM_CLIENT_SECRET_SECRET
 )
-W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_YAML = f"""
+W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_YAML = f"""
 {BARE_AUTHSYSTEM_CONFIG_YAML}
-    client_secret: "{AUTHSYSTEM_CLIENT_SECRET_ENV}"
+    client_secret: "{AUTHSYSTEM_CLIENT_SECRET_SECRET}"
 """
 
 AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_REL_NAME = "cacert.pem"
@@ -447,6 +448,10 @@ mcp_client_toolsets:
         {HTTP_MCP_QP_KEY}: "{HTTP_MCP_QP_VALUE}"
 """
 
+SECRET_NAME = "TEST_SECRET"
+ENV_VAR_NAME = "TEST_ENV_VAR"
+COMMAND = "cat"
+
 INSTALLATION_ID = "test-installation"
 
 BARE_INSTALLATION_CONFIG_KW = {
@@ -457,26 +462,50 @@ id: "{INSTALLATION_ID}"
 """
 
 SECRET_NAME_1 = "TEST_SECRET_ONE"
-SECRET_VALUE_1 = "DEADBEEF"
 SECRET_NAME_2 = "TEST_SECRET_TWO"
-SECRET_VALUE_2 = "FACEDACE"
-SECRETS_ENV_PATCH = {
-    SECRET_NAME_1: SECRET_VALUE_1,
-    SECRET_NAME_2: SECRET_VALUE_2,
-}
+SECRET_CONFIG_1 = config.SecretConfig(SECRET_NAME_1)
+SECRET_CONFIG_2 = config.SecretConfig(SECRET_NAME_2)
+SECRET_ENV_VAR = "OTHER_ENV_VAR"
+SECRET_FILE_PATH = "./very_seekrit"
+SECRET_COMAND = "cat"
+SECRET_ARGS = ["-"]
+SECRET_NCHARS = 37
 
 W_SECRETS_INSTALLATION_CONFIG_KW = {
     "id": INSTALLATION_ID,
     "secrets": [
-        SECRET_NAME_1,
-        SECRET_NAME_2,
+        config.SecretConfig(SECRET_NAME_1),
+        config.SecretConfig(
+            SECRET_NAME_2,
+            sources=[
+                config.EnvVarSecretSource(SECRET_NAME_2, SECRET_ENV_VAR),
+                config.FilePathSecretSource(SECRET_NAME_2, SECRET_FILE_PATH),
+                config.SubprocessSecretSource(
+                    SECRET_NAME_2,
+                    SECRET_COMAND,
+                    SECRET_ARGS,
+                ),
+                config.RandomCharsSecretSource(SECRET_NAME_2, SECRET_NCHARS),
+            ],
+        ),
     ],
 }
 W_SECRETS_INSTALLATION_CONFIG_YAML = f"""\
 id: "{INSTALLATION_ID}"
 secrets:
     - "{SECRET_NAME_1}"
-    - "{SECRET_NAME_2}"
+    - secret_name: "{SECRET_NAME_2}"
+      sources:
+          - kind: "env_var"
+            env_var_name: "{SECRET_ENV_VAR}"
+          - kind: "file_path"
+            file_path: "{SECRET_FILE_PATH}"
+          - kind: "subprocess"
+            command: "{SECRET_COMAND}"
+            args:
+            - "-"
+          - kind: "random_chars"
+            n_chars: {SECRET_NCHARS}
 """
 
 CONFIG_KEY_1 = "key_1"
@@ -653,40 +682,45 @@ def test_authsystem_from_yaml(installation_config, temp_dir, w_config):
 
 
 @pytest.mark.parametrize(
-    "w_config, exp_secret, env_patch",
+    "exp_config, config_yaml, exp_secret",
     [
         (
             W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW,
+            W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_YAML,
             AUTHSYSTEM_CLIENT_SECRET_LIT,
-            {},
         ),
         (
-            W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW,
-            AUTHSYSTEM_CLIENT_SECRET_ENV,
-            {"CLIENT_SECRET_ENV": AUTHSYSTEM_CLIENT_SECRET_LIT},
+            W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_KW,
+            W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_YAML,
+            AUTHSYSTEM_CLIENT_SECRET_SECRET,
         ),
     ],
 )
 def test_authsystem_from_yaml_w_client_secret(
     installation_config,
     temp_dir,
-    w_config,
+    exp_config,
+    config_yaml,
     exp_secret,
-    env_patch,
 ):
+    config_file = temp_dir / "config.yaml"
+    config_file.write_text(config_yaml)
+
+    with config_file.open() as stream:
+        config_dict = yaml.safe_load(stream)
+
     expected = config.OIDCAuthSystemConfig(
         _installation_config=installation_config,
-        **w_config,
+        _config_path=config_file,
+        **exp_config,
     )
-    expected.client_secret = AUTHSYSTEM_CLIENT_SECRET_LIT
-    expected._config_path = temp_dir
+    expected.client_secret = exp_secret
 
-    with mock.patch.dict("os.environ", clear=True, **env_patch):
-        found = config.OIDCAuthSystemConfig.from_yaml(
-            installation_config,
-            temp_dir,
-            w_config,
-        )
+    found = config.OIDCAuthSystemConfig.from_yaml(
+        installation_config,
+        config_file,
+        config_dict["auth_systems"][0],
+    )
 
     assert found == expected
 
@@ -740,40 +774,64 @@ def test_authsystem_server_metadata_url():
 
 
 @pytest.mark.parametrize(
-    "w_config, exp_client_kwargs, exp_secret",
+    "w_config, exp_client_kwargs, exp_secret, bare_secret",
     [
-        (BARE_AUTHSYSTEM_CONFIG_KW.copy(), {}, ""),
+        (BARE_AUTHSYSTEM_CONFIG_KW.copy(), {}, "", True),
         (
             W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW,
             {},
             AUTHSYSTEM_CLIENT_SECRET_LIT,
+            True,
         ),
-        (W_SCOPE_AUTHSYSTEM_CONFIG_KW, {"scope": AUTHSYSTEM_SCOPE}, ""),
+        (
+            W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_KW,
+            {},
+            AUTHSYSTEM_CLIENT_SECRET_SECRET,
+            False,
+        ),
+        (W_SCOPE_AUTHSYSTEM_CONFIG_KW, {"scope": AUTHSYSTEM_SCOPE}, "", True),
         (
             W_OIDC_CPP_ABS_KW,
             {"verify": AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS},
             "",
+            True,
         ),
     ],
 )
 def test_authsystem_oauth_client_args(
+    installation_config,
     temp_dir,
     w_config,
     exp_client_kwargs,
     exp_secret,
+    bare_secret,
 ):
-    inst = config.OIDCAuthSystemConfig(**w_config)
+    inst = config.OIDCAuthSystemConfig(
+        **w_config,
+    )
+    inst._installation_config = installation_config
     exp_url = (
         f"{AUTHSYSTEM_SERVER_URL}/{config.WELL_KNOWN_OPENID_CONFIGURATION}"
     )
+
+    icgs = installation_config.get_secret
+
+    if bare_secret:
+        icgs.side_effect = ValueError("testing")
 
     found = inst.oauth_client_kwargs
 
     assert found["name"] == AUTHSYSTEM_ID
     assert found["server_metadata_url"] == exp_url
     assert found["client_id"] == AUTHSYSTEM_CLIENT_ID
-    assert found["client_secret"] == exp_secret
     assert found["client_kwargs"] == exp_client_kwargs
+
+    if bare_secret:
+        assert found["client_secret"] == exp_secret
+    else:
+        assert found["client_secret"] is icgs.return_value
+
+    icgs.assert_called_once_with(exp_secret)
 
 
 def test_toolconfig_from_yaml(installation_config, temp_dir):
@@ -1149,13 +1207,12 @@ def test_stdio_mctc_toolset_params(w_env):
 
 
 @pytest.mark.parametrize("w_env", [{}, {"foo": "bar"}])
-@mock.patch("soliplex.util.interpolate_env_vars")
-def test_stdio_mctc_tool_kwargs(iev, w_env):
-    iev.return_value = "<interpolated>"
+def test_stdio_mctc_tool_kwargs(installation_config, w_env):
     stdio_mctc = config.Stdio_MCP_ClientToolsetConfig(
         command="cat",
         args=["-"],
         env=w_env,
+        _installation_config=installation_config,
     )
 
     found = stdio_mctc.tool_kwargs
@@ -1170,8 +1227,11 @@ def test_stdio_mctc_tool_kwargs(iev, w_env):
         strict=True,
     ):
         assert f_key == cfg_key
-        assert f_val is iev.return_value
-        assert mock.call(cfg_value) in iev.call_args_list
+        assert f_val is installation_config.get_environment.return_value
+        assert (
+            mock.call(cfg_value, cfg_value)
+            in installation_config.get_environment.call_args_list
+        )
 
 
 @pytest.mark.parametrize("w_headers", [{}, HTTP_MCP_AUTH_HEADER])
@@ -1193,13 +1253,14 @@ def test_http_mctc_toolset_params(w_query_params, w_headers):
 
 @pytest.mark.parametrize("w_headers", [{}, HTTP_MCP_AUTH_HEADER])
 @pytest.mark.parametrize("w_query_params", [{}, HTTP_MCP_QUERY_PARAMS])
-@mock.patch("soliplex.util.interpolate_env_vars")
-def test_http_mctc_tool_kwargs(iev, w_query_params, w_headers):
-    iev.return_value = "<interpolated>"
+def test_http_mctc_tool_kwargs(installation_config, w_query_params, w_headers):
+    installation_config.get_environment.return_value = "<env>"
+
     http_mctc = config.HTTP_MCP_ClientToolsetConfig(
         url=HTTP_MCP_URL,
         headers=w_headers,
         query_params=w_query_params,
+        _installation_config=installation_config,
     )
 
     found = http_mctc.tool_kwargs
@@ -1218,8 +1279,11 @@ def test_http_mctc_tool_kwargs(iev, w_query_params, w_headers):
             strict=True,
         ):
             assert f_key == cfg_key
-            assert f_val == iev.return_value
-            assert mock.call(cfg_value) in iev.call_args_list
+            assert f_val == installation_config.get_environment.return_value
+            assert (
+                mock.call(cfg_value, cfg_value)
+                in installation_config.get_environment.call_args_list
+            )
 
     else:
         assert found["url"] == http_mctc.url
@@ -1230,8 +1294,11 @@ def test_http_mctc_tool_kwargs(iev, w_query_params, w_headers):
         strict=True,
     ):
         assert f_key == cfg_key
-        assert f_val is iev.return_value
-        assert mock.call(cfg_value) in iev.call_args_list
+        assert f_val is installation_config.get_environment.return_value
+        assert (
+            mock.call(cfg_value, cfg_value)
+            in installation_config.get_environment.call_args_list
+        )
 
 
 @pytest.mark.parametrize(
@@ -1341,52 +1408,45 @@ def test_agentconfig_get_system_prompt(
             assert agent_config.get_system_prompt() is None
 
 
-@pytest.mark.parametrize("w_pke", [False, True, None])
-@pytest.mark.parametrize("w_pbu", [False, True])
-def test_agentconfig_llm_provider_kw(installation_config, w_pbu, w_pke):
+@pytest.mark.parametrize("has_pk", [False, True])
+@pytest.mark.parametrize("has_base_url", [False, True])
+def test_agentconfig_llm_provider_kw(
+    installation_config,
+    has_base_url,
+    has_pk,
+):
     ic_environ = {"OLLAMA_BASE_URL": OLLAMA_BASE_URL}
     installation_config.get_environment = ic_environ.get
 
     kw = {"_installation_config": installation_config}
 
-    if w_pbu:
-        kw["provider_base_url"] = PROVIDER_BASE_URL
+    if has_base_url:
+        expected_base_url = kw["provider_base_url"] = PROVIDER_BASE_URL
+    else:
+        expected_base_url = OLLAMA_BASE_URL
 
-    env_patch = {}
+    expected = {
+        "base_url": expected_base_url + "/v1",
+    }
 
-    if w_pke:
-        kw["provider_key_envvar"] = PROVIDER_KEY_ENVVAR
-        # TODO: use installation_config secrets
-        env_patch[PROVIDER_KEY_ENVVAR] = PROVIDER_KEY_VALUE
-
-    elif w_pke is None:  # no envvar set, should raise
-        kw["provider_key_envvar"] = PROVIDER_KEY_ENVVAR
+    if has_pk:
+        kw["provider_key"] = "secret:SECRET_NAME"
+        expected["api_key"] = installation_config.get_secret.return_value
 
     aconfig = config.AgentConfig(
         id="test-agent", system_prompt="You are a test", **kw
     )
 
-    with mock.patch.dict("os.environ", clear=True, **env_patch):
-        if w_pke is None:
-            with pytest.raises(config.NoProviderKeyInEnvironment):
-                aconfig.llm_provider_kw  # noqa B018 noraise
+    found = aconfig.llm_provider_kw
 
-        else:
-            found = aconfig.llm_provider_kw
+    assert found == expected
 
-            if w_pbu:
-                expected_base_url = PROVIDER_BASE_URL
-            else:
-                expected_base_url = OLLAMA_BASE_URL
-
-            expected = {
-                "base_url": expected_base_url + "/v1",
-            }
-
-            if w_pke:
-                expected["api_key"] = PROVIDER_KEY_VALUE
-
-            assert found == expected
+    if has_pk:
+        installation_config.get_secret.assert_called_once_with(
+            "secret:SECRET_NAME"
+        )
+    else:
+        installation_config.get_secret.assert_not_called()
 
 
 @pytest.fixture
@@ -1888,6 +1948,94 @@ def test_completionconfig_from_yaml(
     assert found == expected
 
 
+@pytest.mark.parametrize(
+    "w_params, exp_env_var_name",
+    [
+        ({}, SECRET_NAME),
+        ({"env_var_name": ENV_VAR_NAME}, ENV_VAR_NAME),
+    ],
+)
+def test_envvar_secret_source_ctor(w_params, exp_env_var_name):
+    source = config.EnvVarSecretSource(SECRET_NAME, **w_params)
+
+    assert source.env_var_name == exp_env_var_name
+    assert source.extra_arguments == {"env_var_name": exp_env_var_name}
+
+
+@pytest.mark.parametrize("yaml_config", [{}, {"env_var_name": ENV_VAR_NAME}])
+def test_envvarsecretsource_from_yaml(temp_dir, yaml_config):
+    config_path = temp_dir / "installation.yaml"
+    yaml_config["secret_name"] = SECRET_NAME
+
+    source = config.EnvVarSecretSource.from_yaml(config_path, yaml_config)
+
+    assert source._config_path == config_path
+    assert source.secret_name == SECRET_NAME
+
+    exp_env_var_name = (
+        ENV_VAR_NAME if "env_var_name" in yaml_config else SECRET_NAME
+    )
+
+    assert source.env_var_name == exp_env_var_name
+    assert source.extra_arguments == {"env_var_name": exp_env_var_name}
+
+
+@pytest.mark.parametrize("file_path", ["/path/to/file", "./file"])
+def test_filepathsecretsource_from_yaml(temp_dir, file_path):
+    config_path = temp_dir / "installation.yaml"
+    yaml_config = {"secret_name": SECRET_NAME, "file_path": file_path}
+
+    source = config.FilePathSecretSource.from_yaml(config_path, yaml_config)
+
+    assert source._config_path == config_path
+    assert source.secret_name == SECRET_NAME
+    assert source.file_path == file_path
+    assert source.extra_arguments == {"file_path": file_path}
+
+
+@pytest.mark.parametrize(
+    "w_args, exp_command_line",
+    [
+        ((), COMMAND),
+        (["-a", "foo"], f"{COMMAND} -a foo"),
+    ],
+)
+def test_subprocess_secret_source_command_line(w_args, exp_command_line):
+    source = config.SubprocessSecretSource(SECRET_NAME, COMMAND, w_args)
+    assert source.command_line == exp_command_line
+    assert source.extra_arguments == {"command_line": exp_command_line}
+
+
+@pytest.mark.parametrize(
+    "kwargs, exp_nc",
+    [
+        ({}, 32),
+        ({"n_chars": 17}, 17),
+    ],
+)
+def test_random_chars_secret_source_extra_args(kwargs, exp_nc):
+    source = config.RandomCharsSecretSource(SECRET_NAME, **kwargs)
+
+    assert source.extra_arguments == {"n_chars": exp_nc}
+
+
+@pytest.mark.parametrize(
+    "w_sources, exp_sources",
+    [
+        (None, [config.EnvVarSecretSource(SECRET_NAME)]),
+        ([config.EnvVarSecretSource(SECRET_NAME, ENV_VAR_NAME)], None),
+    ],
+)
+def test_secretconfig_ctor(w_sources, exp_sources):
+    if exp_sources is None:
+        exp_sources = w_sources
+
+    secret = config.SecretConfig(SECRET_NAME, w_sources)
+
+    assert secret.secret_name == SECRET_NAME
+    assert secret.sources == exp_sources
+
+
 def test__load_config_yaml_w_missing(temp_dir):
     config_path = temp_dir / "oidc"
     config_path.mkdir()
@@ -1970,6 +2118,84 @@ def test__find_configs_w_multiple(temp_dir):
         assert f_thing == e_thing
 
 
+NoRaise = contextlib.nullcontext()
+NotASecret = pytest.raises(config.NotASecret)
+
+
+@pytest.mark.parametrize(
+    "secret_name_exp_pfx, expectation, expected",
+    [
+        ("secret:test", NoRaise, "test"),
+        ("invalid", NotASecret, None),
+    ],
+)
+def test_strip_secret_prefix(secret_name_exp_pfx, expectation, expected):
+    with expectation:
+        found = config.strip_secret_prefix(secret_name_exp_pfx)
+
+    if expected is not None:
+        assert found == expected
+
+
+def test_installationconfig_secrets_map_wo_existing():
+    secrets = [
+        mock.create_autospec(
+            config.SecretConfig,
+            secret_name=f"secret-{i_secret}",
+        )
+        for i_secret in range(5)
+    ]
+
+    i_config = config.InstallationConfig(id="test-ic", secrets=secrets)
+
+    found = i_config.secrets_map
+
+    for (_f_key, f_val), secret in zip(
+        sorted(found.items()),
+        secrets,
+        strict=True,
+    ):
+        assert f_val is secret
+
+
+def test_installationconfig_secrets_map_w_existing():
+    already = object()
+    i_config = config.InstallationConfig(id="test-ic", _secrets_map=already)
+
+    found = i_config.secrets_map
+
+    assert found is already
+
+
+NoSuchSecret = pytest.raises(KeyError)
+NoRaise = contextlib.nullcontext()
+
+
+@pytest.mark.parametrize(
+    "secret_map, expectation",
+    [
+        ({}, NoSuchSecret),
+        ({SECRET_NAME_1: SECRET_CONFIG_1}, NoRaise),
+    ],
+)
+@mock.patch("soliplex.secrets.get_secret")
+def test_installationconfig_get_secret(gs, secret_map, expectation):
+    i_config = config.InstallationConfig(
+        id="test-ic",
+        _secrets_map=secret_map,
+    )
+
+    with mock.patch("os.environ", clear=True):
+        with expectation as expected:
+            found = i_config.get_secret(f"secret:{SECRET_NAME_1}")
+
+    if expected is None:
+        assert found is gs.return_value
+        gs.assert_called_once_with(SECRET_CONFIG_1)
+    else:
+        gs.assert_not_called()
+
+
 @pytest.mark.parametrize("w_default", [False, True])
 @pytest.mark.parametrize("w_hit", [False, True])
 def test_installationconfig_get_environment(w_hit, w_default):
@@ -2001,7 +2227,10 @@ def test_installationconfig_get_environment(w_hit, w_default):
     "config_yaml, expected_kw",
     [
         (BARE_INSTALLATION_CONFIG_YAML, BARE_INSTALLATION_CONFIG_KW),
-        (W_SECRETS_INSTALLATION_CONFIG_YAML, W_SECRETS_INSTALLATION_CONFIG_KW),
+        (
+            W_SECRETS_INSTALLATION_CONFIG_YAML,
+            W_SECRETS_INSTALLATION_CONFIG_KW,
+        ),
         (
             W_ENVIRONMENT_LIST_INSTALLATION_CONFIG_YAML,
             W_ENVIRONMENT_INSTALLATION_CONFIG_KW,
@@ -2057,6 +2286,22 @@ def test_installationconfig_from_yaml(
         expected,
         _config_path=yaml_file,
     )
+
+    if "secrets" in expected_kw:
+        replaced_secrets = []
+        for secret in expected.secrets:
+            replaced_sources = [
+                dataclasses.replace(source, _config_path=yaml_file)
+                for source in secret.sources
+            ]
+            replaced_secrets.append(
+                dataclasses.replace(
+                    secret,
+                    sources=replaced_sources,
+                    _config_path=yaml_file,
+                )
+            )
+        expected = dataclasses.replace(expected, secrets=replaced_secrets)
 
     if "oidc_paths" in expected_kw:
         exp_oidc_paths = [
