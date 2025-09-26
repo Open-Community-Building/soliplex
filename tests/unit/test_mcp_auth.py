@@ -1,4 +1,3 @@
-import os
 from unittest import mock
 
 import pytest
@@ -7,45 +6,34 @@ from mcp.server.auth import provider as mcp_auth_provider
 from soliplex import config
 from soliplex import mcp_auth
 
-ROOM_ID = "test-room"
-URL_SAFE_TOKEN_SALT = "testing"
 URL_SAFE_TOKEN_SECRET_KEY = "really, seriously seekrit"
+URL_SAFE_TOKEN_SALT = "testing"
+ROOM_ID = "test-room"
 
 
-def test_get_url_safe_token_secret():
-    kw = {
-        mcp_auth.URL_SAFE_TOKEN_SECRET_ENV: URL_SAFE_TOKEN_SECRET_KEY,
-    }
-
-    with mock.patch.dict(os.environ, clear=True, **kw):
-        found = mcp_auth.get_url_safe_token_secret()
-
-    assert found == URL_SAFE_TOKEN_SECRET_KEY
-
-
-@mock.patch("soliplex.mcp_auth.get_url_safe_token_secret")
 @mock.patch("itsdangerous.url_safe.URLSafeTimedSerializer")
-def test_generate_url_safe_token(idusts_klass, gusts):
+def test_generate_url_safe_token(idusts_klass):
     usts = idusts_klass.return_value
     to_sign = {"foo": "bar", "baz": 123}
 
-    found = mcp_auth.generate_url_safe_token(URL_SAFE_TOKEN_SALT, **to_sign)
+    found = mcp_auth.generate_url_safe_token(
+        URL_SAFE_TOKEN_SECRET_KEY, URL_SAFE_TOKEN_SALT, **to_sign
+    )
 
     assert found is usts.dumps.return_value
 
     usts.dumps.assert_called_once_with(to_sign)
 
     idusts_klass.assert_called_once_with(
-        secret_key=gusts.return_value,
+        secret_key=URL_SAFE_TOKEN_SECRET_KEY,
         salt=URL_SAFE_TOKEN_SALT,
     )
 
 
 @pytest.mark.parametrize("w_valid", [False, True])
 @pytest.mark.parametrize("w_max_age", [None, 3600])
-@mock.patch("soliplex.mcp_auth.get_url_safe_token_secret")
 @mock.patch("itsdangerous.url_safe.URLSafeTimedSerializer")
-def test_validate_url_safe_token(idusts_klass, gusts, w_max_age, w_valid):
+def test_validate_url_safe_token(idusts_klass, w_max_age, w_valid):
     usts = idusts_klass.return_value
     token = "DEADBEEF"
     loaded = {"foo": "bar", "baz": 123}
@@ -59,12 +47,17 @@ def test_validate_url_safe_token(idusts_klass, gusts, w_max_age, w_valid):
 
     if w_max_age is not None:
         found = mcp_auth.validate_url_safe_token(
+            URL_SAFE_TOKEN_SECRET_KEY,
             URL_SAFE_TOKEN_SALT,
             token,
             max_age=w_max_age,
         )
     else:
-        found = mcp_auth.validate_url_safe_token(URL_SAFE_TOKEN_SALT, token)
+        found = mcp_auth.validate_url_safe_token(
+            URL_SAFE_TOKEN_SECRET_KEY,
+            URL_SAFE_TOKEN_SALT,
+            token,
+        )
 
     if w_valid:
         assert found is loaded
@@ -74,7 +67,7 @@ def test_validate_url_safe_token(idusts_klass, gusts, w_max_age, w_valid):
     usts.loads_unsafe.assert_called_once_with(token, **exp_kw)
 
     idusts_klass.assert_called_once_with(
-        secret_key=gusts.return_value,
+        secret_key=URL_SAFE_TOKEN_SECRET_KEY,
         salt=URL_SAFE_TOKEN_SALT,
     )
 
@@ -99,6 +92,11 @@ def test_fmcptokenprovider_ctor(the_installation, w_auth_disabled, w_max_age):
     assert found.room_id == ROOM_ID
     assert found.max_age == w_max_age
     assert found.auth_disabled == w_auth_disabled
+    assert found.secret_key == the_installation.get_secret.return_value
+
+    the_installation.get_secret.assert_called_once_with(
+        "URL_SAFE_TOKEN_SECRET"
+    )
 
 
 @pytest.mark.anyio
@@ -120,6 +118,7 @@ async def test_fmcptokenprovider_verify_token(
     }
 
     the_installation.auth_disabled = w_auth_disabled
+    the_installation.get_secret.return_value = URL_SAFE_TOKEN_SECRET_KEY
 
     if w_max_age is not None:
         fmtp = mcp_auth.FastMCPTokenProvider(
@@ -145,4 +144,9 @@ async def test_fmcptokenprovider_verify_token(
         assert found is None
 
     if not w_auth_disabled:
-        vust.assert_called_once_with(ROOM_ID, TOKEN, max_age=w_max_age)
+        vust.assert_called_once_with(
+            URL_SAFE_TOKEN_SECRET_KEY,
+            ROOM_ID,
+            TOKEN,
+            max_age=w_max_age,
+        )
