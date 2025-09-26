@@ -12,6 +12,36 @@ KEY = "test-key"
 VALUE = "test-value"
 DEFAULT = "test-default"
 
+SECRET_NAME = "test-secret"
+SECRET_CONFIG = mock.create_autospec(config.SecretConfig)
+MISS_ERROR = object()
+
+NoSuchSecret = pytest.raises(KeyError)
+NoRaise = contextlib.nullcontext()
+
+
+@pytest.mark.parametrize(
+    "secret_map, expectation, expected",
+    [
+        ({}, NoSuchSecret, MISS_ERROR),
+        ({SECRET_NAME: SECRET_CONFIG}, NoRaise, None),
+    ],
+)
+@mock.patch("soliplex.secrets.get_secret")
+def test_installation_get_secret(gs, secret_map, expectation, expected):
+    i_config = mock.create_autospec(
+        config.InstallationConfig,
+        secret_map=secret_map,
+    )
+    the_installation = installation.Installation(i_config)
+
+    with expectation:
+        found = the_installation.get_secret(SECRET_NAME)
+
+    if expected is not MISS_ERROR:
+        assert found is gs.return_value
+        gs.assert_called_once_with(SECRET_CONFIG)
+
 
 @pytest.mark.parametrize("w_default", [False, True])
 def test_installation_get_environment(w_default):

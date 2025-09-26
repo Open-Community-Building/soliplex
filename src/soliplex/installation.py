@@ -8,11 +8,16 @@ from soliplex import agents
 from soliplex import config
 from soliplex import convos
 from soliplex import mcp_server
+from soliplex import secrets
 
 
 @dataclasses.dataclass
 class Installation:
     _config: config.InstallationConfig
+
+    def get_secret(self, secret_name) -> str:
+        secret_config = self._config.secret_map[secret_name]
+        return secrets.get_secret(secret_config)
 
     def get_environment(self, key, default=None) -> str:
         return self._config.get_environment(key, default)
