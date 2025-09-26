@@ -447,6 +447,10 @@ mcp_client_toolsets:
         {HTTP_MCP_QP_KEY}: "{HTTP_MCP_QP_VALUE}"
 """
 
+SECRET_NAME = "TEST_SECRET"
+ENV_VAR_NAME = "TEST_ENV_VAR"
+COMMAND = "cat"
+
 INSTALLATION_ID = "test-installation"
 
 BARE_INSTALLATION_CONFIG_KW = {
@@ -457,26 +461,48 @@ id: "{INSTALLATION_ID}"
 """
 
 SECRET_NAME_1 = "TEST_SECRET_ONE"
-SECRET_VALUE_1 = "DEADBEEF"
 SECRET_NAME_2 = "TEST_SECRET_TWO"
-SECRET_VALUE_2 = "FACEDACE"
-SECRETS_ENV_PATCH = {
-    SECRET_NAME_1: SECRET_VALUE_1,
-    SECRET_NAME_2: SECRET_VALUE_2,
-}
+SECRET_ENV_VAR = "OTHER_ENV_VAR"
+SECRET_FILE_PATH = "./very_seekrit"
+SECRET_COMAND = "cat"
+SECRET_ARGS = ["-"]
+SECRET_NCHARS = 37
 
 W_SECRETS_INSTALLATION_CONFIG_KW = {
     "id": INSTALLATION_ID,
     "secrets": [
-        SECRET_NAME_1,
-        SECRET_NAME_2,
+        config.SecretConfig(SECRET_NAME_1),
+        config.SecretConfig(
+            SECRET_NAME_2,
+            sources=[
+                config.EnvVarSecretSource(SECRET_NAME_2, SECRET_ENV_VAR),
+                config.FilePathSecretSource(SECRET_NAME_2, SECRET_FILE_PATH),
+                config.SubprocessSecretSource(
+                    SECRET_NAME_2,
+                    SECRET_COMAND,
+                    SECRET_ARGS,
+                ),
+                config.RandomCharsSecretSource(SECRET_NAME_2, SECRET_NCHARS),
+            ],
+        ),
     ],
 }
 W_SECRETS_INSTALLATION_CONFIG_YAML = f"""\
 id: "{INSTALLATION_ID}"
 secrets:
     - "{SECRET_NAME_1}"
-    - "{SECRET_NAME_2}"
+    - secret_name: "{SECRET_NAME_2}"
+      sources:
+          - kind: "env_var"
+            env_var_name: "{SECRET_ENV_VAR}"
+          - kind: "file_path"
+            file_path: "{SECRET_FILE_PATH}"
+          - kind: "subprocess"
+            command: "{SECRET_COMAND}"
+            args:
+            - "-"
+          - kind: "random_chars"
+            n_chars: {SECRET_NCHARS}
 """
 
 CONFIG_KEY_1 = "key_1"
@@ -1888,6 +1914,75 @@ def test_completionconfig_from_yaml(
     assert found == expected
 
 
+@pytest.mark.parametrize(
+    "w_params, exp_env_var_name",
+    [
+        ({}, SECRET_NAME),
+        ({"env_var_name": ENV_VAR_NAME}, ENV_VAR_NAME),
+    ],
+)
+def test_envvar_secret_source_ctor(w_params, exp_env_var_name):
+    source = config.EnvVarSecretSource(SECRET_NAME, **w_params)
+    assert source.env_var_name == exp_env_var_name
+
+
+@pytest.mark.parametrize("yaml_config", [{}, {"env_var_name": ENV_VAR_NAME}])
+def test_envvarsecretsource_from_yaml(temp_dir, yaml_config):
+    config_path = temp_dir / "installation.yaml"
+    yaml_config["secret_name"] = SECRET_NAME
+
+    source = config.EnvVarSecretSource.from_yaml(config_path, yaml_config)
+
+    assert source._config_path == config_path
+    assert source.secret_name == SECRET_NAME
+
+    if "env_var_name" in yaml_config:
+        assert source.env_var_name == ENV_VAR_NAME
+    else:
+        assert source.env_var_name == SECRET_NAME
+
+
+@pytest.mark.parametrize("file_path", ["/path/to/file", "./file"])
+def test_filepathsecretsource_from_yaml(temp_dir, file_path):
+    config_path = temp_dir / "installation.yaml"
+    yaml_config = {"secret_name": SECRET_NAME, "file_path": file_path}
+
+    source = config.FilePathSecretSource.from_yaml(config_path, yaml_config)
+
+    assert source._config_path == config_path
+    assert source.secret_name == SECRET_NAME
+    assert source.file_path == file_path
+
+
+@pytest.mark.parametrize(
+    "w_args, exp_command_line",
+    [
+        ((), COMMAND),
+        (["-a", "foo"], f"{COMMAND} -a foo"),
+    ],
+)
+def test_subprocess_secret_source_command_line(w_args, exp_command_line):
+    source = config.SubprocessSecretSource(SECRET_NAME, COMMAND, w_args)
+    assert source.command_line == exp_command_line
+
+
+@pytest.mark.parametrize(
+    "w_sources, exp_sources",
+    [
+        (None, [config.EnvVarSecretSource(SECRET_NAME)]),
+        ([config.EnvVarSecretSource(SECRET_NAME, ENV_VAR_NAME)], None),
+    ],
+)
+def test_secretconfig_ctor(w_sources, exp_sources):
+    if exp_sources is None:
+        exp_sources = w_sources
+
+    secret = config.SecretConfig(SECRET_NAME, w_sources)
+
+    assert secret.secret_name == SECRET_NAME
+    assert secret.sources == exp_sources
+
+
 def test__load_config_yaml_w_missing(temp_dir):
     config_path = temp_dir / "oidc"
     config_path.mkdir()
@@ -1970,6 +2065,36 @@ def test__find_configs_w_multiple(temp_dir):
         assert f_thing == e_thing
 
 
+def test_installationconfig_secrets_map_wo_existing():
+    secrets = [
+        mock.create_autospec(
+            config.SecretConfig,
+            secret_name=f"secret-{i_secret}",
+        )
+        for i_secret in range(5)
+    ]
+
+    i_config = config.InstallationConfig(id="test-ic", secrets=secrets)
+
+    found = i_config.secrets_map
+
+    for (_f_key, f_val), secret in zip(
+        sorted(found.items()),
+        secrets,
+        strict=True,
+    ):
+        assert f_val is secret
+
+
+def test_installationconfig_secrets_map_w_existing():
+    already = object()
+    i_config = config.InstallationConfig(id="test-ic", _secrets_map=already)
+
+    found = i_config.secrets_map
+
+    assert found is already
+
+
 @pytest.mark.parametrize("w_default", [False, True])
 @pytest.mark.parametrize("w_hit", [False, True])
 def test_installationconfig_get_environment(w_hit, w_default):
@@ -2001,7 +2126,10 @@ def test_installationconfig_get_environment(w_hit, w_default):
     "config_yaml, expected_kw",
     [
         (BARE_INSTALLATION_CONFIG_YAML, BARE_INSTALLATION_CONFIG_KW),
-        (W_SECRETS_INSTALLATION_CONFIG_YAML, W_SECRETS_INSTALLATION_CONFIG_KW),
+        (
+            W_SECRETS_INSTALLATION_CONFIG_YAML,
+            W_SECRETS_INSTALLATION_CONFIG_KW,
+        ),
         (
             W_ENVIRONMENT_LIST_INSTALLATION_CONFIG_YAML,
             W_ENVIRONMENT_INSTALLATION_CONFIG_KW,
@@ -2057,6 +2185,22 @@ def test_installationconfig_from_yaml(
         expected,
         _config_path=yaml_file,
     )
+
+    if "secrets" in expected_kw:
+        replaced_secrets = []
+        for secret in expected.secrets:
+            replaced_sources = [
+                dataclasses.replace(source, _config_path=yaml_file)
+                for source in secret.sources
+            ]
+            replaced_secrets.append(
+                dataclasses.replace(
+                    secret,
+                    sources=replaced_sources,
+                    _config_path=yaml_file,
+                )
+            )
+        expected = dataclasses.replace(expected, secrets=replaced_secrets)
 
     if "oidc_paths" in expected_kw:
         exp_oidc_paths = [

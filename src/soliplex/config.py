@@ -990,6 +990,118 @@ class CompletionConfig:
 
 
 # ============================================================================
+#   Secrets configuration types
+# ============================================================================
+
+
+class _BaseSecretSource:
+    @classmethod
+    def from_yaml(cls, config_path: pathlib.Path, config: dict):
+        config["_config_path"] = config_path
+        return cls(**config)
+
+
+@dataclasses.dataclass
+class EnvVarSecretSource(_BaseSecretSource):
+    kind: typing.ClassVar[str] = "env_var"
+    secret_name: str
+    env_var_name: str | None = None
+    _config_path: pathlib.Path = None
+
+    def __post_init__(self):
+        if self.env_var_name is None:
+            self.env_var_name = self.secret_name
+
+
+@dataclasses.dataclass
+class FilePathSecretSource(_BaseSecretSource):
+    kind: typing.ClassVar[str] = "file_path"
+    secret_name: str
+    file_path: str
+    _config_path: pathlib.Path = None
+
+
+@dataclasses.dataclass
+class SubprocessSecretSource(_BaseSecretSource):
+    kind: typing.ClassVar[str] = "subprocess"
+    secret_name: str
+    command: str
+    args: list[str] | tuple[str] = ()
+    _config_path: pathlib.Path = None
+
+    @property
+    def command_line(self) -> str:
+        listed = [self.command, *self.args]
+        return " ".join(listed)
+
+
+@dataclasses.dataclass
+class RandomCharsSecretSource(_BaseSecretSource):
+    kind: typing.ClassVar[str] = "random_chars"
+    secret_name: str
+    n_chars: int = 32
+    _config_path: pathlib.Path = None
+
+
+SecretSources = list[
+    EnvVarSecretSource
+    | FilePathSecretSource
+    | SubprocessSecretSource
+    | RandomCharsSecretSource
+]
+
+
+SourceClassesByKind = {
+    klass.kind: klass
+    for klass in [
+        EnvVarSecretSource,
+        FilePathSecretSource,
+        SubprocessSecretSource,
+        RandomCharsSecretSource,
+    ]
+}
+
+
+@dataclasses.dataclass
+class SecretConfig:
+    secret_name: str
+    sources: SecretSources = None
+
+    # Set in 'from_yaml' below
+    _config_path: pathlib.Path = None
+
+    def __post_init__(self):
+        if self.sources is None:
+            self.sources = [EnvVarSecretSource(self.secret_name)]
+
+    @classmethod
+    def from_yaml(cls, config_path: pathlib.Path, config: dict | str):
+        if isinstance(config, str):
+            config = {
+                "secret_name": config,
+                "sources": [
+                    {"kind": "env_var", "env_var_name": config},
+                ],
+            }
+
+        config["_config_path"] = config_path
+        source_configs = config.pop("sources", None)
+
+        sources = []
+
+        for source_config in source_configs:
+            source_config["secret_name"] = config["secret_name"]
+            source_kind = source_config.pop("kind")
+            source_klass = SourceClassesByKind[source_kind]
+            source_inst = source_klass.from_yaml(config_path, source_config)
+            sources.append(source_inst)
+
+        config["sources"] = sources
+
+        return cls(**config)
+
+
+# ============================================================================
 #   Installation configuration types
 # ============================================================================
 
@@ -1073,9 +1185,21 @@ class InstallationConfig:
     #
     # Secrets name values looked up from env vars or other sources.
     #
-    secrets: list[str] = dataclasses.field(
+    secrets: list[SecretConfig] = dataclasses.field(
         default_factory=list,
     )
+    _secrets_map: dict[str, SecretConfig] = None
+
+    @property
+    def secrets_map(self) -> dict[str, SecretConfig]:
+        if self._secrets_map is None:
+            self._secrets_map = {
+                secret_config.secret_name: secret_config
+                for secret_config in self.secrets
+            }
+
+        return self._secrets_map
+
     #
     # Map values similar to 'os.environ'.
     #
@@ -1137,6 +1261,12 @@ class InstallationConfig:
         config["_config_path"] = config_path
 
         environment = config.get("environment")
+
+        secret_configs = [
+            SecretConfig.from_yaml(config_path, secret_config)
+            for secret_config in config.pop("secrets", ())
+        ]
+        config["secrets"] = secret_configs
 
         if isinstance(environment, list):
             config["environment"] = {
