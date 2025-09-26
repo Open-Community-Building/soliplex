@@ -95,6 +95,14 @@ class QuestionFileNotFoundWithOverride(ValueError):
         super().__init__(f"'{override}' file not found")
 
 
+class NotASecret(ValueError):
+    def __init__(self, config_str):
+        self.config_str = config_str
+        super().__init__(
+            f"Config '{config_str}' must be prefixed with 'secret:'"
+        )
+
+
 # ============================================================================
 #   OIDC Authentication system configuration types
 # ============================================================================
@@ -1166,6 +1174,13 @@ _find_completion_configs = functools.partial(
 )
 
 
+def strip_secret_prefix(config_str: str) -> str:
+    if not config_str.startswith("secret:"):
+        raise NotASecret(config_str)
+
+    return config_str[len("secret:") :]
+
+
 @dataclasses.dataclass
 class InstallationConfig:
     """Configuration for a set of rooms, completion, etc."""
@@ -1194,9 +1209,9 @@ class InstallationConfig:
         return self._secrets_map
 
     def get_secret(self, secret_name) -> str:
-        import soliplex.secrets as secrets_module  # avoid cycle
+        from soliplex import secrets as secrets_module  # avoid cycle
 
-        secret_name = secrets_module.strip_secret_prefix(secret_name)
+        secret_name = strip_secret_prefix(secret_name)
         secret_config = self.secrets_map[secret_name]
         return secrets_module.get_secret(secret_config)
 

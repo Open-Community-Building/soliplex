@@ -2090,6 +2090,25 @@ def test__find_configs_w_multiple(temp_dir):
         assert f_thing == e_thing
 
 
+NoRaise = contextlib.nullcontext()
+NotASecret = pytest.raises(config.NotASecret)
+
+
+@pytest.mark.parametrize(
+    "secret_name_exp_pfx, expectation, expected",
+    [
+        ("secret:test", NoRaise, "test"),
+        ("invalid", NotASecret, None),
+    ],
+)
+def test_strip_secret_prefix(secret_name_exp_pfx, expectation, expected):
+    with expectation:
+        found = config.strip_secret_prefix(secret_name_exp_pfx)
+
+    if expected is not None:
+        assert found == expected
+
+
 def test_installationconfig_secrets_map_wo_existing():
     secrets = [
         mock.create_autospec(

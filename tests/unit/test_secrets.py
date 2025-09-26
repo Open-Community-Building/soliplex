@@ -21,7 +21,6 @@ EnvVarNotFound = pytest.raises(secrets.SecretEnvVarNotFound)
 FilePathNotFound = pytest.raises(secrets.SecretFilePathNotFound)
 SubprocessError = pytest.raises(secrets.SecretSubprocessError)
 ExcGroup = pytest.raises(ExceptionGroup)
-NotASecret = pytest.raises(secrets.NotASecret)
 
 
 @pytest.mark.parametrize(
@@ -179,18 +178,3 @@ def test_check_secrets(gs, secret_configs, expectation):
             strict=True,
         ):
             assert gs_call == mock.call(secret_config)
-
-
-@pytest.mark.parametrize(
-    "secret_name_exp_pfx, expectation, expected",
-    [
-        ("secret:test", NoRaise, "test"),
-        ("invalid", NotASecret, None),
-    ],
-)
-def test_strip_secret_prefix(secret_name_exp_pfx, expectation, expected):
-    with expectation:
-        found = secrets.strip_secret_prefix(secret_name_exp_pfx)
-
-    if expected is not None:
-        assert found == expected

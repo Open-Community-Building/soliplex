@@ -56,14 +56,6 @@ class SecretsNotFound(ExceptionGroup, SecretError):
         )
 
 
-class NotASecret(SecretError):
-    def __init__(self, config_str):
-        self.config_str = config_str
-        super().__init__(
-            f"Config '{config_str}' must be prefixed with 'secret:'"
-        )
-
-
 def get_env_var_secret(source: config.EnvVarSecretSource):
     try:
         return os.environ[source.env_var_name]
@@ -148,10 +140,3 @@ def check_secrets(secret_configs: list[config.SecretConfig]) -> None:
 
     if failed_names:
         raise SecretsNotFound(",".join(failed_names), excs)
-
-
-def strip_secret_prefix(config_str: str) -> str:
-    if not config_str.startswith("secret:"):
-        raise NotASecret(config_str)
-
-    return config_str[len("secret:") :]
