@@ -25,17 +25,17 @@ NoRaise = contextlib.nullcontext()
 
 
 @pytest.mark.parametrize(
-    "secret_map, expectation",
+    "secrets_map, expectation",
     [
         ({}, NoSuchSecret),
         ({SECRET_NAME_1: SECRET_CONFIG_1}, NoRaise),
     ],
 )
 @mock.patch("soliplex.secrets.get_secret")
-def test_installation_get_secret(gs, secret_map, expectation):
+def test_installation_get_secret(gs, secrets_map, expectation):
     i_config = mock.create_autospec(
         config.InstallationConfig,
-        secret_map=secret_map,
+        secrets_map=secrets_map,
     )
     the_installation = installation.Installation(i_config)
 

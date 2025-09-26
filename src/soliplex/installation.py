@@ -16,7 +16,7 @@ class Installation:
     _config: config.InstallationConfig
 
     def get_secret(self, secret_name) -> str:
-        secret_config = self._config.secret_map[secret_name]
+        secret_config = self._config.secrets_map[secret_name]
         return secrets.get_secret(secret_config)
 
     def check_secrets(self):
