@@ -82,14 +82,15 @@ W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_YAML = f"""
     client_secret: "{AUTHSYSTEM_CLIENT_SECRET_LIT}"
 """
 
-AUTHSYSTEM_CLIENT_SECRET_ENV = "env:{CLIENT_SECRET_ENV}"
-W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
-W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW["client_secret"] = (
-    AUTHSYSTEM_CLIENT_SECRET_ENV
+CLIENT_SECRET_NAME = "TEST_OIDC_CLIENT_SECRET"
+AUTHSYSTEM_CLIENT_SECRET_SECRET = f"secret:{CLIENT_SECRET_NAME}"
+W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
+W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_KW["client_secret"] = (
+    AUTHSYSTEM_CLIENT_SECRET_SECRET
 )
-W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_YAML = f"""
+W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_YAML = f"""
 {BARE_AUTHSYSTEM_CONFIG_YAML}
-    client_secret: "{AUTHSYSTEM_CLIENT_SECRET_ENV}"
+    client_secret: "{AUTHSYSTEM_CLIENT_SECRET_SECRET}"
 """
 
 AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_REL_NAME = "cacert.pem"
@@ -681,40 +682,45 @@ def test_authsystem_from_yaml(installation_config, temp_dir, w_config):
 
 
 @pytest.mark.parametrize(
-    "w_config, exp_secret, env_patch",
+    "exp_config, config_yaml, exp_secret",
     [
         (
             W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW,
+            W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_YAML,
             AUTHSYSTEM_CLIENT_SECRET_LIT,
-            {},
         ),
         (
-            W_CLIENT_SECRET_ENV_AUTHSYSTEM_CONFIG_KW,
-            AUTHSYSTEM_CLIENT_SECRET_ENV,
-            {"CLIENT_SECRET_ENV": AUTHSYSTEM_CLIENT_SECRET_LIT},
+            W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_KW,
+            W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_YAML,
+            AUTHSYSTEM_CLIENT_SECRET_SECRET,
         ),
     ],
 )
 def test_authsystem_from_yaml_w_client_secret(
     installation_config,
     temp_dir,
-    w_config,
+    exp_config,
+    config_yaml,
     exp_secret,
-    env_patch,
 ):
+    config_file = temp_dir / "config.yaml"
+    config_file.write_text(config_yaml)
+
+    with config_file.open() as stream:
+        config_dict = yaml.safe_load(stream)
+
     expected = config.OIDCAuthSystemConfig(
         _installation_config=installation_config,
-        **w_config,
+        _config_path=config_file,
+        **exp_config,
     )
-    expected.client_secret = AUTHSYSTEM_CLIENT_SECRET_LIT
-    expected._config_path = temp_dir
+    expected.client_secret = exp_secret
 
-    with mock.patch.dict("os.environ", clear=True, **env_patch):
-        found = config.OIDCAuthSystemConfig.from_yaml(
-            installation_config,
-            temp_dir,
-            w_config,
-        )
+    found = config.OIDCAuthSystemConfig.from_yaml(
+        installation_config,
+        config_file,
+        config_dict["auth_systems"][0],
+    )
 
     assert found == expected
 
@@ -768,40 +774,64 @@ def test_authsystem_server_metadata_url():
 
 
 @pytest.mark.parametrize(
-    "w_config, exp_client_kwargs, exp_secret",
+    "w_config, exp_client_kwargs, exp_secret, bare_secret",
     [
-        (BARE_AUTHSYSTEM_CONFIG_KW.copy(), {}, ""),
+        (BARE_AUTHSYSTEM_CONFIG_KW.copy(), {}, "", True),
         (
             W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW,
             {},
             AUTHSYSTEM_CLIENT_SECRET_LIT,
+            True,
         ),
-        (W_SCOPE_AUTHSYSTEM_CONFIG_KW, {"scope": AUTHSYSTEM_SCOPE}, ""),
+        (
+            W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_KW,
+            {},
+            AUTHSYSTEM_CLIENT_SECRET_SECRET,
+            False,
+        ),
+        (W_SCOPE_AUTHSYSTEM_CONFIG_KW, {"scope": AUTHSYSTEM_SCOPE}, "", True),
         (
             W_OIDC_CPP_ABS_KW,
             {"verify": AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS},
             "",
+            True,
         ),
     ],
 )
 def test_authsystem_oauth_client_args(
+    installation_config,
     temp_dir,
     w_config,
     exp_client_kwargs,
     exp_secret,
+    bare_secret,
 ):
-    inst = config.OIDCAuthSystemConfig(**w_config)
+    inst = config.OIDCAuthSystemConfig(
+        **w_config,
+    )
+    inst._installation_config = installation_config
     exp_url = (
         f"{AUTHSYSTEM_SERVER_URL}/{config.WELL_KNOWN_OPENID_CONFIGURATION}"
     )
+
+    icgs = installation_config.get_secret
+
+    if bare_secret:
+        icgs.side_effect = ValueError("testing")
 
     found = inst.oauth_client_kwargs
 
     assert found["name"] == AUTHSYSTEM_ID
     assert found["server_metadata_url"] == exp_url
     assert found["client_id"] == AUTHSYSTEM_CLIENT_ID
-    assert found["client_secret"] == exp_secret
     assert found["client_kwargs"] == exp_client_kwargs
+
+    if bare_secret:
+        assert found["client_secret"] == exp_secret
+    else:
+        assert found["client_secret"] is icgs.return_value
+
+    icgs.assert_called_once_with(exp_secret)
 
 
 def test_toolconfig_from_yaml(installation_config, temp_dir):

@@ -128,9 +128,6 @@ class OIDCAuthSystemConfig:
         config["_installation_config"] = installation_config
         config["_config_path"] = config_path
 
-        client_secret = config.pop("client_secret", "")
-        config["client_secret"] = util.interpolate_env_vars(client_secret)
-
         oidc_client_pem_path = config.pop("oidc_client_pem_path", None)
         if oidc_client_pem_path is not None:
             config["oidc_client_pem_path"] = (
@@ -153,11 +150,18 @@ class OIDCAuthSystemConfig:
         if self.oidc_client_pem_path is not None:
             client_kwargs["verify"] = str(self.oidc_client_pem_path)
 
+        try:
+            client_secret = self._installation_config.get_secret(
+                self.client_secret
+            )
+        except Exception:
+            client_secret = self.client_secret
+
         return {
             "name": self.id,
             "server_metadata_url": self.server_metadata_url,
             "client_id": self.client_id,
-            "client_secret": self.client_secret,
+            "client_secret": client_secret,
             "client_kwargs": client_kwargs,
             # added by the auth setup
             # "authorize_state": main.SESSION_SECRET_KEY,

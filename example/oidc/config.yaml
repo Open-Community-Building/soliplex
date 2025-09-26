@@ -9,7 +9,7 @@ auth_systems:
     title: "Authenticate with Enfold"
     server_url: "https://pydio-kc.enfoldsystems.net/realms/pydio"
     client_id: "pydio-token-service"
-    client_secret: ""  # "env:{PYDIO_CLIENT_SECRET}"
+    client_secret: ""  # "secret:{PYDIO_CLIENT_SECRET}"
     scope: "openid email profile"
     token_validation_pem: |
         -----BEGIN PUBLIC KEY-----
