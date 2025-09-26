@@ -15,8 +15,6 @@ from urllib import parse as url_parse
 import dotenv
 import yaml
 
-from soliplex import util
-
 # ============================================================================
 #   Exceptions raised during YAML config processing
 # ============================================================================
@@ -435,7 +433,7 @@ class Stdio_MCP_ClientToolsetConfig:
     @property
     def tool_kwargs(self) -> dict:
         env_map = {
-            key: util.interpolate_env_vars(value)
+            key: self._installation_config.get_environment(value, value)
             for (key, value) in self.env.items()
         }
         return {
@@ -490,13 +488,13 @@ class HTTP_MCP_ClientToolsetConfig:
         url = self.url
 
         headers = {
-            key: util.interpolate_env_vars(value)
+            key: self._installation_config.get_environment(value, value)
             for (key, value) in self.headers.items()
         }
 
         if self.query_params:
             qp = {
-                key: util.interpolate_env_vars(value)
+                key: self._installation_config.get_environment(value, value)
                 for (key, value) in self.query_params.items()
             }
             qs = url_parse.urlencode(qp)

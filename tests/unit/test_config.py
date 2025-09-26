@@ -1207,13 +1207,12 @@ def test_stdio_mctc_toolset_params(w_env):
 
 
 @pytest.mark.parametrize("w_env", [{}, {"foo": "bar"}])
-@mock.patch("soliplex.util.interpolate_env_vars")
-def test_stdio_mctc_tool_kwargs(iev, w_env):
-    iev.return_value = "<interpolated>"
+def test_stdio_mctc_tool_kwargs(installation_config, w_env):
     stdio_mctc = config.Stdio_MCP_ClientToolsetConfig(
         command="cat",
         args=["-"],
         env=w_env,
+        _installation_config=installation_config,
     )
 
     found = stdio_mctc.tool_kwargs
@@ -1228,8 +1227,11 @@ def test_stdio_mctc_tool_kwargs(iev, w_env):
         strict=True,
     ):
         assert f_key == cfg_key
-        assert f_val is iev.return_value
-        assert mock.call(cfg_value) in iev.call_args_list
+        assert f_val is installation_config.get_environment.return_value
+        assert (
+            mock.call(cfg_value, cfg_value)
+            in installation_config.get_environment.call_args_list
+        )
 
 
 @pytest.mark.parametrize("w_headers", [{}, HTTP_MCP_AUTH_HEADER])
@@ -1251,13 +1253,14 @@ def test_http_mctc_toolset_params(w_query_params, w_headers):
 
 @pytest.mark.parametrize("w_headers", [{}, HTTP_MCP_AUTH_HEADER])
 @pytest.mark.parametrize("w_query_params", [{}, HTTP_MCP_QUERY_PARAMS])
-@mock.patch("soliplex.util.interpolate_env_vars")
-def test_http_mctc_tool_kwargs(iev, w_query_params, w_headers):
-    iev.return_value = "<interpolated>"
+def test_http_mctc_tool_kwargs(installation_config, w_query_params, w_headers):
+    installation_config.get_environment.return_value = "<env>"
+
     http_mctc = config.HTTP_MCP_ClientToolsetConfig(
         url=HTTP_MCP_URL,
         headers=w_headers,
         query_params=w_query_params,
+        _installation_config=installation_config,
     )
 
     found = http_mctc.tool_kwargs
@@ -1276,8 +1279,11 @@ def test_http_mctc_tool_kwargs(iev, w_query_params, w_headers):
             strict=True,
         ):
             assert f_key == cfg_key
-            assert f_val == iev.return_value
-            assert mock.call(cfg_value) in iev.call_args_list
+            assert f_val == installation_config.get_environment.return_value
+            assert (
+                mock.call(cfg_value, cfg_value)
+                in installation_config.get_environment.call_args_list
+            )
 
     else:
         assert found["url"] == http_mctc.url
@@ -1288,8 +1294,11 @@ def test_http_mctc_tool_kwargs(iev, w_query_params, w_headers):
         strict=True,
     ):
         assert f_key == cfg_key
-        assert f_val is iev.return_value
-        assert mock.call(cfg_value) in iev.call_args_list
+        assert f_val is installation_config.get_environment.return_value
+        assert (
+            mock.call(cfg_value, cfg_value)
+            in installation_config.get_environment.call_args_list
+        )
 
 
 @pytest.mark.parametrize(
