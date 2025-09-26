@@ -1011,6 +1011,10 @@ class EnvVarSecretSource(_BaseSecretSource):
         if self.env_var_name is None:
             self.env_var_name = self.secret_name
 
+    @property
+    def extra_arguments(self) -> dict[str, typing.Any]:
+        return {"env_var_name": self.env_var_name}
+
 
 @dataclasses.dataclass
 class FilePathSecretSource(_BaseSecretSource):
@@ -1018,6 +1022,10 @@ class FilePathSecretSource(_BaseSecretSource):
     secret_name: str
     file_path: str
     _config_path: pathlib.Path = None
+
+    @property
+    def extra_arguments(self) -> dict[str, typing.Any]:
+        return {"file_path": self.file_path}
 
 
 @dataclasses.dataclass
@@ -1033,6 +1041,10 @@ class SubprocessSecretSource(_BaseSecretSource):
         listed = [self.command, *self.args]
         return " ".join(listed)
 
+    @property
+    def extra_arguments(self) -> dict[str, typing.Any]:
+        return {"command_line": self.command_line}
+
 
 @dataclasses.dataclass
 class RandomCharsSecretSource(_BaseSecretSource):
@@ -1041,13 +1053,20 @@ class RandomCharsSecretSource(_BaseSecretSource):
     n_chars: int = 32
     _config_path: pathlib.Path = None
 
+    @property
+    def extra_arguments(self) -> dict[str, typing.Any]:
+        return {"n_chars": self.n_chars}
 
-SecretSources = list[
+
+SecretSource = (
     EnvVarSecretSource
     | FilePathSecretSource
     | SubprocessSecretSource
     | RandomCharsSecretSource
-]
+)
+
+
+SecretSources = list[SecretSource]
 
 
 SourceClassesByKind = {

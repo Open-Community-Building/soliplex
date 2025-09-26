@@ -356,7 +356,10 @@ def test_completion_from_config(room_agent, room_tools):
         assert completion_model.tools == {}
 
 
-@pytest.fixture(scope="module", params=[None, [INSTALLATION_SECRET]])
+@pytest.fixture(
+    scope="module",
+    params=[None, [config.SecretConfig(INSTALLATION_SECRET)]],
+)
 def installation_secrets(request):
     return _from_param(request, "secrets")
 
@@ -430,10 +433,12 @@ def test_installation_from_config(
 
     assert installation_model.id == INSTALLATION_ID
 
-    if installation_secrets:
-        assert installation_model.secrets == installation_secrets["secrets"]
-    else:
-        assert installation_model.secrets == []
+    for m_secret, c_secret in zip(
+        installation_model.secrets,
+        installation_secrets.get("secrets", ()),
+        strict=True,
+    ):
+        assert m_secret.secret_name == c_secret.secret_name
 
     if installation_environment:
         assert (

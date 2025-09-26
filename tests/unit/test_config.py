@@ -1957,7 +1957,9 @@ def test_completionconfig_from_yaml(
 )
 def test_envvar_secret_source_ctor(w_params, exp_env_var_name):
     source = config.EnvVarSecretSource(SECRET_NAME, **w_params)
+
     assert source.env_var_name == exp_env_var_name
+    assert source.extra_arguments == {"env_var_name": exp_env_var_name}
 
 
 @pytest.mark.parametrize("yaml_config", [{}, {"env_var_name": ENV_VAR_NAME}])
@@ -1970,10 +1972,12 @@ def test_envvarsecretsource_from_yaml(temp_dir, yaml_config):
     assert source._config_path == config_path
     assert source.secret_name == SECRET_NAME
 
-    if "env_var_name" in yaml_config:
-        assert source.env_var_name == ENV_VAR_NAME
-    else:
-        assert source.env_var_name == SECRET_NAME
+    exp_env_var_name = (
+        ENV_VAR_NAME if "env_var_name" in yaml_config else SECRET_NAME
+    )
+
+    assert source.env_var_name == exp_env_var_name
+    assert source.extra_arguments == {"env_var_name": exp_env_var_name}
 
 
 @pytest.mark.parametrize("file_path", ["/path/to/file", "./file"])
@@ -1986,6 +1990,7 @@ def test_filepathsecretsource_from_yaml(temp_dir, file_path):
     assert source._config_path == config_path
     assert source.secret_name == SECRET_NAME
     assert source.file_path == file_path
+    assert source.extra_arguments == {"file_path": file_path}
 
 
 @pytest.mark.parametrize(
@@ -1998,6 +2003,20 @@ def test_filepathsecretsource_from_yaml(temp_dir, file_path):
 def test_subprocess_secret_source_command_line(w_args, exp_command_line):
     source = config.SubprocessSecretSource(SECRET_NAME, COMMAND, w_args)
     assert source.command_line == exp_command_line
+    assert source.extra_arguments == {"command_line": exp_command_line}
+
+
+@pytest.mark.parametrize(
+    "kwargs, exp_nc",
+    [
+        ({}, 32),
+        ({"n_chars": 17}, 17),
+    ],
+)
+def test_random_chars_secret_source_extra_args(kwargs, exp_nc):
+    source = config.RandomCharsSecretSource(SECRET_NAME, **kwargs)
+
+    assert source.extra_arguments == {"n_chars": exp_nc}
 
 
 @pytest.mark.parametrize(
