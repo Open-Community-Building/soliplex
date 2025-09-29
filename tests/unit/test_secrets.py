@@ -162,12 +162,12 @@ def test_secret_ctor_w_sources(o_ur, sources, expectation, expected):
     ],
 )
 @mock.patch("soliplex.secrets.get_secret")
-def test_check_secrets(gs, secret_configs, expectation):
+def test_resolve_secrets(gs, secret_configs, expectation):
     gs.side_effect = secrets.SecretError("testing")
 
     with mock.patch("os.environ", clear=True):
         with expectation as expected:
-            secrets.check_secrets(secret_configs)
+            secrets.resolve_secrets(secret_configs)
 
     if expected is not None:
         assert len(expected.value.exceptions) == len(secret_configs)

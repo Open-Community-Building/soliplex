@@ -1087,6 +1087,7 @@ class SecretConfig:
 
     # Set in 'from_yaml' below
     _config_path: pathlib.Path = None
+    _resolved: str = None
 
     def __post_init__(self):
         if self.sources is None:
@@ -1117,6 +1118,10 @@ class SecretConfig:
         config["sources"] = sources
 
         return cls(**config)
+
+    @property
+    def resolved(self) -> str | None:
+        return self._resolved
 
 
 # ============================================================================

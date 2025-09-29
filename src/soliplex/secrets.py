@@ -116,18 +116,21 @@ SECRET_GETTERS_BY_KIND = {
 def get_secret(secret_config: config.SecretConfig) -> str:
     excs = []
     sources = secret_config.sources
-    while sources:
+    while secret_config.resolved is None and sources:
         source, *sources = sources
         getter = SECRET_GETTERS_BY_KIND[source.kind]
         try:
-            return getter(source)
+            secret_config._resolved = getter(source)
         except SecretError as exc:
             excs.append(exc)
 
-    raise SecretSourcesFailed(secret_config.secret_name, excs)
+    if secret_config.resolved is None:
+        raise SecretSourcesFailed(secret_config.secret_name, excs)
+
+    return secret_config.resolved
 
 
-def check_secrets(secret_configs: list[config.SecretConfig]) -> None:
+def resolve_secrets(secret_configs: list[config.SecretConfig]) -> None:
     failed_names = []
     excs = []
 

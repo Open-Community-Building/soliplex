@@ -449,6 +449,7 @@ mcp_client_toolsets:
 """
 
 SECRET_NAME = "TEST_SECRET"
+SECRET_VALUE = "DEADBEEF"
 ENV_VAR_NAME = "TEST_ENV_VAR"
 COMMAND = "cat"
 
@@ -2034,6 +2035,14 @@ def test_secretconfig_ctor(w_sources, exp_sources):
 
     assert secret.secret_name == SECRET_NAME
     assert secret.sources == exp_sources
+
+
+def test_secretconfig_resolved():
+    secret = config.SecretConfig(SECRET_NAME)
+
+    assert secret.resolved is None
+    secret._resolved = SECRET_VALUE
+    assert secret.resolved == SECRET_VALUE
 
 
 def test__load_config_yaml_w_missing(temp_dir):

@@ -19,8 +19,8 @@ class Installation:
         secret_config = self._config.secrets_map[secret_name]
         return secrets.get_secret(secret_config)
 
-    def check_secrets(self):
-        secrets.check_secrets(self._config.secrets)
+    def resolve_secrets(self):
+        secrets.resolve_secrets(self._config.secrets)
 
     def get_environment(self, key, default=None) -> str:
         return self._config.get_environment(key, default)
@@ -97,7 +97,7 @@ async def lifespan(app: fastapi.FastAPI, installation_path):
     i_config = config.load_installation(installation_path)
     i_config.reload_configurations()
     the_installation = Installation(i_config)
-    the_installation.check_secrets()
+    the_installation.resolve_secrets()
     the_convos = convos.Conversations()
 
     context = {
