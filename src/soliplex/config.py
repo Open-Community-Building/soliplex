@@ -436,7 +436,7 @@ class Stdio_MCP_ClientToolsetConfig:
     @property
     def tool_kwargs(self) -> dict:
         env_map = {
-            key: self._installation_config.get_environment(value, value)
+            key: self._installation_config.get_secret(value)
             for (key, value) in self.env.items()
         }
         return {
@@ -491,13 +491,13 @@ class HTTP_MCP_ClientToolsetConfig:
         url = self.url
 
         headers = {
-            key: self._installation_config.get_environment(value, value)
+            key: self._installation_config.interpolate_secret(value)
             for (key, value) in self.headers.items()
         }
 
         if self.query_params:
             qp = {
-                key: self._installation_config.get_environment(value, value)
+                key: self._installation_config.get_secret(value)
                 for (key, value) in self.query_params.items()
             }
             qs = url_parse.urlencode(qp)
@@ -1246,6 +1246,16 @@ class InstallationConfig:
         secret_name = strip_secret_prefix(secret_name)
         secret_config = self.secrets_map[secret_name]
         return secrets_module.get_secret(secret_config)
+
+    def interpolate_secret(self, value):
+        # Support 'Bearer secret:SECRET_NAME' config.
+        if "secret:" in value:
+            tokens = [
+                self.get_secret(token) if "secret:" in token else token
+                for token in value.split(" ")
+            ]
+            value = " ".join(tokens)
+        return value
 
     #
     # Map values similar to 'os.environ'.

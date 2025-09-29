@@ -23,8 +23,8 @@ mcp_client_toolsets:
       # passing an 'Authorization: Bearer <API KEY>' header, but instead
       # expects to have the values passed in the query string (unless the
       # client can do the full OAuth2 flow).
-      api_key: "env:{SMITHERY_AI_API_KEY}"
-      profile: "env:{SMITHERY_AI_PROFILE}"
+      api_key: "secret:SMITHERY_AI_API_KEY"
+      profile: "secret:SMITHERY_AI_PROFILE"
 
 # google_maps:
 #   type: "stdio"

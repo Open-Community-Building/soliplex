@@ -170,10 +170,10 @@ IMAGE_FILENAME = "test_image.jpg"
 
 HTTP_MCP_URL = "https://example.com/services/baz/mcp"
 HTTP_MCP_QP_KEY = "frob"
-HTTP_MCP_QP_VALUE = "bazquyth"
+HTTP_MCP_QP_VALUE = "secret:BAZQUYTH"
 HTTP_MCP_QUERY_PARAMS = {HTTP_MCP_QP_KEY: HTTP_MCP_QP_VALUE}
-HTTP_MCP_BEARER_TOKEN = "FACEDACE"
-HTTP_MCP_AUTH_HEADER = {"Authorization": "Bearer {HTTP_MCP_BEARER_TOKEN}"}
+BEARER_TOKEN = "FACEDACE"
+HTTP_MCP_AUTH_HEADER = {"Authorization": "Bearer secret:BEARER_TOKEN"}
 QUIZ_ID = "test_quiz"
 
 DADS_BASE_URL = "https://docs.stage.josce.mil/dev/"
@@ -326,7 +326,7 @@ FULL_ROOM_CONFIG_KW = {
         "http_test": config.HTTP_MCP_ClientToolsetConfig(
             url=HTTP_MCP_URL,
             headers={
-                "Authorization": f"Bearer {HTTP_MCP_BEARER_TOKEN}",
+                "Authorization": "Bearer secret:BEARER_TOKEN",
             },
             query_params=HTTP_MCP_QUERY_PARAMS,
         ),
@@ -362,7 +362,7 @@ mcp_client_toolsets:
       type: "http"
       url: "{HTTP_MCP_URL}"
       headers:
-        Authorization: "Bearer {HTTP_MCP_BEARER_TOKEN}"
+        Authorization: "Bearer secret:BEARER_TOKEN"
       query_params:
         {HTTP_MCP_QP_KEY}: "{HTTP_MCP_QP_VALUE}"
 quizzes:
@@ -416,7 +416,7 @@ FULL_COMPLETION_CONFIG_KW = {
         "http_test": config.HTTP_MCP_ClientToolsetConfig(
             url=HTTP_MCP_URL,
             headers={
-                "Authorization": f"Bearer {HTTP_MCP_BEARER_TOKEN}",
+                "Authorization": "Bearer secret:BEARER_TOKEN",
             },
             query_params=HTTP_MCP_QUERY_PARAMS,
         ),
@@ -444,7 +444,7 @@ mcp_client_toolsets:
       type: "http"
       url: "{HTTP_MCP_URL}"
       headers:
-        Authorization: "Bearer {HTTP_MCP_BEARER_TOKEN}"
+        Authorization: "Bearer secret:BEARER_TOKEN"
       query_params:
         {HTTP_MCP_QP_KEY}: "{HTTP_MCP_QP_VALUE}"
 """
@@ -1216,7 +1216,7 @@ def test_stdio_mctc_toolset_params(w_env):
     assert found["allowed_tools"] == stdio_mctc.allowed_tools
 
 
-@pytest.mark.parametrize("w_env", [{}, {"foo": "bar"}])
+@pytest.mark.parametrize("w_env", [{}, {"FOO_KEY": "secret:FOO_KEY"}])
 def test_stdio_mctc_tool_kwargs(installation_config, w_env):
     stdio_mctc = config.Stdio_MCP_ClientToolsetConfig(
         command="cat",
@@ -1237,10 +1237,10 @@ def test_stdio_mctc_tool_kwargs(installation_config, w_env):
         strict=True,
     ):
         assert f_key == cfg_key
-        assert f_val is installation_config.get_environment.return_value
+        assert f_val is installation_config.get_secret.return_value
         assert (
-            mock.call(cfg_value, cfg_value)
-            in installation_config.get_environment.call_args_list
+            mock.call(cfg_value)
+            in installation_config.get_secret.call_args_list
         )
 
 
@@ -1263,8 +1263,13 @@ def test_http_mctc_toolset_params(w_query_params, w_headers):
 
 @pytest.mark.parametrize("w_headers", [{}, HTTP_MCP_AUTH_HEADER])
 @pytest.mark.parametrize("w_query_params", [{}, HTTP_MCP_QUERY_PARAMS])
-def test_http_mctc_tool_kwargs(installation_config, w_query_params, w_headers):
-    installation_config.get_environment.return_value = "<env>"
+def test_http_mctc_tool_kwargs(
+    installation_config,
+    w_query_params,
+    w_headers,
+):
+    installation_config.get_secret.return_value = "<secret>"
+    installation_config.interpolate_secret.return_value = "<interp>"
 
     http_mctc = config.HTTP_MCP_ClientToolsetConfig(
         url=HTTP_MCP_URL,
@@ -1289,10 +1294,10 @@ def test_http_mctc_tool_kwargs(installation_config, w_query_params, w_headers):
             strict=True,
         ):
             assert f_key == cfg_key
-            assert f_val == installation_config.get_environment.return_value
+            assert f_val == installation_config.get_secret.return_value
             assert (
-                mock.call(cfg_value, cfg_value)
-                in installation_config.get_environment.call_args_list
+                mock.call(cfg_value)
+                in installation_config.get_secret.call_args_list
             )
 
     else:
@@ -1304,10 +1309,10 @@ def test_http_mctc_tool_kwargs(installation_config, w_query_params, w_headers):
         strict=True,
     ):
         assert f_key == cfg_key
-        assert f_val is installation_config.get_environment.return_value
+        assert f_val is installation_config.interpolate_secret.return_value
         assert (
-            mock.call(cfg_value, cfg_value)
-            in installation_config.get_environment.call_args_list
+            mock.call(cfg_value)
+            in installation_config.interpolate_secret.call_args_list
         )
 
 
@@ -2203,13 +2208,53 @@ def test_installationconfig_get_secret(gs, secret_map, expectation):
         _secrets_map=secret_map,
     )
 
-    with mock.patch("os.environ", clear=True):
-        with expectation as expected:
-            found = i_config.get_secret(f"secret:{SECRET_NAME_1}")
+    with expectation as expected:
+        found = i_config.get_secret(f"secret:{SECRET_NAME_1}")
 
     if expected is None:
         assert found is gs.return_value
         gs.assert_called_once_with(SECRET_CONFIG_1)
+    else:
+        gs.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "value, secret_map, expectation, exp_value",
+    [
+        ("No secret here", {}, NoRaise, "No secret here"),
+        (f"Foo secret:{SECRET_NAME_1}", {}, NoSuchSecret, None),
+        (
+            f"Foo secret:{SECRET_NAME_1}",
+            {SECRET_NAME_1: SECRET_CONFIG_1},
+            NoRaise,
+            "Foo <secret>",
+        ),
+    ],
+)
+@mock.patch("soliplex.secrets.get_secret")
+def test_installationconfig_interpolate_secret(
+    gs,
+    value,
+    secret_map,
+    expectation,
+    exp_value,
+):
+    gs.return_value = "<secret>"
+
+    i_config = config.InstallationConfig(
+        id="test-ic",
+        _secrets_map=secret_map,
+    )
+
+    with expectation:
+        found = i_config.interpolate_secret(value)
+
+    if exp_value is not None:
+        assert found == exp_value
+        if exp_value == value:
+            gs.assert_not_called()
+        else:
+            gs.assert_called_once_with(SECRET_CONFIG_1)
     else:
         gs.assert_not_called()
 

@@ -22,8 +22,8 @@ secrets:
 
   # MCP tool registry (these are required in order to test the
   # example/room/mcp_test tooling).
-  #- "SMITHERY_AI_API_KEY"
-  #- "SMITHERY_AI_PROFILE"
+  - "SMITHERY_AI_API_KEY"
+  - "SMITHERY_AI_PROFILE"
 
   # MCP room token generation / validation secret
   - secret_name: "URL_SAFE_TOKEN_SECRET"
