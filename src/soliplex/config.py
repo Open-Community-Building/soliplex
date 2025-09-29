@@ -15,6 +15,9 @@ from urllib import parse as url_parse
 import dotenv
 import yaml
 
+SECRET_PREFIX = "secret:"
+FILE_PREFIX = "file:"
+
 # ============================================================================
 #   Exceptions raised during YAML config processing
 # ============================================================================
@@ -1197,10 +1200,17 @@ _find_completion_configs = functools.partial(
 
 
 def strip_secret_prefix(config_str: str) -> str:
-    if not config_str.startswith("secret:"):
+    if not config_str.startswith(SECRET_PREFIX):
         raise NotASecret(config_str)
 
-    return config_str[len("secret:") :]
+    return config_str[len(SECRET_PREFIX) :]
+
+
+def resolve_file_prefix(env_value: str, config_path: pathlib.Path) -> str:
+    if env_value.startswith(FILE_PREFIX):
+        env_value = config_path.parent / env_value[len(FILE_PREFIX) :]
+
+    return str(env_value)
 
 
 @dataclasses.dataclass
@@ -1297,7 +1307,7 @@ class InstallationConfig:
     def from_yaml(cls, config_path: pathlib.Path, config: dict):
         config["_config_path"] = config_path
 
-        environment = config.get("environment")
+        environment = config.get("environment", {})
 
         secret_configs = [
             SecretConfig.from_yaml(config_path, secret_config)
@@ -1307,7 +1317,13 @@ class InstallationConfig:
 
         if isinstance(environment, list):
             config["environment"] = {
-                item["name"]: item["value"] for item in environment
+                item["name"]: resolve_file_prefix(item["value"], config_path)
+                for item in environment
+            }
+        else:
+            config["environment"] = {
+                key: resolve_file_prefix(value, config_path)
+                for key, value in environment.items()
             }
 
         dotenv_file = config_path.parent / ".env"

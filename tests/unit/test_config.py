@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import dataclasses
 import functools
 import inspect
@@ -509,6 +510,8 @@ secrets:
             n_chars: {SECRET_NCHARS}
 """
 
+CONFIG_KEY_0 = "INSTALLATION_PATH"
+CONFIG_VAL_0 = "file:."
 CONFIG_KEY_1 = "key_1"
 CONFIG_VAL_1 = "val_1"
 CONFIG_KEY_2 = "key_2"
@@ -516,6 +519,7 @@ CONFIG_VAL_2 = "val_2"
 W_ENVIRONMENT_INSTALLATION_CONFIG_KW = {
     "id": INSTALLATION_ID,
     "environment": {
+        CONFIG_KEY_0: "<temp_dir>",
         CONFIG_KEY_1: CONFIG_VAL_1,
         CONFIG_KEY_2: CONFIG_VAL_2,
     },
@@ -523,6 +527,8 @@ W_ENVIRONMENT_INSTALLATION_CONFIG_KW = {
 W_ENVIRONMENT_LIST_INSTALLATION_CONFIG_YAML = f"""\
 id: "{INSTALLATION_ID}"
 environment:
+    - name: "{CONFIG_KEY_0}"
+      value: "{CONFIG_VAL_0}"
     - name: "{CONFIG_KEY_1}"
       value: "{CONFIG_VAL_1}"
     - name: "{CONFIG_KEY_2}"
@@ -531,6 +537,7 @@ environment:
 W_ENVIRONMENT_MAPPING_INSTALLATION_CONFIG_YAML = f"""\
 id: "{INSTALLATION_ID}"
 environment:
+    {CONFIG_KEY_0}: "{CONFIG_VAL_0}"
     {CONFIG_KEY_1}: "{CONFIG_VAL_1}"
     {CONFIG_KEY_2}: "{CONFIG_VAL_2}"
 """
@@ -2235,50 +2242,53 @@ def test_installationconfig_get_environment(w_hit, w_default):
 @pytest.mark.parametrize(
     "config_yaml, expected_kw",
     [
-        (BARE_INSTALLATION_CONFIG_YAML, BARE_INSTALLATION_CONFIG_KW),
+        (
+            BARE_INSTALLATION_CONFIG_YAML,
+            BARE_INSTALLATION_CONFIG_KW.copy(),
+        ),
         (
             W_SECRETS_INSTALLATION_CONFIG_YAML,
-            W_SECRETS_INSTALLATION_CONFIG_KW,
+            W_SECRETS_INSTALLATION_CONFIG_KW.copy(),
         ),
         (
             W_ENVIRONMENT_LIST_INSTALLATION_CONFIG_YAML,
-            W_ENVIRONMENT_INSTALLATION_CONFIG_KW,
+            W_ENVIRONMENT_INSTALLATION_CONFIG_KW.copy(),
         ),
         (
             W_ENVIRONMENT_MAPPING_INSTALLATION_CONFIG_YAML,
-            W_ENVIRONMENT_INSTALLATION_CONFIG_KW,
+            W_ENVIRONMENT_INSTALLATION_CONFIG_KW.copy(),
         ),
         (
             W_OIDC_PATHS_INSTALLATION_CONFIG_YAML,
-            W_OIDC_PATHS_INSTALLATION_CONFIG_KW,
+            W_OIDC_PATHS_INSTALLATION_CONFIG_KW.copy(),
         ),
         (
             W_OIDC_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
-            W_OIDC_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW,
+            W_OIDC_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW.copy(),
         ),
         (
             W_ROOM_PATHS_INSTALLATION_CONFIG_YAML,
-            W_ROOM_PATHS_INSTALLATION_CONFIG_KW,
+            W_ROOM_PATHS_INSTALLATION_CONFIG_KW.copy(),
         ),
         (
             W_ROOM_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
-            W_ROOM_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW,
+            W_ROOM_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW.copy(),
         ),
         (
             W_COMPLETION_PATHS_INSTALLATION_CONFIG_YAML,
-            W_COMPLETION_PATHS_INSTALLATION_CONFIG_KW,
+            W_COMPLETION_PATHS_INSTALLATION_CONFIG_KW.copy(),
         ),
         (
             W_COMPLETION_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
-            W_COMPLETION_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW,
+            W_COMPLETION_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW.copy(),
         ),
         (
             W_QUIZZES_PATHS_INSTALLATION_CONFIG_YAML,
-            W_QUIZZES_PATHS_INSTALLATION_CONFIG_KW,
+            W_QUIZZES_PATHS_INSTALLATION_CONFIG_KW.copy(),
         ),
         (
             W_QUIZZES_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
-            W_QUIZZES_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW,
+            W_QUIZZES_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW.copy(),
         ),
     ],
 )
@@ -2287,6 +2297,12 @@ def test_installationconfig_from_yaml(
     config_yaml,
     expected_kw,
 ):
+    expected_kw = copy.deepcopy(expected_kw)
+
+    for env_key, env_val in expected_kw.get("environment", {}).items():
+        if env_val == "<temp_dir>":
+            expected_kw["environment"][env_key] = str(temp_dir)
+
     expected = config.InstallationConfig(**expected_kw)
 
     yaml_file = temp_dir / "installation.yaml"
@@ -2351,7 +2367,12 @@ IGNORED=bogus
     yaml_file = temp_dir / "installation.yaml"
     yaml_file.write_text(config_yaml)
 
-    expected_kw = W_ENVIRONMENT_INSTALLATION_CONFIG_KW.copy()
+    expected_kw = copy.deepcopy(W_ENVIRONMENT_INSTALLATION_CONFIG_KW)
+
+    for env_key, env_val in expected_kw.get("environment", {}).items():
+        if env_val == "<temp_dir>":
+            expected_kw["environment"][env_key] = str(temp_dir)
+
     expected_kw["environment"][CONFIG_KEY_1] = REPLACEMENT
     expected = config.InstallationConfig(**expected_kw)
     expected = dataclasses.replace(
