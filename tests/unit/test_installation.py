@@ -58,8 +58,8 @@ def test_installation_get_secret(gs, secrets_map, expectation):
         ([SECRET_CONFIG_1, SECRET_CONFIG_2], RaisesSecretError),
     ],
 )
-@mock.patch("soliplex.secrets.check_secrets")
-def test_installation_check_secrets(cs, secret_configs, expectation):
+@mock.patch("soliplex.secrets.resolve_secrets")
+def test_installation_resolve_secrets(srs, secret_configs, expectation):
     i_config = mock.create_autospec(
         config.InstallationConfig,
     )
@@ -68,11 +68,11 @@ def test_installation_check_secrets(cs, secret_configs, expectation):
 
     with expectation as expected:
         if expected is not None:
-            cs.side_effect = secrets.SecretError("testing")
+            srs.side_effect = secrets.SecretError("testing")
 
-        the_installation.check_secrets()
+        the_installation.resolve_secrets()
 
-    cs.assert_called_once_with(secret_configs)
+    srs.assert_called_once_with(secret_configs)
 
 
 @pytest.mark.parametrize("w_default", [False, True])
@@ -305,13 +305,13 @@ def mcp_apps():
 
 
 @pytest.mark.anyio
-@mock.patch("soliplex.secrets.check_secrets")
+@mock.patch("soliplex.secrets.resolve_secrets")
 @mock.patch("soliplex.mcp_server.setup_mcp_for_rooms")
 @mock.patch("soliplex.config.load_installation")
 async def test_lifespan(
     load_installation,
     smfr,
-    cs,
+    srs,
     mcp_apps,
 ):
     INSTALLATION_PATH = "/path/to/installation"
@@ -350,5 +350,5 @@ async def test_lifespan(
     ):
         assert f_call.args == ("/mcp/" + key, mcp_app)
 
-    cs.assert_called_once_with(the_installation._config.secrets)
+    srs.assert_called_once_with(the_installation._config.secrets)
     smfr.assert_called_once_with(the_installation)
