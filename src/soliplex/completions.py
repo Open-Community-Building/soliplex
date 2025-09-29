@@ -68,7 +68,7 @@ async def openai_chat_completion(
     agent: pydantic_ai.Agent,
     agent_deps: models.AgentDependencies,
     chat_request: models.ChatCompletionRequest,
-):
+) -> responses.StreamingResponse:
     openai_payload = chat_request.model_dump(exclude_unset=True)
     user_question = openai_payload["messages"][-1]["content"]
     # TODO: figure out how to convert mssage history to PydanticAI's

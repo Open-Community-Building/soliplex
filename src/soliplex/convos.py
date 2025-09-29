@@ -213,6 +213,9 @@ class Conversations:
                 convo.uuid: {
                     "name": convo.name,
                     "room_id": convo.room_id,
+                    "message_history": [
+                        mhd async for mhd in convo.message_history_dicts
+                    ],
                 }
                 for convo_uuid, convo in convos.items()
             }

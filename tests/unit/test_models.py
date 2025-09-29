@@ -1,3 +1,5 @@
+import dataclasses
+import json
 import pathlib
 from unittest import mock
 
@@ -11,6 +13,13 @@ QUIZ_ID = "test_quiz"
 QUIZ_TITLE = "Test Quiz"
 QUIZ_MAX_QUESTIONS = 14
 QUIZ_PATH_OVERRIDE = "/dev/null"
+INPUTS = "What color is the sky"
+EXPECTED_ANSWER = "Blue"
+QA_QUESTION_UUID = "DEADBEEF"
+MC_QUESTION_UUID = "FACEDACE"
+QUESTION_TYPE_QA = "qa"
+QUESTION_TYPE_MC = "multiple-choice"
+MC_OPTIONS = ["orange", "blue", "purple"]
 
 ROOM_ID = "test_room"
 ROOM_NAME = "Test Room"
@@ -60,21 +69,74 @@ def _from_param(request, key):
     return kw
 
 
-@pytest.fixture(scope="module", params=[None, False, True])
+@pytest.fixture
+def qa_question():
+    return config.QuizQuestion(
+        inputs=INPUTS,
+        expected_output=EXPECTED_ANSWER,
+        metadata=config.QuizQuestionMetadata(
+            uuid=QA_QUESTION_UUID,
+            type=QUESTION_TYPE_QA,
+            options=None,
+        ),
+    )
+
+
+@pytest.fixture
+def mc_question():
+    return config.QuizQuestion(
+        inputs=INPUTS,
+        expected_output=EXPECTED_ANSWER,
+        metadata=config.QuizQuestionMetadata(
+            uuid=MC_QUESTION_UUID,
+            type=QUESTION_TYPE_MC,
+            options=MC_OPTIONS,
+        ),
+    )
+
+
+@pytest.fixture
+def quiz_questions(qa_question, mc_question):
+    return [qa_question, mc_question]
+
+
+@pytest.fixture
+def quiz_json(quiz_questions):
+    return {
+        "cases": [dataclasses.asdict(question) for question in quiz_questions]
+    }
+
+
+@pytest.fixture
+def quiz_path(temp_dir, quiz_json):
+    quizzes_path = temp_dir / "quizzes"
+    quizzes_path.mkdir()
+    populated_quiz = quizzes_path / f"{QUIZ_ID}.json"
+    populated_quiz.write_text(json.dumps(quiz_json))
+    return populated_quiz
+
+
+@pytest.fixture(params=[None, False, True])
 def quiz_randomize(request):
     return _from_param(request, "randomize")
 
 
-@pytest.fixture(scope="module", params=[None, QUIZ_MAX_QUESTIONS])
+@pytest.fixture(params=[None, QUIZ_MAX_QUESTIONS])
 def quiz_max_questions(request):
     return _from_param(request, "max_questions")
 
 
-def test_quiz_from_config(quiz_randomize, quiz_max_questions):
+def test_quiz_from_config(
+    quiz_path,
+    quiz_json,
+    quiz_questions,
+    quiz_randomize,
+    quiz_max_questions,
+):
     quiz_config = config.QuizConfig(
         id=QUIZ_ID,
         title=QUIZ_TITLE,
-        _question_file_path_override="/dev/null",
+        _question_file_path_override=str(quiz_path),
         **quiz_randomize,
         **quiz_max_questions,
     )
@@ -93,6 +155,12 @@ def test_quiz_from_config(quiz_randomize, quiz_max_questions):
         assert quiz_model.max_questions == quiz_max_questions["max_questions"]
     else:
         assert quiz_model.max_questions is None
+
+    if quiz_randomize:
+        for expected in quiz_questions:
+            assert expected in quiz_model.questions
+    else:
+        assert quiz_model.questions == quiz_questions
 
 
 def test_tool_from_config_w_toolconfig():
@@ -184,12 +252,12 @@ def test_mcp_client_toolset_from_config_w_sdtc():
     assert params["query_params"] == mcp_ct_config.query_params
 
 
-@pytest.fixture(scope="module", params=[*config.LLMProviderType])
+@pytest.fixture(params=[*config.LLMProviderType])
 def agent_provider_type(request):
     return _from_param(request, "provider_type")
 
 
-@pytest.fixture(scope="module", params=[None, AGENT_BASE_URL])
+@pytest.fixture(params=[None, AGENT_BASE_URL])
 def agent_provider_base_url(request):
     return _from_param(request, "provider_base_url")
 
@@ -229,17 +297,17 @@ def test_agent_from_config(
     assert agent_model.provider_base_url == exp_base
 
 
-@pytest.fixture(scope="module", params=[None, ROOM_WELCOME])
+@pytest.fixture(params=[None, ROOM_WELCOME])
 def room_welcome(request):
     return _from_param(request, "welcome_message")
 
 
-@pytest.fixture(scope="module", params=[None, [ROOM_SUGGESTION]])
+@pytest.fixture(params=[None, [ROOM_SUGGESTION]])
 def room_suggestions(request):
     return _from_param(request, "suggestions")
 
 
-@pytest.fixture(scope="module", params=[False, True])
+@pytest.fixture(params=[False, True])
 def room_tools(request):
     kw = {}
     if request.param:
@@ -251,15 +319,15 @@ def room_tools(request):
     return kw
 
 
-@pytest.fixture(scope="module", params=[False, True])
-def room_quizzes(request):
+@pytest.fixture(params=[False, True])
+def room_quizzes(request, quiz_path):
     kw = {}
     if request.param:
         kw["quizzes"] = [
             config.QuizConfig(
                 id=QUIZ_ID,
                 title=QUIZ_TITLE,
-                _question_file_path_override=QUIZ_PATH_OVERRIDE,
+                _question_file_path_override=str(quiz_path),
             )
         ]
     return kw
@@ -356,16 +424,12 @@ def test_completion_from_config(room_agent, room_tools):
         assert completion_model.tools == {}
 
 
-@pytest.fixture(
-    scope="module",
-    params=[None, [config.SecretConfig(INSTALLATION_SECRET)]],
-)
+@pytest.fixture(params=[None, [config.SecretConfig(INSTALLATION_SECRET)]])
 def installation_secrets(request):
     return _from_param(request, "secrets")
 
 
 @pytest.fixture(
-    scope="module",
     params=[
         None,
         {INSTALLATION_ENVVAR_NAME: INSTALLATION_ENVVAR_VALUE},
@@ -375,28 +439,27 @@ def installation_environment(request):
     return _from_param(request, "environment")
 
 
-@pytest.fixture(scope="module", params=[None, [INSTALLATION_OIDC_PATH]])
+@pytest.fixture(params=[None, [INSTALLATION_OIDC_PATH]])
 def installation_oidc_paths(request):
     return _from_param(request, "oidc_paths")
 
 
-@pytest.fixture(scope="module", params=[None, [INSTALLATION_ROOM_PATH]])
+@pytest.fixture(params=[None, [INSTALLATION_ROOM_PATH]])
 def installation_room_paths(request):
     return _from_param(request, "room_paths")
 
 
-@pytest.fixture(scope="module", params=[None, [INSTALLATION_COMPLETION_PATH]])
+@pytest.fixture(params=[None, [INSTALLATION_COMPLETION_PATH]])
 def installation_completion_paths(request):
     return _from_param(request, "completion_paths")
 
 
-@pytest.fixture(scope="module", params=[None, [INSTALLATION_QUIZZES_PATH]])
+@pytest.fixture(params=[None, [INSTALLATION_QUIZZES_PATH]])
 def installation_quizzes_paths(request):
     return _from_param(request, "quizzes_paths")
 
 
 @pytest.fixture(
-    scope="module",
     params=[
         None,
         [INSTALLATION_OIDC_AUTH_SYSTEM_CONFIG],

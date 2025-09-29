@@ -1,5 +1,3 @@
-import dataclasses
-
 import fastapi
 from fastapi import security
 
@@ -7,7 +5,6 @@ from soliplex import auth
 from soliplex import installation
 from soliplex import models
 from soliplex import quizzes
-from soliplex import util
 
 router = fastapi.APIRouter()
 
@@ -21,7 +18,7 @@ async def get_quiz(
     quiz_id: str,
     the_installation: installation.Installation = depend_the_installation,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
-):
+) -> models.Quiz:
     user = auth.authenticate(the_installation, token)
 
     try:
@@ -40,20 +37,10 @@ async def get_quiz(
             detail=str(e),
         ) from None
 
-    # Remove the `_installation_config` to avoid infinite recursion
-    q_copy = dataclasses.replace(quiz, _installation_config=None)
-    info = dataclasses.asdict(q_copy)
-
-    info["questions"] = [
-        dataclasses.asdict(question) for question in quiz.get_questions()
-    ]
-    return util.scrub_private_keys(info)
+    return models.Quiz.from_config(quiz)
 
 
-@router.post(
-    "/v1/rooms/{room_id}/quiz/{quiz_id}/{question_uuid}",
-    response_model=models.QuizQuestionResponse,
-)
+@router.post("/v1/rooms/{room_id}/quiz/{quiz_id}/{question_uuid}")
 async def post_quiz_question(
     request: fastapi.Request,
     room_id: str,
@@ -62,7 +49,7 @@ async def post_quiz_question(
     answer: models.UserPromptClientMessage,
     the_installation: installation.Installation = depend_the_installation,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
-):
+) -> models.QuizQuestionResponse:
     user = auth.authenticate(the_installation, token)
 
     try:

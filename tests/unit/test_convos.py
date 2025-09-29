@@ -314,12 +314,26 @@ async def test_conversations_user_conversations(w_user):
         with mock.patch.dict(the_convos._convos, testing=TEST_CONVOS):
             found = await the_convos.user_conversations("testing")
 
-        assert found == {
+        expected = {
             TEST_CONVO_UUID: {
                 "name": TEST_CONVO_NAME,
                 "room_id": TEST_CONVO_ROOMID,
+                "message_history": [
+                    {
+                        "origin": "user",
+                        "text": USER_PROMPT,
+                        "timestamp": TS_1.isoformat(),
+                    },
+                    {
+                        "origin": "llm",
+                        "text": MODEL_RESPONSE,
+                        "timestamp": TS_2.isoformat(),
+                    },
+                ],
             },
         }
+
+        assert found == expected
 
 
 @pytest.mark.anyio

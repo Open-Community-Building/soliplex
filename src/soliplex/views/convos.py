@@ -29,7 +29,7 @@ async def post_convos_new(
     the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
-):
+) -> models.Conversation:
     """Create a new convo, including room ID and URI with UUID"""
     user = auth.authenticate(the_installation, token)
     user_profile = models.UserProfile(
@@ -84,8 +84,7 @@ async def post_convos_new_room(
     the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
-    response_model=convos.Conversation,
-):
+) -> models.Conversation:
     """Create a new convo, including room ID and URI with UUID"""
     user = auth.authenticate(the_installation, token)
     user_profile = models.UserProfile(
@@ -138,8 +137,8 @@ async def get_convos(
     the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
-):
-    """Return a list of conversations, including room ID and URI with UUID"""
+) -> models.ConversationMap:
+    """Return a map of conversations by UUID, including name and room ID"""
     user = auth.authenticate(the_installation, token)
     user_name = user.get("preferred_username", "<unknown>")
     convos = await the_convos.user_conversations(user_name)
@@ -154,7 +153,7 @@ async def get_convo(
     the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
-):
+) -> models.Conversation:
     """Return the conversation, by id
 
     Include the message history for the conversation, along with room ID, etc.

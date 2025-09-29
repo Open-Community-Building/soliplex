@@ -1,4 +1,5 @@
 import fastapi
+from fastapi import responses
 from fastapi import security
 
 from soliplex import auth
@@ -62,7 +63,7 @@ async def post_chat_completion(
     chat_request: models.ChatCompletionRequest,
     the_installation: installation.Installation = depend_the_installation,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
-):
+) -> responses.StreamingResponse:
     user = auth.authenticate(the_installation, token)
     user_profile = models.UserProfile(
         given_name=user.get("given_name", "<unknown>"),
