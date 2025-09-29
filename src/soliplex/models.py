@@ -1,6 +1,7 @@
 import dataclasses
 import pathlib
 import typing
+import uuid
 
 import pydantic
 
@@ -22,6 +23,8 @@ class Quiz(pydantic.BaseModel):
     randomize: bool
     max_questions: int | None = None
 
+    questions: list[config.QuizQuestion]
+
     @classmethod
     def from_config(cls, quiz_config: config.QuizConfig):
         return cls(
@@ -29,6 +32,7 @@ class Quiz(pydantic.BaseModel):
             title=quiz_config.title,
             randomize=quiz_config.randomize,
             max_questions=quiz_config.max_questions,
+            questions=quiz_config.get_questions(),
         )
 
 
@@ -285,6 +289,40 @@ UserInfo = dict[str, typing.Any]
 # ----------------------------------------------------------------------------
 #   Convos-related models
 # ----------------------------------------------------------------------------
+
+
+class ConvoHistoryMessage(pydantic.BaseModel):
+    """Message fetched from a convo history."""
+
+    origin: typing.Literal["user", "llm"]
+    text: str
+    timestamp: str | None
+
+
+class Conversation(pydantic.BaseModel):
+    name: str
+    room_id: str
+    message_history: list[ConvoHistoryMessage]
+
+
+ConversationMap = dict[uuid.UUID, Conversation]
+
+
+class ConvoHistoryMessage(pydantic.BaseModel):
+    """Message fetched from a convo history."""
+
+    origin: typing.Literal["user", "llm"]
+    text: str
+    timestamp: str | None
+
+
+class Conversation(pydantic.BaseModel):
+    name: str
+    room_id: str
+    message_history: list[ConvoHistoryMessage]
+
+
+ConversationMap = dict[uuid.UUID, Conversation]
 
 
 class UserPromptClientMessage(pydantic.BaseModel):

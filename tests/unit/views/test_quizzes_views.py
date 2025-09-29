@@ -1,4 +1,3 @@
-import dataclasses
 from unittest import mock
 
 import fastapi
@@ -7,7 +6,6 @@ import pytest
 from soliplex import config
 from soliplex import models
 from soliplex import quizzes
-from soliplex import util
 from soliplex.views import quizzes as quizzes_views
 
 TEST_ROOM_ID = "test_room"
@@ -110,13 +108,8 @@ async def test_get_quiz(auth_fn, test_quiz, w_miss):
                 token=token,
             )
 
-            expected_json = dataclasses.asdict(test_quiz)
-            expected_json["questions"] = [
-                dataclasses.asdict(question)
-                for question in test_quiz.get_questions()
-            ]
-            expected_json = util.scrub_private_keys(expected_json)
-            assert found == expected_json
+            expected = models.Quiz.from_config(test_quiz)
+            assert found == expected
 
     the_installation.get_room_config.assert_called_once_with(
         TEST_ROOM_ID,
