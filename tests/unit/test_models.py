@@ -116,7 +116,7 @@ def test_tool_from_config_w_toolconfig():
 
 def test_tool_from_config_w_sdtc(temp_dir):
     sdtc_rag_lance_db_path = temp_dir / "rag.lancedb"
-    sdtc_rag_lance_db_path.touch()
+    sdtc_rag_lance_db_path.mkdir()
 
     tool_config = config.SearchDocumentsToolConfig(
         rag_lancedb_override_path=str(sdtc_rag_lance_db_path),
