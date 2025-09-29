@@ -2,7 +2,8 @@ id: "haiku"
 name: "Haiku-RAG search"
 description: "Search documents using Haiku-RAG"
 suggestions:
-- "Which way is up?"
+- "What time is it?"
+- "What is a Soliplex installation?"
 agent:
   system_prompt: "./prompt.txt"
 allow_mcp: true
