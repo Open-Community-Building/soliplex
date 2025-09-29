@@ -1083,12 +1083,13 @@ def test_sdtc_ctor(installation_config, temp_dir, stem, override, which):
 
     if stem is not None:
         from_stem = db_rag_path / f"{stem}.lancedb"
-        from_stem.touch()
+        from_stem.mkdir()
 
     if override is not None:
         override = temp_dir / override
         from_override = pathlib.Path(override)
-        from_override.touch()
+        if not from_override.exists():
+            from_override.mkdir()
 
     ic_environ = {"RAG_LANCE_DB_PATH": str(db_rag_path)}
     installation_config.get_environment = ic_environ.get
@@ -1149,7 +1150,7 @@ def test_sdtc_from_yaml(installation_config, temp_dir, stem, override, which):
         kw["rag_lancedb_stem"] = stem
         from_stem = db_rag_path / f"{stem}.lancedb"
         if stem != "nonesuch":
-            from_stem.touch()
+            from_stem.mkdir()
             expected = from_stem
             expectation = contextlib.nullcontext()
         else:
@@ -1162,7 +1163,8 @@ def test_sdtc_from_yaml(installation_config, temp_dir, stem, override, which):
         from_override = pathlib.Path(override)
         if "nonesuch" not in override:
             expectation = contextlib.nullcontext()
-            from_override.touch()
+            if not from_override.exists():
+                from_override.mkdir()
             expected = from_override
         else:
             expectation = pytest.raises(config.RagDbFileNotFound)

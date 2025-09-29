@@ -336,7 +336,7 @@ class SearchDocumentsToolConfig(ToolConfig):
             else:
                 rsop = pathlib.Path(rsop).resolve()
 
-            if not rsop.is_file():
+            if not rsop.is_dir():
                 raise RagDbFileNotFound(rsop)
 
             return rsop
@@ -348,7 +348,7 @@ class SearchDocumentsToolConfig(ToolConfig):
             )
             rspdb = (db_rag_dir / f"{self.rag_lancedb_stem}.lancedb").resolve()
 
-            if not rspdb.is_file():
+            if not rspdb.is_dir():
                 raise RagDbFileNotFound(rspdb)
 
             return rspdb
