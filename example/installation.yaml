@@ -77,7 +77,7 @@ environment:
     value: "file:."
 
   - name: "DEFAULT_AGENT_MODEL"
-    value: "gpt-oss:20b"
+    value: "qwen3:latest"
 
   - name: "OLLAMA_BASE_URL"
     value: "http://localhost:11434"
