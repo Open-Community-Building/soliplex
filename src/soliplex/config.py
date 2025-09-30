@@ -680,7 +680,7 @@ class QuizConfig:
     randomize: bool = False
     max_questions: int = None
 
-    judge_agent_model: str = "gpt-oss:20b"
+    judge_agent: AgentConfig | None = None
 
     def __post_init__(self, question_file):
         if question_file is not None:
@@ -700,6 +700,18 @@ class QuizConfig:
         ):
             raise QCExactlyOneOfStemOrOverride()
 
+        if self.judge_agent is None:
+            kwargs = {
+                "id": f"quiz-{self.id}-judge",
+                "model_name": "gpt-oss:20b",
+            }
+            if self._installation_config is not None:
+                i_config = self._installation_config
+                kwargs["provider_base_url"] = i_config.get_environment(
+                    "OLLAMA_BASE_URL",
+                )
+            self.judge_agent = AgentConfig(**kwargs)
+
     # Set by `from_yaml` factory
     _installation_config: InstallationConfig = None
     _config_path: pathlib.Path = None
@@ -714,14 +726,18 @@ class QuizConfig:
         config["_installation_config"] = installation_config
         config["_config_path"] = config_path
 
+        ja_config = config.pop("judge_agent", None)
+        if ja_config is not None:
+            config["judge_agent"] = AgentConfig.from_yaml(
+                installation_config,
+                config_path,
+                ja_config,
+            )
+
         try:
             return cls(**config)
         except QCExactlyOneOfStemOrOverride as exc:
             raise FromYamlException(config_path) from exc
-
-    @property
-    def provider_base_url(self):
-        return self._installation_config.get_environment("OLLAMA_BASE_URL")
 
     @property
     def question_file_path(self) -> pathlib.Path:

@@ -56,7 +56,15 @@ def a_quiz(qa_question, mc_question, installation_config):
     quiz = config.QuizConfig(
         id="testing",
         question_file="ignored.json",
-        judge_agent_model=QUIZ_JUDGE_AGENT_MODEL,
+        judge_agent=mock.create_autospec(
+            config.AgentConfig,
+            id="quiz-testing-judge",
+            model_name=QUIZ_JUDGE_AGENT_MODEL,
+            llm_provider_kw={
+                "provider_base_url": f"{OLLAMA_BASE_URL}/v1",
+                "api_key": "dummy",
+            },
+        ),
         _installation_config=installation_config,
     )
     quiz._questions_map = {
@@ -86,13 +94,12 @@ def test_get_quiz_judge_agent(
     )
 
     model_klass.assert_called_once_with(
-        model_name=a_quiz.judge_agent_model,
+        model_name=a_quiz.judge_agent.model_name,
         provider=provider_klass.return_value,
     )
 
     provider_klass.assert_called_once_with(
-        base_url=OLLAMA_BASE_URL + "/v1",
-        api_key="dummy",
+        **a_quiz.judge_agent.llm_provider_kw,
     )
 
 

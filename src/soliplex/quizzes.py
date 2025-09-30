@@ -41,14 +41,12 @@ GUIDELINES:
 
 
 def get_quiz_judge_agent(quiz: config.QuizConfig):
-    provider_base_url = quiz.provider_base_url
+    llm_provider_kw = quiz.judge_agent.llm_provider_kw
 
-    ollama_provider = ollama_providers.OllamaProvider(
-        base_url=f"{provider_base_url}/v1", api_key="dummy"
-    )
+    ollama_provider = ollama_providers.OllamaProvider(**llm_provider_kw)
 
     ollama_model = openai_models.OpenAIChatModel(
-        model_name=quiz.judge_agent_model,
+        model_name=quiz.judge_agent.model_name,
         provider=ollama_provider,
     )
 

@@ -129,6 +129,9 @@ TEST_QUIZ_ID = "test_quiz"
 TEST_QUIZ_TITLE = "Test Quiz"
 TEST_QUIZ_STEM = "question_file"
 TEST_QUIZ_OVR = "/path/to/question_file.json"
+TEST_QUIZ_MODEL_DEFAULT = "gpt-oss:20b"
+TEST_QUIZ_MODEL_EXPLICIT = "qwen3"
+TEST_QUIZ_PROVIDER_BASE_URL = "https://llm.example.com"
 INPUTS = "What color is the sky"
 EXPECTED_ANSWER = "Blue"
 QA_QUESTION_UUID = "DEADBEEF"
@@ -143,6 +146,11 @@ TEST_QUIZ_W_STEM_KW = {
     "question_file": TEST_QUIZ_STEM,
     "randomize": True,
     "max_questions": 3,
+    "judge_agent": {
+        "id": "test-quiz-judge",
+        "model_name": TEST_QUIZ_MODEL_EXPLICIT,
+        "provider_base_url": TEST_QUIZ_PROVIDER_BASE_URL,
+    },
 }
 TEST_QUIZ_W_STEM_YAML = f"""
 id: "{TEST_QUIZ_ID}"
@@ -150,11 +158,19 @@ title: "{TEST_QUIZ_TITLE}"
 question_file: "{TEST_QUIZ_STEM}"
 randomize: true
 max_questions: 3
+judge_agent:
+    id: "test-quiz-judge"
+    model_name: {TEST_QUIZ_MODEL_EXPLICIT}
+    provider_base_url: {TEST_QUIZ_PROVIDER_BASE_URL}
 """
 
 TEST_QUIZ_W_OVR_KW = {
     "id": TEST_QUIZ_ID,
     "question_file": TEST_QUIZ_OVR,
+    "judge_agent": {
+        "id": f"quiz-{TEST_QUIZ_ID}-judge",
+        "model_name": TEST_QUIZ_MODEL_DEFAULT,
+    },
 }
 TEST_QUIZ_W_OVR_YAML = f"""
 id: "{TEST_QUIZ_ID}"
@@ -299,6 +315,11 @@ FULL_ROOM_CONFIG_KW = {
         config.QuizConfig(
             id=TEST_QUIZ_ID,
             question_file=TEST_QUIZ_OVR,
+            judge_agent=config.AgentConfig(
+                id="test-quiz-judge",
+                model_name=TEST_QUIZ_MODEL_EXPLICIT,
+                provider_base_url=TEST_QUIZ_PROVIDER_BASE_URL,
+            ),
         ),
     ],
     "allow_mcp": True,
@@ -368,6 +389,10 @@ mcp_client_toolsets:
 quizzes:
   - id: "{TEST_QUIZ_ID}"
     question_file: "{TEST_QUIZ_OVR}"
+    judge_agent:
+        id: "test-quiz-judge"
+        model_name: {TEST_QUIZ_MODEL_EXPLICIT}
+        provider_base_url: {TEST_QUIZ_PROVIDER_BASE_URL}
 allow_mcp: true
 """
 
@@ -1601,10 +1626,23 @@ def test_quizconfig_from_yaml(
     config_yaml,
     expected_kw,
 ):
-    expected = config.QuizConfig(**expected_kw)
-
     yaml_file = temp_dir / "test.yaml"
     yaml_file.write_text(config_yaml)
+
+    jac = expected_kw.pop("judge_agent")
+
+    if "provider_base_url" not in jac:
+        jac["provider_base_url"] = (
+            installation_config.get_environment.return_value
+        )
+    else:
+        jac["_config_path"] = yaml_file
+        jac["_installation_config"] = installation_config
+
+    expected_kw["judge_agent"] = config.AgentConfig(**jac)
+
+    expected = config.QuizConfig(**expected_kw)
+
     expected = dataclasses.replace(
         expected,
         _installation_config=installation_config,
@@ -1621,19 +1659,6 @@ def test_quizconfig_from_yaml(
     )
 
     assert found == expected
-
-
-def test_quizconfig_provider_url(installation_config):
-    ic_environ = {"OLLAMA_BASE_URL": OLLAMA_BASE_URL}
-    installation_config.get_environment = ic_environ.get
-
-    qc = config.QuizConfig(
-        id=TEST_QUIZ_ID,
-        question_file="/dev/null",
-        _installation_config=installation_config,
-    )
-
-    assert qc.provider_base_url == OLLAMA_BASE_URL
 
 
 def test_quizconfig__load_questions_file_miss_w_stem(
@@ -1791,6 +1816,13 @@ def test_roomconfig_from_yaml(
         _installation_config=installation_config,
         _config_path=yaml_file,
     )
+
+    for exp_quiz in expected.quizzes:
+        exp_quiz.judge_agent = dataclasses.replace(
+            exp_quiz.judge_agent,
+            _installation_config=installation_config,
+            _config_path=yaml_file,
+        )
 
     if len(expected_kw.get("tool_configs", {})) > 0:
         for tool_config in expected_kw["tool_configs"].values():
