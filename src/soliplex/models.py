@@ -300,23 +300,7 @@ class ConvoHistoryMessage(pydantic.BaseModel):
 
 
 class Conversation(pydantic.BaseModel):
-    name: str
-    room_id: str
-    message_history: list[ConvoHistoryMessage]
-
-
-ConversationMap = dict[uuid.UUID, Conversation]
-
-
-class ConvoHistoryMessage(pydantic.BaseModel):
-    """Message fetched from a convo history."""
-
-    origin: typing.Literal["user", "llm"]
-    text: str
-    timestamp: str | None
-
-
-class Conversation(pydantic.BaseModel):
+    convo_uuid: uuid.UUID
     name: str
     room_id: str
     message_history: list[ConvoHistoryMessage]

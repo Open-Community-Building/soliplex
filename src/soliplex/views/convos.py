@@ -173,7 +173,7 @@ async def post_convo(
     the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
-):
+) -> responses.StreamingResponse:
     """Send another query to an existing convo.
 
     Return the final response message.
