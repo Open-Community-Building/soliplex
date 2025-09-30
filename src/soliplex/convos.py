@@ -173,15 +173,6 @@ class ConversationInfo:
 UserConversationInfo = dict[str, ConversationInfo]
 
 
-class NoUserConversations(fastapi.HTTPException):
-    def __init__(self, user_name: str):
-        self.user_name = user_name
-        super().__init__(
-            status_code=404,
-            detail=f"No conversations for user: {user_name}",
-        )
-
-
 class UnknownConversation(fastapi.HTTPException):
     def __init__(self, user_name: str, convo_uuid: str):
         self.user_name = user_name
@@ -205,7 +196,7 @@ class Conversations:
         user_convos = self._convos.get(user_name)
 
         if user_convos is None:
-            raise NoUserConversations(user_name)
+            return {}
 
         return user_convos.copy()
 
@@ -217,7 +208,7 @@ class Conversations:
         user_convos = self._convos.get(user_name)
 
         if user_convos is None:
-            raise NoUserConversations(user_name)
+            raise UnknownConversation(user_name, convo_uuid)
 
         convo = user_convos.get(convo_uuid)
 

@@ -1,3 +1,5 @@
+import contextlib
+import dataclasses
 import datetime
 import uuid
 from unittest import mock
@@ -76,6 +78,24 @@ TEST_CONVO = convos.Conversation(
 TEST_CONVOS = {
     TEST_CONVO_UUID: TEST_CONVO,
 }
+TEST_CONVO_INFO = convos.ConversationInfo(
+    convo_uuid=TEST_CONVO_UUID,
+    name=TEST_CONVO_NAME,
+    room_id=TEST_CONVO_ROOMID,
+    message_history=[
+        convos.ConvoHistoryMessage(
+            origin="user",
+            text=USER_PROMPT,
+            timestamp=TS_1.isoformat(),
+        ),
+        convos.ConvoHistoryMessage(
+            origin="llm",
+            text=MODEL_RESPONSE,
+            timestamp=TS_2.isoformat(),
+        ),
+    ],
+)
+TEST_CONVO_INFOS = {TEST_CONVO_UUID: TEST_CONVO_INFO}
 
 timestamp = datetime.datetime.now(datetime.UTC)
 system_prompt_part = ai_messages.SystemPromptPart(
@@ -304,106 +324,63 @@ async def test_conversation_message_history_dicts(tchm, w_none):
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("w_user", [False, True])
-async def test_conversations_user_conversations(w_user):
+@pytest.mark.parametrize(
+    "w_convos, expected",
+    [
+        ({}, {}),
+        ({"testing": TEST_CONVOS}, TEST_CONVO_INFOS),
+    ],
+)
+async def test_conversations_user_conversations(w_convos, expected):
     the_convos = convos.Conversations()
+    the_convos._convos.update(w_convos)
 
-    if not w_user:
-        with pytest.raises(convos.NoUserConversations):
-            await the_convos.user_conversations("nonesuch")
-    else:
-        with mock.patch.dict(the_convos._convos, testing=TEST_CONVOS):
-            found = await the_convos.user_conversations("testing")
+    found = await the_convos.user_conversations("testing")
 
-        expected = {
-            TEST_CONVO_UUID: convos.ConversationInfo(
-                convo_uuid=TEST_CONVO_UUID,
-                name=TEST_CONVO_NAME,
-                room_id=TEST_CONVO_ROOMID,
-                message_history=[
-                    convos.ConvoHistoryMessage(
-                        origin="user",
-                        text=USER_PROMPT,
-                        timestamp=TS_1.isoformat(),
-                    ),
-                    convos.ConvoHistoryMessage(
-                        origin="llm",
-                        text=MODEL_RESPONSE,
-                        timestamp=TS_2.isoformat(),
-                    ),
-                ],
-            ),
-        }
-
-        assert found == expected
+    assert found == expected
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("w_miss", [False, True])
-@pytest.mark.parametrize("w_user", [False, True])
-async def test_conversations_get_conversation(w_user, w_miss):
+@pytest.mark.parametrize(
+    "w_convos, expectation",
+    [
+        ({}, pytest.raises(convos.UnknownConversation)),
+        ({"testing": {}}, pytest.raises(convos.UnknownConversation)),
+        ({"testing": TEST_CONVOS}, contextlib.nullcontext(TEST_CONVO)),
+    ],
+)
+async def test_conversations_get_conversation(w_convos, expectation):
     the_convos = convos.Conversations()
+    the_convos._convos.update(w_convos)
 
-    if not w_user:
-        with pytest.raises(convos.NoUserConversations):
-            await the_convos.get_conversation_info("nonesuch", TEST_CONVO_UUID)
-    elif w_miss:
-        with (
-            mock.patch.dict(the_convos._convos, testing={}),
-            pytest.raises(convos.UnknownConversation),
-        ):
-            await the_convos.get_conversation_info("testing", TEST_CONVO_UUID)
-    else:
-        with (
-            mock.patch.dict(the_convos._convos, testing=TEST_CONVOS),
-        ):
-            found = await the_convos.get_conversation(
-                "testing",
-                TEST_CONVO_UUID,
-            )
+    with expectation as expected:
+        found = await the_convos.get_conversation("testing", TEST_CONVO_UUID)
 
+    if expected is TEST_CONVO:
         assert found is TEST_CONVO
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("w_miss", [False, True])
-@pytest.mark.parametrize("w_user", [False, True])
-async def test_conversations_get_conversation_info(w_user, w_miss):
+@pytest.mark.parametrize(
+    "w_convos, expectation",
+    [
+        ({}, pytest.raises(convos.UnknownConversation)),
+        ({"testing": {}}, pytest.raises(convos.UnknownConversation)),
+        ({"testing": TEST_CONVOS}, contextlib.nullcontext(TEST_CONVO_INFO)),
+    ],
+)
+async def test_conversations_get_conversation_info(w_convos, expectation):
     the_convos = convos.Conversations()
+    the_convos._convos.update(w_convos)
 
-    if not w_user:
-        with pytest.raises(convos.NoUserConversations):
-            await the_convos.get_conversation_info("nonesuch", TEST_CONVO_UUID)
-    elif w_miss:
-        with (
-            mock.patch.dict(the_convos._convos, testing={}),
-            pytest.raises(convos.UnknownConversation),
-        ):
-            await the_convos.get_conversation_info("testing", TEST_CONVO_UUID)
-    else:
-        with (
-            mock.patch.dict(the_convos._convos, testing=TEST_CONVOS),
-        ):
-            found = await the_convos.get_conversation_info(
-                "testing",
-                TEST_CONVO_UUID,
-            )
+    with expectation as expected:
+        found = await the_convos.get_conversation_info(
+            "testing",
+            TEST_CONVO_UUID,
+        )
 
-        assert found.convo_uuid == TEST_CONVO_UUID
-        assert found.name == TEST_CONVO_NAME
-        assert found.room_id == TEST_CONVO_ROOMID
-
-        for f_msg, e_msg in zip(
-            found.message_history,
-            OLD_AI_MESSAGES,
-            strict=True,
-        ):
-            if isinstance(e_msg, ai_messages.ModelRequest):
-                assert f_msg.origin == "user"
-            else:
-                assert f_msg.origin == "llm"
-
-            assert f_msg.text == e_msg.parts[0].content
+    if expected is TEST_CONVO_INFO:
+        assert found == TEST_CONVO_INFO
 
 
 @pytest.mark.anyio
@@ -444,81 +421,66 @@ async def test_conversations_new_conversation(w_user, w_existing):
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("w_miss", [False, True])
-@pytest.mark.parametrize("w_user", [False, True])
-async def test_conversations_append_to_conversation(w_user, w_miss):
+@pytest.mark.parametrize(
+    "w_convos, expectation",
+    [
+        ({}, pytest.raises(convos.UnknownConversation)),
+        ({"testing": {}}, pytest.raises(convos.UnknownConversation)),
+        ({"testing": TEST_CONVOS}, contextlib.nullcontext(None)),
+    ],
+)
+async def test_conversations_append_to_conversation(w_convos, expectation):
     the_convos = convos.Conversations()
 
-    to_be_appended = convos.Conversation(
-        convo_uuid=TEST_CONVO_UUID,
-        name=TEST_CONVO_NAME,
-        room_id=TEST_CONVO_ROOMID,
-        message_history=OLD_AI_MESSAGES[:],
-    )
-    testing = {TEST_CONVO_UUID: to_be_appended}
+    for user_name, convo_map in list(w_convos.items()):
+        new_map = {}
 
-    if not w_user:
-        with pytest.raises(convos.NoUserConversations):
-            await the_convos.append_to_conversation(
-                "nonesuch",
-                TEST_CONVO_UUID,
-                NEW_AI_MESSAGES,
-            )
-    elif w_miss:
-        with (
-            mock.patch.dict(the_convos._convos, testing={}),
-            pytest.raises(convos.UnknownConversation),
-        ):
-            await the_convos.append_to_conversation(
-                "testing",
-                TEST_CONVO_UUID,
-                NEW_AI_MESSAGES,
-            )
-    else:
-        with (
-            mock.patch.dict(the_convos._convos, testing=testing),
-        ):
-            await the_convos.append_to_conversation(
-                "testing",
-                TEST_CONVO_UUID,
-                NEW_AI_MESSAGES,
+        for convo_uuid, convo in list(convo_map.items()):
+            to_be_appended = new_map[convo_uuid] = dataclasses.replace(
+                convo,
+                message_history=OLD_AI_MESSAGES[:],
             )
 
-            assert to_be_appended.message_history == (
-                OLD_AI_MESSAGES + NEW_AI_MESSAGES
-            )
+        the_convos._convos[user_name] = new_map
+
+    with expectation as expected:
+        await the_convos.append_to_conversation(
+            "testing",
+            TEST_CONVO_UUID,
+            NEW_AI_MESSAGES,
+        )
+
+    if expected is None:
+        assert to_be_appended.message_history == (
+            OLD_AI_MESSAGES + NEW_AI_MESSAGES
+        )
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("w_miss", [False, True])
-@pytest.mark.parametrize("w_user", [False, True])
-async def test_conversations_delete_conversation(w_user, w_miss):
+@pytest.mark.parametrize(
+    "w_convos, expectation",
+    [
+        ({}, pytest.raises(convos.UnknownConversation)),
+        ({"testing": {}}, pytest.raises(convos.UnknownConversation)),
+        ({"testing": TEST_CONVOS}, contextlib.nullcontext(None)),
+    ],
+)
+async def test_conversations_delete_conversation(w_convos, expectation):
     the_convos = convos.Conversations()
 
-    to_be_deleted = convos.Conversation(
-        convo_uuid=TEST_CONVO_UUID,
-        name=TEST_CONVO_NAME,
-        room_id=TEST_CONVO_ROOMID,
-        message_history=OLD_AI_MESSAGES[:],
-    )
-    testing = {TEST_CONVO_UUID: to_be_deleted}
+    for user_name, convo_map in list(w_convos.items()):
+        new_map = {}
 
-    if not w_user:
-        with pytest.raises(convos.NoUserConversations):
-            await the_convos.delete_conversation("nonesuch", TEST_CONVO_UUID)
-    elif w_miss:
-        with (
-            mock.patch.dict(the_convos._convos, testing={}),
-            pytest.raises(convos.UnknownConversation),
-        ):
-            await the_convos.delete_conversation("testing", TEST_CONVO_UUID)
-    else:
-        with (
-            mock.patch.dict(the_convos._convos, testing=testing),
-        ):
-            await the_convos.delete_conversation("testing", TEST_CONVO_UUID)
+        for convo_uuid, convo in list(convo_map.items()):
+            new_map[convo_uuid] = dataclasses.replace(convo)
 
-            assert TEST_CONVO_UUID not in the_convos._convos["testing"]
+        the_convos._convos[user_name] = new_map
+
+    with expectation as expected:
+        await the_convos.delete_conversation("testing", TEST_CONVO_UUID)
+
+    if expected is None:
+        assert the_convos._convos["testing"] == {}
 
 
 @pytest.mark.anyio
