@@ -6,6 +6,7 @@ from authlib.integrations import starlette_client
 from fastapi import responses
 
 from soliplex import installation
+from soliplex import models
 from soliplex.views import auth as auth_views
 
 USER_NAME = "phreddy"
@@ -35,6 +36,7 @@ async def test_get_login(with_auth_systems):
         sorted(with_auth_systems_map.items()),
         strict=True,
     ):
+        assert isinstance(f_val, models.OIDCAuthSystem)
         assert f_key == e_key
         assert f_val.title == e_val.title
 

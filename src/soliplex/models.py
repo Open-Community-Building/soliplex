@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dataclasses
 import pathlib
 import typing
@@ -6,6 +8,7 @@ import uuid
 import pydantic
 
 from soliplex import config
+from soliplex import convos
 
 # ============================================================================
 #   Public config models
@@ -13,6 +16,34 @@ from soliplex import config
 #   Types returned from API methods describing the installation config
 #   These models omit private / implementation fields
 # ============================================================================
+
+
+class QuizQuestionMetadata(pydantic.BaseModel):
+    type: str
+    uuid: str
+    options: list[str] | None
+
+    @classmethod
+    def from_config(cls, qq_meta: config.QuizQuestionMetadata):
+        return cls(
+            type=str(qq_meta.type),
+            uuid=qq_meta.uuid,
+            options=qq_meta.options,
+        )
+
+
+class QuizQuestion(pydantic.BaseModel):
+    inputs: str
+    expected_output: str
+    metadata: QuizQuestionMetadata
+
+    @classmethod
+    def from_config(cls, question: config.QuizQuestionMetadata):
+        return cls(
+            inputs=question.inputs,
+            expected_output=question.expected_output,
+            metadata=QuizQuestionMetadata.from_config(question.metadata),
+        )
 
 
 class Quiz(pydantic.BaseModel):
@@ -23,16 +54,20 @@ class Quiz(pydantic.BaseModel):
     randomize: bool
     max_questions: int | None = None
 
-    questions: list[config.QuizQuestion]
+    questions: list[QuizQuestion]
 
     @classmethod
     def from_config(cls, quiz_config: config.QuizConfig):
+        questions = [
+            QuizQuestion.from_config(question)
+            for question in quiz_config.get_questions()
+        ]
         return cls(
             id=quiz_config.id,
             title=quiz_config.title,
             randomize=quiz_config.randomize,
             max_questions=quiz_config.max_questions,
-            questions=quiz_config.get_questions(),
+            questions=questions,
         )
 
 
@@ -298,12 +333,32 @@ class ConvoHistoryMessage(pydantic.BaseModel):
     text: str
     timestamp: str | None
 
+    @classmethod
+    def from_convos_message(cls, message: convos.ConvoHistoryMessage):
+        return cls(
+            origin=message.origin,
+            text=message.text,
+            timestamp=message.timestamp,
+        )
+
 
 class Conversation(pydantic.BaseModel):
     convo_uuid: uuid.UUID
     name: str
     room_id: str
     message_history: list[ConvoHistoryMessage]
+
+    @classmethod
+    def from_convos_info(cls, info: convos.ConversationInfo):
+        return cls(
+            convo_uuid=info.convo_uuid,
+            name=info.name,
+            room_id=info.room_id,
+            message_history=[
+                ConvoHistoryMessage.from_convos_message(message)
+                for message in info.message_history
+            ],
+        )
 
 
 ConversationMap = dict[uuid.UUID, Conversation]

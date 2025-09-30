@@ -1,11 +1,13 @@
 import dataclasses
 import json
 import pathlib
+import uuid
 from unittest import mock
 
 import pytest
 
 from soliplex import config
+from soliplex import convos
 from soliplex import models
 from soliplex import tools
 
@@ -60,6 +62,12 @@ INSTALLATION_OIDC_AUTH_SYSTEM_CONFIG = config.OIDCAuthSystemConfig(
     client_secret="SHHHHHHH! DON't SHOW ME",
     scope=INSTALLATION_OIDC_AUTH_SYSTEM_SCOPE,
 )
+
+CONVO_UUID = uuid.uuid4()
+USER_TEXT = "Why is the sky blue?"
+CONVO_NAME = USER_TEXT
+CONVO_ROOM_ID = "test-room"
+TIMESTAMP = "2025-09-30T18:18:27Z"
 
 
 def _from_param(request, key):
@@ -126,6 +134,26 @@ def quiz_max_questions(request):
     return _from_param(request, "max_questions")
 
 
+def test_quizquestion_from_config():
+    question_config = config.QuizQuestion(
+        inputs="What color is the sky?",
+        expected_output="Blue",
+        metadata=config.QuizQuestionMetadata(
+            type=config.QuizQuestionType.QA,
+            uuid=QA_QUESTION_UUID,
+            options=[],
+        ),
+    )
+
+    question_model = models.QuizQuestion.from_config(question_config)
+
+    assert question_model.inputs == question_config.inputs
+    assert question_model.expected_output == question_config.expected_output
+    assert question_model.metadata.type == str(config.QuizQuestionType.QA)
+    assert question_model.metadata.uuid == QA_QUESTION_UUID
+    assert question_model.metadata.options == []
+
+
 def test_quiz_from_config(
     quiz_path,
     quiz_json,
@@ -156,11 +184,15 @@ def test_quiz_from_config(
     else:
         assert quiz_model.max_questions is None
 
+    exp_questions = [
+        models.QuizQuestion.from_config(quiz_question)
+        for quiz_question in quiz_questions
+    ]
     if quiz_randomize:
-        for expected in quiz_questions:
+        for expected in exp_questions:
             assert expected in quiz_model.questions
     else:
-        assert quiz_model.questions == quiz_questions
+        assert quiz_model.questions == exp_questions
 
 
 def test_tool_from_config_w_toolconfig():
@@ -551,3 +583,45 @@ def test_installation_from_config(
         strict=True,
     ):
         assert found.id == expected.id
+
+
+def test_conversationhistorymessage_from_convos_message():
+    convos_message = convos.ConvoHistoryMessage(
+        origin="user",
+        text=USER_TEXT,
+        timestamp=TIMESTAMP,
+    )
+    message = models.ConvoHistoryMessage.from_convos_message(convos_message)
+
+    assert message.origin == "user"
+    assert message.text == USER_TEXT
+    assert message.timestamp == TIMESTAMP
+
+
+def test_conversation_from_convos_info():
+    convos_message = convos.ConvoHistoryMessage(
+        origin="user",
+        text=USER_TEXT,
+        timestamp=TIMESTAMP,
+    )
+    info = convos.ConversationInfo(
+        convo_uuid=CONVO_UUID,
+        name=CONVO_NAME,
+        room_id=CONVO_ROOM_ID,
+        message_history=[convos_message],
+    )
+
+    convo = models.Conversation.from_convos_info(info)
+
+    assert convo.convo_uuid == CONVO_UUID
+    assert convo.name == CONVO_NAME
+    assert convo.room_id == CONVO_ROOM_ID
+
+    for f_msg, e_msg in zip(
+        convo.message_history,
+        info.message_history,
+        strict=True,
+    ):
+        assert f_msg.origin == e_msg.origin
+        assert f_msg.text == e_msg.text
+        assert f_msg.timestamp == e_msg.timestamp
