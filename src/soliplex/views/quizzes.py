@@ -11,7 +11,7 @@ router = fastapi.APIRouter()
 depend_the_installation = installation.depend_the_installation
 
 
-@router.get("/v1/rooms/{room_id}/quiz/{quiz_id}", response_model=None)
+@router.get("/v1/rooms/{room_id}/quiz/{quiz_id}")
 async def get_quiz(
     request: fastapi.Request,
     room_id: str,
