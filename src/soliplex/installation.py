@@ -3,6 +3,7 @@ import dataclasses
 
 import fastapi
 import pydantic_ai
+from haiku.rag import config as hr_config
 
 from soliplex import agents
 from soliplex import config
@@ -21,6 +22,14 @@ class Installation:
 
     def resolve_secrets(self):
         secrets.resolve_secrets(self._config.secrets)
+
+    def configure_haiku_rag(self):
+        app_config = hr_config.AppConfig.model_validate(
+            self._config.environment
+        )
+        for field in app_config.model_fields_set:
+            our_value = getattr(app_config, field)
+            setattr(hr_config.Config, field, our_value)
 
     def get_environment(self, key, default=None) -> str:
         return self._config.get_environment(key, default)
@@ -98,6 +107,7 @@ async def lifespan(app: fastapi.FastAPI, installation_path):
     i_config.reload_configurations()
     the_installation = Installation(i_config)
     the_installation.resolve_secrets()
+    the_installation.configure_haiku_rag()
     the_convos = convos.Conversations()
 
     context = {

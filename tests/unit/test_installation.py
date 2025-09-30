@@ -18,6 +18,7 @@ SECRET_NAME_2 = "OTHER_SECRET"
 SECRET_CONFIG_1 = config.SecretConfig(SECRET_NAME_1)
 SECRET_CONFIG_2 = config.SecretConfig(SECRET_NAME_2)
 MISS_ERROR = object()
+OLLAMA_BASE_URL = "http://ollama.example.com:11434"
 
 NoSuchSecret = pytest.raises(KeyError)
 RaisesSecretError = pytest.raises(secrets.SecretError)
@@ -73,6 +74,25 @@ def test_installation_resolve_secrets(srs, secret_configs, expectation):
         the_installation.resolve_secrets()
 
     srs.assert_called_once_with(secret_configs)
+
+
+def test_installation_configure_haiku_rag():
+    from haiku.rag import config as hr_config
+
+    copied = hr_config.Config.model_copy()
+
+    i_config = mock.create_autospec(
+        config.InstallationConfig,
+        environment={"OLLAMA_BASE_URL": OLLAMA_BASE_URL},
+    )
+    the_installation = installation.Installation(i_config)
+
+    with mock.patch("haiku.rag.config.Config", copied):
+        the_installation.configure_haiku_rag()
+
+    # Check that the 'haiku.rag.config.Config' object was reconfigured
+    # using our config's environment.
+    assert copied.OLLAMA_BASE_URL == OLLAMA_BASE_URL
 
 
 @pytest.mark.parametrize("w_default", [False, True])
@@ -314,21 +334,34 @@ async def test_lifespan(
     srs,
     mcp_apps,
 ):
+    from haiku.rag import config as hr_config
+
+    copied = hr_config.Config.model_copy()
+
     INSTALLATION_PATH = "/path/to/installation"
 
     smfr.return_value = mcp_apps
 
-    i_config = mock.create_autospec(config.InstallationConfig, secrets=())
+    i_config = mock.create_autospec(
+        config.InstallationConfig,
+        secrets=(),
+        environment={"OLLAMA_BASE_URL": OLLAMA_BASE_URL},
+    )
     load_installation.return_value = i_config
     app = mock.create_autospec(fastapi.FastAPI)
 
-    found = [
-        item
-        async for item in installation.lifespan(
-            app,
-            INSTALLATION_PATH,
-        )
-    ]
+    with mock.patch("haiku.rag.config.Config", copied):
+        found = [
+            item
+            async for item in installation.lifespan(
+                app,
+                INSTALLATION_PATH,
+            )
+        ]
+
+    # Check that the 'haiku.rag.config.Config' object was reconfigured
+    # using our config's environment.
+    assert copied.OLLAMA_BASE_URL == OLLAMA_BASE_URL
 
     assert len(found) == 1
 
