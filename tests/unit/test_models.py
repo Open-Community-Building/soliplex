@@ -134,6 +134,26 @@ def quiz_max_questions(request):
     return _from_param(request, "max_questions")
 
 
+def test_quizquestion_from_config():
+    question_config = config.QuizQuestion(
+        inputs="What color is the sky?",
+        expected_output="Blue",
+        metadata=config.QuizQuestionMetadata(
+            type=config.QuizQuestionType.QA,
+            uuid=QA_QUESTION_UUID,
+            options=[],
+        ),
+    )
+
+    question_model = models.QuizQuestion.from_config(question_config)
+
+    assert question_model.inputs == question_config.inputs
+    assert question_model.expected_output == question_config.expected_output
+    assert question_model.metadata.type == str(config.QuizQuestionType.QA)
+    assert question_model.metadata.uuid == QA_QUESTION_UUID
+    assert question_model.metadata.options == []
+
+
 def test_quiz_from_config(
     quiz_path,
     quiz_json,
@@ -164,11 +184,15 @@ def test_quiz_from_config(
     else:
         assert quiz_model.max_questions is None
 
+    exp_questions = [
+        models.QuizQuestion.from_config(quiz_question)
+        for quiz_question in quiz_questions
+    ]
     if quiz_randomize:
-        for expected in quiz_questions:
+        for expected in exp_questions:
             assert expected in quiz_model.questions
     else:
-        assert quiz_model.questions == quiz_questions
+        assert quiz_model.questions == exp_questions
 
 
 def test_tool_from_config_w_toolconfig():

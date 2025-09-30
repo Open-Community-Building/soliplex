@@ -18,6 +18,34 @@ from soliplex import convos
 # ============================================================================
 
 
+class QuizQuestionMetadata(pydantic.BaseModel):
+    type: str
+    uuid: str
+    options: list[str] | None
+
+    @classmethod
+    def from_config(cls, qq_meta: config.QuizQuestionMetadata):
+        return cls(
+            type=str(qq_meta.type),
+            uuid=qq_meta.uuid,
+            options=qq_meta.options,
+        )
+
+
+class QuizQuestion(pydantic.BaseModel):
+    inputs: str
+    expected_output: str
+    metadata: QuizQuestionMetadata
+
+    @classmethod
+    def from_config(cls, question: config.QuizQuestionMetadata):
+        return cls(
+            inputs=question.inputs,
+            expected_output=question.expected_output,
+            metadata=QuizQuestionMetadata.from_config(question.metadata),
+        )
+
+
 class Quiz(pydantic.BaseModel):
     """Metadata about a quiz"""
 
@@ -26,16 +54,20 @@ class Quiz(pydantic.BaseModel):
     randomize: bool
     max_questions: int | None = None
 
-    questions: list[config.QuizQuestion]
+    questions: list[QuizQuestion]
 
     @classmethod
     def from_config(cls, quiz_config: config.QuizConfig):
+        questions = [
+            QuizQuestion.from_config(question)
+            for question in quiz_config.get_questions()
+        ]
         return cls(
             id=quiz_config.id,
             title=quiz_config.title,
             randomize=quiz_config.randomize,
             max_questions=quiz_config.max_questions,
-            questions=quiz_config.get_questions(),
+            questions=questions,
         )
 
 
