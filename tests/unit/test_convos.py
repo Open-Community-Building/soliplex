@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from unittest import mock
 
 import fastapi
@@ -63,11 +64,11 @@ NEW_AI_MESSAGES = [
     ),
 ]
 
-TEST_CONVO_UUID = "test_uuid"
+TEST_CONVO_UUID = uuid.uuid4()
 TEST_CONVO_NAME = "Test Convo"
 TEST_CONVO_ROOMID = "test-room"
 TEST_CONVO = convos.Conversation(
-    uuid=TEST_CONVO_UUID,
+    convo_uuid=TEST_CONVO_UUID,
     name=TEST_CONVO_NAME,
     room_id=TEST_CONVO_ROOMID,
     message_history=OLD_AI_MESSAGES,
@@ -177,9 +178,9 @@ def test__to_convo_history_message_w_request(parts, expect_none):
     if expect_none:
         assert found is None
     else:
-        assert found["origin"] == "user"
-        assert found["text"] == USER_PROMPT
-        assert found["timestamp"] == timestamp.isoformat()
+        assert found.origin == "user"
+        assert found.text == USER_PROMPT
+        assert found.timestamp == timestamp.isoformat()
 
 
 @pytest.mark.parametrize(
@@ -202,8 +203,8 @@ def test__to_convo_history_message_w_response(parts, expect_none):
     if expect_none:
         assert found is None
     else:
-        assert found["origin"] == "llm"
-        assert found["text"] == TEXT
+        assert found.origin == "llm"
+        assert found.text == TEXT
 
 
 @pytest.mark.parametrize(
@@ -289,7 +290,7 @@ async def test_conversation_message_history_dicts(tchm, w_none):
     if w_none:
         tchm.return_value = None
 
-    found = [md async for md in TEST_CONVO.message_history_dicts]
+    found = [md for md in TEST_CONVO.message_history_dicts]
 
     if w_none:
         assert found == []
@@ -315,22 +316,23 @@ async def test_conversations_user_conversations(w_user):
             found = await the_convos.user_conversations("testing")
 
         expected = {
-            TEST_CONVO_UUID: {
-                "name": TEST_CONVO_NAME,
-                "room_id": TEST_CONVO_ROOMID,
-                "message_history": [
-                    {
-                        "origin": "user",
-                        "text": USER_PROMPT,
-                        "timestamp": TS_1.isoformat(),
-                    },
-                    {
-                        "origin": "llm",
-                        "text": MODEL_RESPONSE,
-                        "timestamp": TS_2.isoformat(),
-                    },
+            TEST_CONVO_UUID: convos.ConversationInfo(
+                convo_uuid=TEST_CONVO_UUID,
+                name=TEST_CONVO_NAME,
+                room_id=TEST_CONVO_ROOMID,
+                message_history=[
+                    convos.ConvoHistoryMessage(
+                        origin="user",
+                        text=USER_PROMPT,
+                        timestamp=TS_1.isoformat(),
+                    ),
+                    convos.ConvoHistoryMessage(
+                        origin="llm",
+                        text=MODEL_RESPONSE,
+                        timestamp=TS_2.isoformat(),
+                    ),
                 ],
-            },
+            ),
         }
 
         assert found == expected
@@ -387,21 +389,21 @@ async def test_conversations_get_conversation_info(w_user, w_miss):
                 TEST_CONVO_UUID,
             )
 
-        assert found["convo_uuid"] == TEST_CONVO_UUID
-        assert found["name"] == TEST_CONVO_NAME
-        assert found["room_id"] == TEST_CONVO_ROOMID
+        assert found.convo_uuid == TEST_CONVO_UUID
+        assert found.name == TEST_CONVO_NAME
+        assert found.room_id == TEST_CONVO_ROOMID
 
-        for f_dict, e_msg in zip(
-            found["message_history"],
+        for f_msg, e_msg in zip(
+            found.message_history,
             OLD_AI_MESSAGES,
             strict=True,
         ):
             if isinstance(e_msg, ai_messages.ModelRequest):
-                assert f_dict["origin"] == "user"
+                assert f_msg.origin == "user"
             else:
-                assert f_dict["origin"] == "llm"
+                assert f_msg.origin == "llm"
 
-            assert f_dict["text"] == e_msg.parts[0].content
+            assert f_msg.text == e_msg.parts[0].content
 
 
 @pytest.mark.anyio
@@ -424,21 +426,21 @@ async def test_conversations_new_conversation(w_user, w_existing):
             OLD_AI_MESSAGES,
         )
 
-    assert isinstance(found["convo_uuid"], str)
-    assert found["name"] == TEST_CONVO_NAME
-    assert found["room_id"] == TEST_CONVO_ROOMID
+    assert isinstance(found.convo_uuid, uuid.UUID)
+    assert found.name == TEST_CONVO_NAME
+    assert found.room_id == TEST_CONVO_ROOMID
 
-    for f_dict, e_msg in zip(
-        found["message_history"],
+    for f_msg, e_msg in zip(
+        found.message_history,
         OLD_AI_MESSAGES,
         strict=True,
     ):
         if isinstance(e_msg, ai_messages.ModelRequest):
-            assert f_dict["origin"] == "user"
+            assert f_msg.origin == "user"
         else:
-            assert f_dict["origin"] == "llm"
+            assert f_msg.origin == "llm"
 
-        assert f_dict["text"] == e_msg.parts[0].content
+        assert f_msg.text == e_msg.parts[0].content
 
 
 @pytest.mark.anyio
@@ -448,7 +450,7 @@ async def test_conversations_append_to_conversation(w_user, w_miss):
     the_convos = convos.Conversations()
 
     to_be_appended = convos.Conversation(
-        uuid=TEST_CONVO_UUID,
+        convo_uuid=TEST_CONVO_UUID,
         name=TEST_CONVO_NAME,
         room_id=TEST_CONVO_ROOMID,
         message_history=OLD_AI_MESSAGES[:],
@@ -494,7 +496,7 @@ async def test_conversations_delete_conversation(w_user, w_miss):
     the_convos = convos.Conversations()
 
     to_be_deleted = convos.Conversation(
-        uuid=TEST_CONVO_UUID,
+        convo_uuid=TEST_CONVO_UUID,
         name=TEST_CONVO_NAME,
         room_id=TEST_CONVO_ROOMID,
         message_history=OLD_AI_MESSAGES[:],
@@ -516,7 +518,7 @@ async def test_conversations_delete_conversation(w_user, w_miss):
         ):
             await the_convos.delete_conversation("testing", TEST_CONVO_UUID)
 
-            assert TEST_CONVO_UUID not in "testing"
+            assert TEST_CONVO_UUID not in the_convos._convos["testing"]
 
 
 @pytest.mark.anyio

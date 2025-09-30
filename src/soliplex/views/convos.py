@@ -1,5 +1,6 @@
 import datetime
 import json
+import uuid
 
 import fastapi
 from fastapi import responses
@@ -65,14 +66,13 @@ async def post_convos_new(
 
     context_messages = convos._filter_context_messages(new_messages)
 
-    convo = await the_convos.new_conversation(
+    info = await the_convos.new_conversation(
         user_name,
         convo_msg.room_id,
         convo_msg.text,
         new_messages=context_messages,
     )
-
-    return convo
+    return models.Conversation.from_convos_info(info)
 
 
 @util.logfire_span("POST /v1/convos/new/{room_id}")
@@ -120,14 +120,13 @@ async def post_convos_new_room(
 
     context_messages = convos._filter_context_messages(new_messages)
 
-    convo = await the_convos.new_conversation(
+    info = await the_convos.new_conversation(
         user_name,
         room_id,
         convo_msg.text,
         new_messages=context_messages,
     )
-
-    return convo
+    return models.Conversation.from_convos_info(info)
 
 
 @util.logfire_span("GET /v1/convos")
@@ -141,15 +140,18 @@ async def get_convos(
     """Return a map of conversations by UUID, including name and room ID"""
     user = auth.authenticate(the_installation, token)
     user_name = user.get("preferred_username", "<unknown>")
-    convos = await the_convos.user_conversations(user_name)
-    return convos
+    user_convos = await the_convos.user_conversations(user_name)
+    return {
+        convo_uuid: models.Conversation.from_convos_info(info)
+        for convo_uuid, info in user_convos.items()
+    }
 
 
 @util.logfire_span("GET /v1/convos/{convo_uuid}")
 @router.get("/v1/convos/{convo_uuid}")
 async def get_convo(
     request: fastapi.Request,
-    convo_uuid: str,
+    convo_uuid: uuid.UUID,
     the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
@@ -160,15 +162,15 @@ async def get_convo(
     """
     user = auth.authenticate(the_installation, token)
     user_name = user.get("preferred_username", "<unknown>")
-    convo = await the_convos.get_conversation_info(user_name, convo_uuid)
-    return convo
+    info = await the_convos.get_conversation_info(user_name, convo_uuid)
+    return models.Conversation.from_convos_info(info)
 
 
 @util.logfire_span("POST /v1/convos/{convo_uuid}")
 @router.post("/v1/convos/{convo_uuid}")
 async def post_convo(
     request: fastapi.Request,
-    convo_uuid: str,
+    convo_uuid: uuid.UUID,
     convo_msg: models.UserPromptClientMessage,
     the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
@@ -261,7 +263,7 @@ async def post_convo(
 @router.delete("/v1/convos/{convo_uuid}", status_code=204)
 async def delete_convo(
     request: fastapi.Request,
-    convo_uuid: str,
+    convo_uuid: uuid.UUID,
     the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,

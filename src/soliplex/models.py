@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dataclasses
 import pathlib
 import typing
@@ -6,6 +8,7 @@ import uuid
 import pydantic
 
 from soliplex import config
+from soliplex import convos
 
 # ============================================================================
 #   Public config models
@@ -298,12 +301,32 @@ class ConvoHistoryMessage(pydantic.BaseModel):
     text: str
     timestamp: str | None
 
+    @classmethod
+    def from_convos_message(cls, message: convos.ConvoHistoryMessage):
+        return cls(
+            origin=message.origin,
+            text=message.text,
+            timestamp=message.timestamp,
+        )
+
 
 class Conversation(pydantic.BaseModel):
     convo_uuid: uuid.UUID
     name: str
     room_id: str
     message_history: list[ConvoHistoryMessage]
+
+    @classmethod
+    def from_convos_info(cls, info: convos.ConversationInfo):
+        return cls(
+            convo_uuid=info.convo_uuid,
+            name=info.name,
+            room_id=info.room_id,
+            message_history=[
+                ConvoHistoryMessage.from_convos_message(message)
+                for message in info.message_history
+            ],
+        )
 
 
 ConversationMap = dict[uuid.UUID, Conversation]

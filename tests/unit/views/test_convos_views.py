@@ -1,5 +1,6 @@
 import datetime
 import json
+import uuid
 from unittest import mock
 
 import fastapi
@@ -76,17 +77,21 @@ NEW_AI_MESSAGES = [
     ),
 ]
 
-TEST_CONVO_UUID = "test_uuid"
+TEST_CONVO_UUID = uuid.uuid4()
 TEST_CONVO_NAME = "Test Convo"
 TEST_CONVO_ROOMID = "test-room"
 TEST_CONVO = convos.Conversation(
-    uuid=TEST_CONVO_UUID,
+    convo_uuid=TEST_CONVO_UUID,
     name=TEST_CONVO_NAME,
     room_id=TEST_CONVO_ROOMID,
     message_history=OLD_AI_MESSAGES,
 )
+TEST_CONVO_INFO = convos.ConversationInfo.from_convo(TEST_CONVO)
 TEST_CONVOS = {
     TEST_CONVO_UUID: TEST_CONVO,
+}
+TEST_CONVO_INFOS = {
+    TEST_CONVO_UUID: TEST_CONVO_INFO,
 }
 CHUNKS = [
     "This",
@@ -178,6 +183,7 @@ async def test_post_convos_new(
         convos.Conversations,
         instance=True,
     )
+    the_convos.new_conversation.return_value = TEST_CONVO_INFO
     token = object()
 
     gafr = the_installation.get_agent_for_room
@@ -217,7 +223,10 @@ async def test_post_convos_new(
             token=token,
         )
 
-        assert found is the_convos.new_conversation.return_value
+        assert isinstance(found, models.Conversation)
+        assert found.convo_uuid == TEST_CONVO_UUID
+        assert found.name == TEST_CONVO_NAME
+        assert found.room_id == TEST_CONVO_ROOMID
 
         exp_user_profile = models.UserProfile(**exp_user)
 
@@ -276,6 +285,7 @@ async def test_post_convos_new_room(
         convos.Conversations,
         instance=True,
     )
+    the_convos.new_conversation.return_value = TEST_CONVO_INFO
     token = object()
 
     gafr = the_installation.get_agent_for_room
@@ -318,7 +328,10 @@ async def test_post_convos_new_room(
             token=token,
         )
 
-        assert found is the_convos.new_conversation.return_value
+        assert isinstance(found, models.Conversation)
+        assert found.convo_uuid == TEST_CONVO_UUID
+        assert found.name == TEST_CONVO_NAME
+        assert found.room_id == TEST_CONVO_ROOMID
 
         exp_user_profile = models.UserProfile(**exp_user)
 
@@ -366,6 +379,7 @@ async def test_get_convos(auth_fn, w_auth_user, exp_user_name):
         convos.Conversations,
         instance=True,
     )
+    the_convos.user_conversations.return_value = TEST_CONVO_INFOS
     token = object()
 
     found = await convos_views.get_convos(
@@ -375,7 +389,13 @@ async def test_get_convos(auth_fn, w_auth_user, exp_user_name):
         token=token,
     )
 
-    assert found is the_convos.user_conversations.return_value
+    for (f_key, f_val), (e_key, e_val) in zip(
+        sorted(found.items()),
+        sorted(TEST_CONVO_INFOS.items()),
+        strict=True,
+    ):
+        assert f_key == e_key
+        assert f_val.convo_uuid == e_val.convo_uuid
 
     the_convos.user_conversations.assert_called_once_with(exp_user_name)
 
@@ -398,6 +418,7 @@ async def test_get_convo(auth_fn, w_auth_user, exp_user_name):
         convos.Conversations,
         instance=True,
     )
+    the_convos.get_conversation_info.return_value = TEST_CONVO_INFO
     token = object()
 
     found = await convos_views.get_convo(
@@ -408,7 +429,10 @@ async def test_get_convo(auth_fn, w_auth_user, exp_user_name):
         token=token,
     )
 
-    assert found is the_convos.get_conversation_info.return_value
+    assert isinstance(found, models.Conversation)
+    assert found.convo_uuid == TEST_CONVO_UUID
+    assert found.name == TEST_CONVO_NAME
+    assert found.room_id == TEST_CONVO_ROOMID
 
     the_convos.get_conversation_info.assert_called_once_with(
         exp_user_name,

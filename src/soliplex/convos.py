@@ -60,7 +60,8 @@ def _to_convo_message(m: ai_messages.ModelMessage) -> _ConvoMessage | None:
     return None
 
 
-class _ConvoHistoryMessage(typing_extensions.TypedDict):
+@dataclasses.dataclass(frozen=True)
+class ConvoHistoryMessage:
     """Format for messages fetched from a convo history."""
 
     origin: typing.Literal["user", "llm"]
@@ -70,24 +71,24 @@ class _ConvoHistoryMessage(typing_extensions.TypedDict):
 
 def _to_convo_history_message(
     message: ai_messages.ModelMessage,
-) -> _ConvoHistoryMessage | None:
+) -> ConvoHistoryMessage | None:
     for part in message.parts:
         if isinstance(message, ai_messages.ModelRequest):
             if isinstance(part, ai_messages.UserPromptPart):
                 assert isinstance(part.content, str)
-                return {
-                    "origin": "user",
-                    "text": part.content,
-                    "timestamp": part.timestamp.isoformat(),
-                }
+                return ConvoHistoryMessage(
+                    origin="user",
+                    text=part.content,
+                    timestamp=part.timestamp.isoformat(),
+                )
         else:
             if isinstance(part, ai_messages.TextPart):
                 assert isinstance(part.content, str)
-                return {
-                    "origin": "llm",
-                    "text": part.content,
-                    "timestamp": message.timestamp.isoformat(),
-                }
+                return ConvoHistoryMessage(
+                    origin="llm",
+                    text=part.content,
+                    timestamp=message.timestamp.isoformat(),
+                )
 
 
 def _filter_context_message(
@@ -140,16 +141,36 @@ class Conversation:
     name: str
     room_id: str
     message_history: list[ai_messages.ModelMessage]
-    uuid: str = dataclasses.field(
+    convo_uuid: uuid.UUID = dataclasses.field(
         default_factory=uuid.uuid4,
     )
 
     @property
-    async def message_history_dicts(self):
+    def message_history_dicts(self) -> list[ConvoHistoryMessage]:
         for message in self.message_history:
             info = _to_convo_history_message(message)
             if info is not None:
                 yield info
+
+
+@dataclasses.dataclass(frozen=True)
+class ConversationInfo:
+    convo_uuid: uuid.UUID
+    name: str
+    room_id: str
+    message_history: list[ConvoHistoryMessage]
+
+    @classmethod
+    def from_convo(cls, convo):
+        return cls(
+            convo_uuid=convo.convo_uuid,
+            name=convo.name,
+            room_id=convo.room_id,
+            message_history=[mhd for mhd in convo.message_history_dicts],
+        )
+
+
+UserConversationInfo = dict[str, ConversationInfo]
 
 
 class NoUserConversations(fastapi.HTTPException):
@@ -205,18 +226,12 @@ class Conversations:
 
         return convo
 
-    async def user_conversations(self, user_name: str) -> dict[str, dict]:
+    async def user_conversations(self, user_name: str) -> UserConversationInfo:
         async with self._lock:
             convos = await self._find_user_conversations(user_name)
 
             return {
-                convo.uuid: {
-                    "name": convo.name,
-                    "room_id": convo.room_id,
-                    "message_history": [
-                        mhd async for mhd in convo.message_history_dicts
-                    ],
-                }
+                convo.convo_uuid: ConversationInfo.from_convo(convo)
                 for convo_uuid, convo in convos.items()
             }
 
@@ -224,7 +239,7 @@ class Conversations:
         self,
         user_name: str,
         convo_uuid: str,
-    ) -> dict:
+    ) -> Conversation:
         """Return the actual conversation instance
 
         N.B.:  caller must treat the instance as read-only!
@@ -236,21 +251,11 @@ class Conversations:
         self,
         user_name: str,
         convo_uuid: str,
-    ) -> dict:
+    ) -> ConversationInfo:
         async with self._lock:
             convo = await self._find_conversation(user_name, convo_uuid)
 
-            messages = []
-
-            async for md in convo.message_history_dicts:
-                messages.append(md)
-
-            return {
-                "convo_uuid": convo_uuid,
-                "name": convo.name,
-                "room_id": convo.room_id,
-                "message_history": messages,
-            }
+            return ConversationInfo.from_convo(convo)
 
     async def new_conversation(
         self,
@@ -258,7 +263,7 @@ class Conversations:
         room_id: str,
         convo_name: str,
         new_messages: list[ai_messages.ModelMessage] = (),
-    ) -> None:
+    ) -> ConversationInfo:
         """Create a new conversation"""
         convo = Conversation(
             name=convo_name,
@@ -266,22 +271,11 @@ class Conversations:
             message_history=list(new_messages),
         )
 
-        messages = []
-
-        async for md in convo.message_history_dicts:
-            messages.append(md)
-
         async with self._lock:
             user_convos = self._convos.setdefault(user_name, {})
-            convo_uuid = str(convo.uuid)
-            user_convos[convo_uuid] = convo
+            user_convos[convo.convo_uuid] = convo
 
-            return {
-                "convo_uuid": convo_uuid,
-                "name": convo.name,
-                "room_id": convo.room_id,
-                "message_history": messages,
-            }
+        return ConversationInfo.from_convo(convo)
 
     async def append_to_conversation(
         self,
@@ -298,7 +292,7 @@ class Conversations:
     async def delete_conversation(
         self,
         user_name: str,
-        convo_uuid: str,
+        convo_uuid: uuid.UUID,
     ) -> None:
         """Remove a conversation"""
         async with self._lock:
