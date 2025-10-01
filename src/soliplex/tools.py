@@ -1,5 +1,6 @@
 import datetime
 
+import pydantic_ai
 from haiku.rag import client as rag_client
 
 from soliplex import config
@@ -56,3 +57,10 @@ async def search_documents(
                 )
 
         return [_search_results(doc, score) for doc, score in results]
+
+
+async def get_current_user(
+    ctx: pydantic_ai.RunContext[models.AgentDependencies],
+) -> models.UserProfile:
+    """Return information from the current user's profile."""
+    return ctx.deps.user

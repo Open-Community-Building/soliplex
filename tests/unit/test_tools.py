@@ -4,7 +4,13 @@ from unittest import mock
 import pytest
 
 from soliplex import config
+from soliplex import models
 from soliplex import tools
+
+USER = {
+    "full_name": "Phreddy Phlyntstone",
+    "email": "phreddy@example.com",
+}
 
 
 @pytest.mark.anyio
@@ -82,3 +88,13 @@ async def test_search_documents(
         expand_context.assert_not_called()
 
     hr_class.assert_called_once_with(sdt_config.rag_lancedb_path)
+
+
+@pytest.mark.anyio
+async def test_get_current_user():
+    deps = mock.create_autospec(models.AgentDependencies, user=USER)
+    ctx = mock.Mock(spec_set=(["deps"]), deps=deps)
+
+    found = await tools.get_current_user(ctx)
+
+    assert found is deps.user
