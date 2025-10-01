@@ -12,6 +12,14 @@
 #==========================================================================
 id: "soliplex-conf-example"
 
+meta:
+  tool_configs:
+    - "soliplex.config.SearchDocumentsToolConfig"
+
+  mcp_toolset_configs:
+    - "soliplex.config.Stdio_MCP_ClientToolsetConfig"
+    - "soliplex.config.HTTP_MCP_ClientToolsetConfig"
+
 secrets:
 
   # Pydantic AI logging / debugging

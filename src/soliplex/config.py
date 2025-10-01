@@ -510,7 +510,7 @@ class HTTP_MCP_ClientToolsetConfig:
         }
 
 
-MCP_CONFIG_CLASSES_BY_TYPE = {
+MCP_TOOLSET_CONFIG_CLASSES_BY_KIND = {
     "stdio": Stdio_MCP_ClientToolsetConfig,
     "http": HTTP_MCP_ClientToolsetConfig,
 }
@@ -526,8 +526,8 @@ def extract_mcp_client_toolset_configs(
     for mcp_name, mcp_client_toolset_config in config.pop(
         "mcp_client_toolsets", {}
     ).items():
-        type_ = mcp_client_toolset_config.pop("type")
-        mcp_config_klass = MCP_CONFIG_CLASSES_BY_TYPE[type_]
+        kind = mcp_client_toolset_config.pop("kind")
+        mcp_config_klass = MCP_TOOLSET_CONFIG_CLASSES_BY_KIND[kind]
         mcp_client_toolset_configs[mcp_name] = mcp_config_klass.from_yaml(
             installation_config=installation_config,
             config_path=config_path,
@@ -1222,11 +1222,94 @@ def strip_secret_prefix(config_str: str) -> str:
     return config_str[len(SECRET_PREFIX) :]
 
 
-def resolve_file_prefix(env_value: str, config_path: pathlib.Path) -> str:
-    if env_value.startswith(FILE_PREFIX):
-        env_value = config_path.parent / env_value[len(FILE_PREFIX) :]
+def resolve_file_prefix(config_str: str, config_path: pathlib.Path) -> str:
+    if config_str.startswith(FILE_PREFIX):
+        config_str = config_path.parent / config_str[len(FILE_PREFIX) :]
 
-    return str(env_value)
+    return str(config_str)
+
+
+@dataclasses.dataclass
+class ConfigMeta:
+    """Registered config class
+
+    'config_klass'
+        a class or factory: must have a 'from_yaml' method compatible
+        with 'extract_tool_configs' / 'extract_mcp_client_toolset_configs'
+        usage above.
+    """
+
+    config_klass: typing.Any
+
+    @classmethod
+    def from_yaml(cls, yaml_config: str | dict):
+        if isinstance(yaml_config, str):
+            module_name, klass_name = yaml_config.rsplit(".", 1)
+            module = importlib.import_module(module_name)
+            config_klass = getattr(module, klass_name)
+            return cls(config_klass)
+        else:
+            return cls(**yaml_config)
+
+    @property
+    def dotted_name(self):
+        klass = self.config_klass
+        return f"{klass.__module__}.{klass.__name__}"
+
+
+@dataclasses.dataclass
+class InstallationConfigMeta:
+    """Configuration for pluggable components
+
+    'tool_configs'
+        a list consisting of strings (importable dotted names of tool
+        config classes) or `ConfigMeta' mappings.
+
+    'mcp_toolset_configs'
+        a list consisting of strings (importable dotted names of MCP
+        toolset config classes) or `ConfigMeta' mappings.
+
+    After loading, adds the configured classes to the registry mappings
+    'TOOL_CONFIG_CLASSES_BY_TOOL_NAME' and
+    'MCP_TOOLSET_CONFIG_CLASSES_BY_TYPE'.
+    """
+
+    tool_configs: list[str | ConfigMeta] = ()
+    mcp_toolset_configs: list[str | ConfigMeta] = ()
+
+    # Set by `from_yaml` factory
+    _config_path: pathlib.Path = None
+
+    @classmethod
+    def from_yaml(cls, config_path: pathlib.Path, config_dict: dict | None):
+        if config_dict is None:
+            config_dict = {}
+
+        config_dict["_config_path"] = config_path
+
+        config_dict["tool_configs"] = [
+            ConfigMeta.from_yaml(tc_yaml)
+            for tc_yaml in config_dict.get("tool_configs", ())
+        ]
+
+        config_dict["mcp_toolset_configs"] = [
+            ConfigMeta.from_yaml(mcp_tc_yaml)
+            for mcp_tc_yaml in config_dict.get("mcp_toolset_configs", ())
+        ]
+
+        return cls(**config_dict)
+
+    def __post_init__(self):
+        self.tool_configs = list(self.tool_configs)
+
+        for tc_meta in self.tool_configs:
+            klass = tc_meta.config_klass
+            TOOL_CONFIG_CLASSES_BY_TOOL_NAME[klass.tool_name] = klass
+
+        self.mcp_toolset_configs = list(self.mcp_toolset_configs)
+        for mtc_meta in self.mcp_toolset_configs:
+            klass = mtc_meta.config_klass
+            MCP_TOOLSET_CONFIG_CLASSES_BY_KIND[klass.kind] = klass
 
 
 @dataclasses.dataclass
@@ -1237,6 +1320,8 @@ class InstallationConfig:
     # Required metadata
     #
     id: str
+
+    meta: InstallationConfigMeta = None
 
     #
     # Secrets name values looked up from env vars or other sources.
@@ -1333,6 +1418,12 @@ class InstallationConfig:
     def from_yaml(cls, config_path: pathlib.Path, config: dict):
         config["_config_path"] = config_path
 
+        meta = config.get("meta")
+        config["meta"] = InstallationConfigMeta.from_yaml(
+            config_path,
+            meta,
+        )
+
         environment = config.get("environment", {})
 
         secret_configs = [
@@ -1365,6 +1456,9 @@ class InstallationConfig:
         return cls(**config)
 
     def __post_init__(self):
+        if self.meta is None:
+            self.meta = InstallationConfigMeta(tool_configs=[])
+
         if self.oidc_paths is None:
             self.oidc_paths = ["./oidc"]
 

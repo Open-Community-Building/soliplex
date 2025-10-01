@@ -13,7 +13,7 @@ tools:
 mcp_client_toolsets:
 
   smithery_nws:
-    type: "http"
+    kind: "http"
     url: "https://server.smithery.ai/@smithery-ai/national-weather-service/mcp"
     allowed_tools:
     - "get_current_weather"
@@ -27,7 +27,7 @@ mcp_client_toolsets:
       profile: "secret:SMITHERY_AI_PROFILE"
 
 # google_maps:
-#   type: "stdio"
+#   kind: "stdio"
 #   command: "npx"
 #   args: 
 #     - "-y"
