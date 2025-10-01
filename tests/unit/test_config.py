@@ -2178,18 +2178,35 @@ NotASecret = pytest.raises(config.NotASecret)
 
 
 @pytest.mark.parametrize(
-    "secret_name_exp_pfx, expectation, expected",
+    "config_str, expectation, expected",
     [
         ("secret:test", NoRaise, "test"),
         ("invalid", NotASecret, None),
     ],
 )
-def test_strip_secret_prefix(secret_name_exp_pfx, expectation, expected):
+def test_strip_secret_prefix(config_str, expectation, expected):
     with expectation:
-        found = config.strip_secret_prefix(secret_name_exp_pfx)
+        found = config.strip_secret_prefix(config_str)
 
     if expected is not None:
         assert found == expected
+
+
+@pytest.mark.parametrize(
+    "config_str, expected",
+    [
+        ("no_prefix", "no_prefix"),
+        ("file:test.foo", "{temp_dir}/test.foo"),
+    ],
+)
+def test_resolve_file_prefix(temp_dir, config_str, expected):
+    config_path = temp_dir / "config.yaml"
+
+    expected = expected.format(temp_dir=temp_dir)
+
+    found = config.resolve_file_prefix(config_str, config_path)
+
+    assert found == expected
 
 
 def test_installationconfig_secrets_map_wo_existing():
