@@ -373,14 +373,14 @@ tools:
       allow_mcp: true
 mcp_client_toolsets:
     stdio_test:
-      type: "stdio"
+      kind: "stdio"
       command: "cat"
       args:
         - "-"
       env:
         foo: "bar"
     http_test:
-      type: "http"
+      kind: "http"
       url: "{HTTP_MCP_URL}"
       headers:
         Authorization: "Bearer secret:BEARER_TOKEN"
@@ -459,14 +459,14 @@ tools:
       search_documents_limit: 1
 mcp_client_toolsets:
     stdio_test:
-      type: "stdio"
+      kind: "stdio"
       command: "cat"
       args:
         - "-"
       env:
         foo: "bar"
     http_test:
-      type: "http"
+      kind: "http"
       url: "{HTTP_MCP_URL}"
       headers:
         Authorization: "Bearer secret:BEARER_TOKEN"
@@ -479,6 +479,53 @@ SECRET_VALUE = "DEADBEEF"
 ENV_VAR_NAME = "TEST_ENV_VAR"
 COMMAND = "cat"
 
+BARE_ICMETA_KW = {
+    "tool_configs": [],
+    "mcp_toolset_configs": [],
+}
+BARE_ICMETA_YAML = """\
+meta:
+"""
+
+W_TOOL_CONFIGS_ICMETA_KW = {
+    "tool_configs": [config.ConfigMeta(config.SearchDocumentsToolConfig)],
+    "mcp_toolset_configs": [],
+}
+W_TOOL_CONFIGS_ICMETA_YAML = """\
+meta:
+  tool_configs:
+      - "soliplex.config.SearchDocumentsToolConfig"
+"""
+
+W_MCP_TOOLSET_CONFIGS_ICMETA_KW = {
+    "tool_configs": [],
+    "mcp_toolset_configs": [
+        config.ConfigMeta(config.Stdio_MCP_ClientToolsetConfig),
+    ],
+}
+W_MCP_TOOLSET_CONFIGS_ICMETA_YAML = """\
+meta:
+  mcp_toolset_configs:
+      - "soliplex.config.Stdio_MCP_ClientToolsetConfig"
+"""
+
+
+FULL_ICMETA_KW = {
+    "tool_configs": [config.ConfigMeta(config.SearchDocumentsToolConfig)],
+    "mcp_toolset_configs": [
+        config.ConfigMeta(config.Stdio_MCP_ClientToolsetConfig),
+        config.ConfigMeta(config.HTTP_MCP_ClientToolsetConfig),
+    ],
+}
+FULL_ICMETA_YAML = """\
+meta:
+  tool_configs:
+      - "soliplex.config.SearchDocumentsToolConfig"
+  mcp_toolset_configs:
+      - "soliplex.config.Stdio_MCP_ClientToolsetConfig"
+      - "soliplex.config.HTTP_MCP_ClientToolsetConfig"
+"""
+
 INSTALLATION_ID = "test-installation"
 
 BARE_INSTALLATION_CONFIG_KW = {
@@ -486,6 +533,27 @@ BARE_INSTALLATION_CONFIG_KW = {
 }
 BARE_INSTALLATION_CONFIG_YAML = f"""\
 id: "{INSTALLATION_ID}"
+"""
+
+W_BARE_META_INSTALLATION_CONFIG_KW = {
+    "id": INSTALLATION_ID,
+    "meta": config.InstallationConfigMeta(
+        tool_configs=[],
+        mcp_toolset_configs=[],
+    ),
+}
+W_BARE_META_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+meta:
+"""
+
+W_FULL_META_INSTALLATION_CONFIG_KW = {
+    "id": INSTALLATION_ID,
+    "meta": config.InstallationConfigMeta(**FULL_ICMETA_KW),
+}
+W_FULL_META_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+{FULL_ICMETA_YAML}
 """
 
 SECRET_NAME_1 = "TEST_SECRET_ONE"
@@ -2178,18 +2246,94 @@ NotASecret = pytest.raises(config.NotASecret)
 
 
 @pytest.mark.parametrize(
-    "secret_name_exp_pfx, expectation, expected",
+    "config_str, expectation, expected",
     [
         ("secret:test", NoRaise, "test"),
         ("invalid", NotASecret, None),
     ],
 )
-def test_strip_secret_prefix(secret_name_exp_pfx, expectation, expected):
+def test_strip_secret_prefix(config_str, expectation, expected):
     with expectation:
-        found = config.strip_secret_prefix(secret_name_exp_pfx)
+        found = config.strip_secret_prefix(config_str)
 
     if expected is not None:
         assert found == expected
+
+
+@pytest.mark.parametrize(
+    "config_str, expected",
+    [
+        ("no_prefix", "no_prefix"),
+        ("file:test.foo", "{temp_dir}/test.foo"),
+    ],
+)
+def test_resolve_file_prefix(temp_dir, config_str, expected):
+    config_path = temp_dir / "config.yaml"
+
+    expected = expected.format(temp_dir=temp_dir)
+
+    found = config.resolve_file_prefix(config_str, config_path)
+
+    assert found == expected
+
+
+@mock.patch("importlib.import_module")
+def test_configmeta_from_yaml_w_dotted_name(im):
+    config_yaml = "somemodule.SomeClass"
+
+    faux_module = im.return_value = mock.Mock()
+
+    meta = config.ConfigMeta.from_yaml(config_yaml)
+
+    assert meta.config_klass is faux_module.SomeClass
+
+
+def test_configmeta_from_yaml_w_dict():
+    config_klass = mock.Mock()
+    config_yaml = {"config_klass": config_klass}
+
+    meta = config.ConfigMeta.from_yaml(config_yaml)
+
+    assert meta.config_klass is config_klass
+
+
+def test_configmeta_dottedname():
+    config_klass = mock.create_autospec(
+        type,
+        __module__="some.module",
+        __name__="some_config",
+    )
+    meta = config.ConfigMeta(config_klass)
+
+    assert meta.dotted_name == "some.module.some_config"
+
+
+@pytest.mark.parametrize(
+    "config_yaml, expected_kw",
+    [
+        (BARE_ICMETA_YAML, BARE_ICMETA_KW),
+        (W_TOOL_CONFIGS_ICMETA_YAML, W_TOOL_CONFIGS_ICMETA_KW),
+        (W_MCP_TOOLSET_CONFIGS_ICMETA_YAML, W_MCP_TOOLSET_CONFIGS_ICMETA_KW),
+        (FULL_ICMETA_YAML, FULL_ICMETA_KW),
+    ],
+)
+def test_installationconfigmeta_from_yaml(temp_dir, config_yaml, expected_kw):
+    yaml_file = temp_dir / "config.yaml"
+    yaml_file.write_text(config_yaml)
+
+    with yaml_file.open() as fp:
+        config_dict = yaml.safe_load(fp)
+
+    ic_meta = config.InstallationConfigMeta.from_yaml(
+        yaml_file,
+        config_dict["meta"],
+    )
+    expected = config.InstallationConfigMeta(
+        _config_path=yaml_file,
+        **expected_kw,
+    )
+
+    assert ic_meta == expected
 
 
 def test_installationconfig_secrets_map_wo_existing():
@@ -2326,6 +2470,14 @@ def test_installationconfig_get_environment(w_hit, w_default):
             BARE_INSTALLATION_CONFIG_KW.copy(),
         ),
         (
+            W_BARE_META_INSTALLATION_CONFIG_YAML,
+            W_BARE_META_INSTALLATION_CONFIG_KW.copy(),
+        ),
+        (
+            W_FULL_META_INSTALLATION_CONFIG_YAML,
+            W_FULL_META_INSTALLATION_CONFIG_KW.copy(),
+        ),
+        (
             W_SECRETS_INSTALLATION_CONFIG_YAML,
             W_SECRETS_INSTALLATION_CONFIG_KW.copy(),
         ),
@@ -2390,6 +2542,12 @@ def test_installationconfig_from_yaml(
         expected,
         _config_path=yaml_file,
     )
+
+    replaced_meta = dataclasses.replace(
+        expected.meta,
+        _config_path=yaml_file,
+    )
+    expected = dataclasses.replace(expected, meta=replaced_meta)
 
     if "secrets" in expected_kw:
         replaced_secrets = []
@@ -2457,6 +2615,10 @@ IGNORED=bogus
     expected = dataclasses.replace(
         expected,
         _config_path=yaml_file,
+        meta=dataclasses.replace(
+            expected.meta,
+            _config_path=yaml_file,
+        ),
         oidc_paths=[temp_dir / "oidc"],
         room_paths=[temp_dir / "rooms"],
         completion_paths=[temp_dir / "completions"],
