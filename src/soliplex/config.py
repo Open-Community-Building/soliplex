@@ -6,6 +6,7 @@ import functools
 import importlib
 import inspect
 import json
+import os
 import pathlib
 import random
 import typing
@@ -1229,6 +1230,25 @@ def resolve_file_prefix(config_str: str, config_path: pathlib.Path) -> str:
     return str(config_str)
 
 
+def fill_missing_environment_entry(environment_config: dict | str) -> dict:
+    if isinstance(environment_config, str):
+        environment_config = {"name": environment_config}
+
+    if environment_config.get("value") is None:
+        environment_config["value"] = os.environ[environment_config["name"]]
+
+    return environment_config
+
+
+def fill_missing_environment_items(
+    environment: dict[str, str],
+) -> dict[str, str]:
+    return {
+        key: os.environ[key] if value is None else value
+        for key, value in environment.items()
+    }
+
+
 @dataclasses.dataclass
 class ConfigMeta:
     """Registered config class
@@ -1424,20 +1444,24 @@ class InstallationConfig:
             meta,
         )
 
-        environment = config.get("environment", {})
-
         secret_configs = [
             SecretConfig.from_yaml(config_path, secret_config)
             for secret_config in config.pop("secrets", ())
         ]
         config["secrets"] = secret_configs
 
+        environment = config.get("environment", {})
+
         if isinstance(environment, list):
+            environment = [
+                fill_missing_environment_entry(entry) for entry in environment
+            ]
             config["environment"] = {
                 item["name"]: resolve_file_prefix(item["value"], config_path)
                 for item in environment
             }
         else:
+            environment = fill_missing_environment_items(environment)
             config["environment"] = {
                 key: resolve_file_prefix(value, config_path)
                 for key, value in environment.items()

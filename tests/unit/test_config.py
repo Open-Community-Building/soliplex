@@ -2591,6 +2591,66 @@ def test_installationconfig_from_yaml(
     assert found == expected
 
 
+W_ENVIRONMENT_LIST_ONLY_STR_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+environment:
+  - "TEST_ENVVAR"
+"""
+
+
+W_ENVIRONMENT_LIST_NO_VALUE_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+environment:
+  - name: "TEST_ENVVAR"
+"""
+
+
+W_ENVIRONMENT_MAPPING_NO_VALUE_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+environment:
+  TEST_ENVVAR:
+"""
+
+
+@pytest.mark.parametrize(
+    "config_yaml",
+    [
+        W_ENVIRONMENT_LIST_ONLY_STR_INSTALLATION_CONFIG_YAML,
+        W_ENVIRONMENT_LIST_NO_VALUE_INSTALLATION_CONFIG_YAML,
+        W_ENVIRONMENT_MAPPING_NO_VALUE_INSTALLATION_CONFIG_YAML,
+    ],
+)
+def test_installationconfig_from_yaml_environ_wo_value(temp_dir, config_yaml):
+    TEST_VALUE = "test value"
+
+    yaml_file = temp_dir / "installation.yaml"
+    yaml_file.write_text(config_yaml)
+
+    expected_kw = copy.deepcopy(BARE_INSTALLATION_CONFIG_KW)
+    expected_kw["environment"] = {"TEST_ENVVAR": TEST_VALUE}
+    expected = config.InstallationConfig(**expected_kw)
+    expected = dataclasses.replace(
+        expected,
+        _config_path=yaml_file,
+        meta=dataclasses.replace(
+            expected.meta,
+            _config_path=yaml_file,
+        ),
+        oidc_paths=[temp_dir / "oidc"],
+        room_paths=[temp_dir / "rooms"],
+        completion_paths=[temp_dir / "completions"],
+        quizzes_paths=[temp_dir / "quizzes"],
+    )
+
+    with yaml_file.open() as stream:
+        yaml_dict = yaml.safe_load(stream)
+
+    with mock.patch.dict("os.environ", clear=True, TEST_ENVVAR=TEST_VALUE):
+        found = config.InstallationConfig.from_yaml(yaml_file, yaml_dict)
+
+    assert found == expected
+
+
 def test_installationconfig_from_yaml_w_dotenv(temp_dir):
     REPLACEMENT = "other value"
     DOTENV_TEXT = f"""
