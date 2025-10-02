@@ -53,6 +53,7 @@ async def post_convos_new(
         ) from None
 
     agent_deps = models.AgentDependencies(
+        the_installation=the_installation,
         user=user_profile,
     )
 
@@ -107,6 +108,7 @@ async def post_convos_new_room(
         ) from None
 
     agent_deps = models.AgentDependencies(
+        the_installation=the_installation,
         user=user_profile,
     )
 
@@ -204,6 +206,7 @@ async def post_convo(
         ) from None
 
     agent_deps = models.AgentDependencies(
+        the_installation=the_installation,
         user=user_profile,
     )
 

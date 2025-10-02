@@ -83,6 +83,7 @@ async def post_chat_completion(
         ) from None
 
     agent_deps = models.AgentDependencies(
+        the_installation=the_installation,
         user=user_profile,
     )
 
