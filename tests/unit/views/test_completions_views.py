@@ -201,7 +201,10 @@ async def test_post_chat_completion_hit(
     assert response is occ.return_value
 
     exp_user_profile = models.UserProfile(**exp_user)
-    exp_agent_deps = models.AgentDependencies(user=exp_user_profile)
+    exp_agent_deps = models.AgentDependencies(
+        the_installation=the_installation,
+        user=exp_user_profile,
+    )
     occ.assert_awaited_once_with(
         the_installation.get_agent_for_completion.return_value,
         exp_agent_deps,

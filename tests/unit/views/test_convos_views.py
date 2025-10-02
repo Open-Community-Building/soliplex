@@ -231,6 +231,7 @@ async def test_post_convos_new(
         exp_user_profile = models.UserProfile(**exp_user)
 
         expected_deps = models.AgentDependencies(
+            the_installation=the_installation,
             user=exp_user_profile,
         )
 
@@ -336,6 +337,7 @@ async def test_post_convos_new_room(
         exp_user_profile = models.UserProfile(**exp_user)
 
         expected_deps = models.AgentDependencies(
+            the_installation=the_installation,
             user=exp_user_profile,
         )
 
@@ -522,6 +524,7 @@ async def test_post_convo(
         exp_user_profile = models.UserProfile(**exp_user)
 
         expected_deps = models.AgentDependencies(
+            the_installation=the_installation,
             user=exp_user_profile,
         )
 
