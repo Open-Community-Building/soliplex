@@ -9,7 +9,6 @@ import pydantic
 
 from soliplex import config
 from soliplex import convos
-from soliplex import installation
 
 # ============================================================================
 #   Public config models
@@ -311,7 +310,7 @@ class UserProfile(pydantic.BaseModel):
 
 
 class AgentDependencies(pydantic.BaseModel):
-    the_installation: installation.Installation
+    the_installation: typing.Any  # installation.Installation
     user: UserProfile = None  # TBD make required
 
 
