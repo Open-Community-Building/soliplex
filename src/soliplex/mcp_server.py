@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import dataclasses
 import inspect
-import typing
 
 from fastmcp import server as fmcp_server
 from fastmcp import tools as fmcp_tools
