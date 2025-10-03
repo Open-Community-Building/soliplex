@@ -1260,6 +1260,7 @@ class ConfigMeta:
     """
 
     config_klass: typing.Any
+    wrapper_klass: typing.Any = None
 
     @staticmethod
     def _klass_from_str(dotted_name: str):
@@ -1273,7 +1274,17 @@ class ConfigMeta:
             config_klass = cls._klass_from_str(yaml_config)
             return cls(config_klass)
         else:
-            return cls(**yaml_config)
+            config_klass = yaml_config["config_klass"]
+
+            if isinstance(config_klass, str):
+                config_klass = cls._klass_from_str(config_klass)
+
+            wrapper_klass = yaml_config.get("wrapper_klass")
+
+            if isinstance(wrapper_klass, str):
+                wrapper_klass = cls._klass_from_str(wrapper_klass)
+
+            return cls(config_klass, wrapper_klass)
 
     @property
     def dotted_name(self):

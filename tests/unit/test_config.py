@@ -2299,13 +2299,46 @@ def test_configmeta_from_yaml_w_dotted_name(im):
     assert meta.config_klass is faux_module.SomeClass
 
 
-def test_configmeta_from_yaml_w_dict():
+@pytest.mark.parametrize("w_wrapper", [False, True])
+def test_configmeta_from_yaml_w_dict(w_wrapper):
     config_klass = mock.Mock()
+    wrapper_klass = mock.Mock()
+
     config_yaml = {"config_klass": config_klass}
+
+    if w_wrapper:
+        config_yaml["wrapper_klass"] = wrapper_klass
 
     meta = config.ConfigMeta.from_yaml(config_yaml)
 
     assert meta.config_klass is config_klass
+
+    if w_wrapper:
+        assert meta.wrapper_klass is wrapper_klass
+    else:
+        assert meta.wrapper_klass is None
+
+
+@pytest.mark.parametrize("w_wrapper", [False, True])
+def test_configmeta_from_yaml_w_dict_w_names(w_wrapper):
+    dummy_module = mock.Mock()
+    config_klass = dummy_module.ConfigClass = mock.Mock()
+    wrapper_klass = dummy_module.WrapperClass = mock.Mock()
+
+    config_yaml = {"config_klass": "dummy.ConfigClass"}
+
+    if w_wrapper:
+        config_yaml["wrapper_klass"] = "dummy.WrapperClass"
+
+    with mock.patch.dict("sys.modules", dummy=dummy_module):
+        meta = config.ConfigMeta.from_yaml(config_yaml)
+
+    assert meta.config_klass is config_klass
+
+    if w_wrapper:
+        assert meta.wrapper_klass is wrapper_klass
+    else:
+        assert meta.wrapper_klass is None
 
 
 def test_configmeta_dottedname():
