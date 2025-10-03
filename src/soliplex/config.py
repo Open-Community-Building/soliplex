@@ -1261,12 +1261,16 @@ class ConfigMeta:
 
     config_klass: typing.Any
 
+    @staticmethod
+    def _klass_from_str(dotted_name: str):
+        module_name, klass_name = dotted_name.rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        return getattr(module, klass_name)
+
     @classmethod
     def from_yaml(cls, yaml_config: str | dict):
         if isinstance(yaml_config, str):
-            module_name, klass_name = yaml_config.rsplit(".", 1)
-            module = importlib.import_module(module_name)
-            config_klass = getattr(module, klass_name)
+            config_klass = cls._klass_from_str(yaml_config)
             return cls(config_klass)
         else:
             return cls(**yaml_config)

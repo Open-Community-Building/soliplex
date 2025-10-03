@@ -2278,6 +2278,17 @@ def test_resolve_file_prefix(temp_dir, config_str, expected):
 
 
 @mock.patch("importlib.import_module")
+def test_configmeta__klass_from_str(im):
+    dotted_name = "somemodule.SomeClass"
+
+    faux_module = im.return_value = mock.Mock()
+
+    klass = config.ConfigMeta._klass_from_str(dotted_name)
+
+    assert klass is faux_module.SomeClass
+
+
+@mock.patch("importlib.import_module")
 def test_configmeta_from_yaml_w_dotted_name(im):
     config_yaml = "somemodule.SomeClass"
 
