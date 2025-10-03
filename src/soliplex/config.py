@@ -545,6 +545,29 @@ MCP_ClientToolsetConfig = (
 MCP_ClientToolsetConfigMap = dict[str, MCP_ClientToolsetConfig]
 
 
+@dataclasses.dataclass
+class NoArgsMCPWrapper:
+    _func: abc.Callable[..., typing.Any]
+    _tool_config: ToolConfig
+
+    def __call__(self):
+        return self._func(tool_config=self._tool_config)
+
+
+@dataclasses.dataclass
+class WithQueryMCPWrapper:
+    _func: abc.Callable[..., typing.Any]
+    _tool_config: ToolConfig
+
+    def __call__(self, query):
+        return self._func(query, tool_config=self._tool_config)
+
+
+MCP_TOOL_CONFIG_WRAPPERS_BY_KIND = {
+    SearchDocumentsToolConfig.kind: WithQueryMCPWrapper,
+}
+
+
 # ============================================================================
 #   Agent-related configuration types
 # ============================================================================
@@ -1353,6 +1376,12 @@ class InstallationConfigMeta:
             MCP_TOOLSET_CONFIG_CLASSES_BY_KIND[klass.kind] = klass
 
         self.mcp_server_tool_wrappers = list(self.mcp_server_tool_wrappers)
+        for mstw_meta in self.mcp_server_tool_wrappers:
+            config_klass = mstw_meta.config_klass
+            wrapper_klass = mstw_meta.wrapper_klass
+            MCP_TOOL_CONFIG_WRAPPERS_BY_KIND[
+                config_klass.kind
+            ] = wrapper_klass
 
 
 @dataclasses.dataclass

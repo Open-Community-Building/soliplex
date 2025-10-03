@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import typing
-from collections import abc
 
 from fastmcp import server as fmcp_server
 from fastmcp import tools as fmcp_tools
@@ -13,35 +12,14 @@ from soliplex import installation
 from soliplex import mcp_auth
 
 
-@dataclasses.dataclass
-class NoArgsMCPWrapper:
-    _func: abc.Callable[..., typing.Any]
-    _tool_config: config.ToolConfig
-
-    def __call__(self):
-        return self._func(tool_config=self._tool_config)
-
-
-@dataclasses.dataclass
-class WithQueryMCPWrapper:
-    _func: abc.Callable[..., typing.Any]
-    _tool_config: config.ToolConfig
-
-    def __call__(self, query):
-        return self._func(query, tool_config=self._tool_config)
-
-
-TOOL_CONFIG_WRAPPERS_BY_KIND = {
-    config.SearchDocumentsToolConfig.kind: WithQueryMCPWrapper,
-}
-
-
 def mcp_tool(tool_config: config.ToolConfig) -> fmcp_tools.Tool | None:
     if (
         tool_config.allow_mcp
         and tool_config.tool_requires != config.ToolRequires.FASTAPI_CONTEXT
     ):
-        wrapper_type = TOOL_CONFIG_WRAPPERS_BY_KIND.get(tool_config.kind)
+        wrapper_type = config.MCP_TOOL_CONFIG_WRAPPERS_BY_KIND.get(
+            tool_config.kind,
+        )
 
         if wrapper_type is not None:
             tool_wrapper = wrapper_type(tool_config.tool, tool_config)

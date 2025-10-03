@@ -12,7 +12,6 @@ import pytest
 import yaml
 
 from soliplex import config
-from soliplex import mcp_server
 
 AUTHSYSTEM_ID = "testing"
 AUTHSYSTEM_TITLE = "Testing OIDC"
@@ -518,7 +517,7 @@ W_MCP_SERVER_TOOL_WRAPPER_ICMETA_KW = {
     "mcp_server_tool_wrappers": [
         config.ConfigMeta(
             config.SearchDocumentsToolConfig,
-            mcp_server.WithQueryMCPWrapper,
+            config.WithQueryMCPWrapper,
         ),
     ],
 }
@@ -526,7 +525,7 @@ W_MCP_SERVER_TOOL_WRAPPER_ICMETA_YAML = """\
 meta:
   mcp_server_tool_wrappers:
     - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
-      "wrapper_klass": "soliplex.mcp_server.WithQueryMCPWrapper"
+      "wrapper_klass": "soliplex.config.WithQueryMCPWrapper"
 """
 
 
@@ -539,7 +538,7 @@ FULL_ICMETA_KW = {
     "mcp_server_tool_wrappers": [
         config.ConfigMeta(
             config.SearchDocumentsToolConfig,
-            mcp_server.WithQueryMCPWrapper,
+            config.WithQueryMCPWrapper,
         ),
     ],
 }
@@ -552,7 +551,7 @@ meta:
       - "soliplex.config.HTTP_MCP_ClientToolsetConfig"
   mcp_server_tool_wrappers:
     - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
-      "wrapper_klass": "soliplex.mcp_server.WithQueryMCPWrapper"
+      "wrapper_klass": "soliplex.config.WithQueryMCPWrapper"
 """
 
 INSTALLATION_ID = "test-installation"
@@ -1436,6 +1435,30 @@ def test_http_mctc_tool_kwargs(
             mock.call(cfg_value)
             in installation_config.interpolate_secret.call_args_list
         )
+
+
+def test_noargsmcpwrapper_call():
+    func = mock.Mock(spec_set=())
+    tool_config = mock.create_autospec(config.ToolConfig)
+
+    wrapper = config.NoArgsMCPWrapper(func, tool_config)
+
+    found = wrapper()
+
+    assert found is func.return_value
+    func.assert_called_once_with(tool_config=tool_config)
+
+
+def test_withquerymcpwrapper_call():
+    func = mock.Mock(spec_set=())
+    tool_config = mock.create_autospec(config.ToolConfig)
+
+    wrapper = config.WithQueryMCPWrapper(func, tool_config)
+
+    found = wrapper(query="text")
+
+    assert found is func.return_value
+    func.assert_called_once_with("text", tool_config=tool_config)
 
 
 @pytest.mark.parametrize(

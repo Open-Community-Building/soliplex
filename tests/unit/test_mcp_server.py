@@ -10,30 +10,6 @@ from soliplex import mcp_server
 ROOM_ID = "testing"
 
 
-def test_noargsmcpwrapper_call():
-    func = mock.Mock(spec_set=())
-    tool_config = mock.create_autospec(config.ToolConfig)
-
-    wrapper = mcp_server.NoArgsMCPWrapper(func, tool_config)
-
-    found = wrapper()
-
-    assert found is func.return_value
-    func.assert_called_once_with(tool_config=tool_config)
-
-
-def test_withquerymcpwrapper_call():
-    func = mock.Mock(spec_set=())
-    tool_config = mock.create_autospec(config.ToolConfig)
-
-    wrapper = mcp_server.WithQueryMCPWrapper(func, tool_config)
-
-    found = wrapper(query="text")
-
-    assert found is func.return_value
-    func.assert_called_once_with("text", tool_config=tool_config)
-
-
 def tool_for_testing():
     """This is a test"""
 
@@ -90,7 +66,7 @@ MCP_TOOL = object()
         (TOOL_CONFIG_W_MCP_W_REQ_CTX, False, None),
         (TOOL_CONFIG_W_MCP_WO_REQ_CTX, True, None),
         (SDTC_WO_MCP, False, None),
-        (SDTC_W_MCP, True, mcp_server.WithQueryMCPWrapper),
+        (SDTC_W_MCP, True, config.WithQueryMCPWrapper),
     ],
 )
 def test_mcp_tool(tool_config, hit, wrapper_type):
