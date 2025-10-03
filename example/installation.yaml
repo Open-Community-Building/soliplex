@@ -20,6 +20,10 @@ meta:
     - "soliplex.config.Stdio_MCP_ClientToolsetConfig"
     - "soliplex.config.HTTP_MCP_ClientToolsetConfig"
 
+  mcp_server_tool_wrappers:
+    - config_klass: "soliplex.config.SearchDocumentsToolConfig"
+      wrapper_class: "soliplex.config.WithQueryMCPWrapper"
+
 secrets:
 
   # Pydantic AI logging / debugging

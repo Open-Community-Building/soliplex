@@ -545,6 +545,29 @@ MCP_ClientToolsetConfig = (
 MCP_ClientToolsetConfigMap = dict[str, MCP_ClientToolsetConfig]
 
 
+@dataclasses.dataclass
+class NoArgsMCPWrapper:
+    _func: abc.Callable[..., typing.Any]
+    _tool_config: ToolConfig
+
+    def __call__(self):
+        return self._func(tool_config=self._tool_config)
+
+
+@dataclasses.dataclass
+class WithQueryMCPWrapper:
+    _func: abc.Callable[..., typing.Any]
+    _tool_config: ToolConfig
+
+    def __call__(self, query):
+        return self._func(query, tool_config=self._tool_config)
+
+
+MCP_TOOL_CONFIG_WRAPPERS_BY_KIND = {
+    SearchDocumentsToolConfig.kind: WithQueryMCPWrapper,
+}
+
+
 # ============================================================================
 #   Agent-related configuration types
 # ============================================================================
@@ -1260,16 +1283,31 @@ class ConfigMeta:
     """
 
     config_klass: typing.Any
+    wrapper_klass: typing.Any = None
+
+    @staticmethod
+    def _klass_from_str(dotted_name: str):
+        module_name, klass_name = dotted_name.rsplit(".", 1)
+        module = importlib.import_module(module_name)
+        return getattr(module, klass_name)
 
     @classmethod
     def from_yaml(cls, yaml_config: str | dict):
         if isinstance(yaml_config, str):
-            module_name, klass_name = yaml_config.rsplit(".", 1)
-            module = importlib.import_module(module_name)
-            config_klass = getattr(module, klass_name)
+            config_klass = cls._klass_from_str(yaml_config)
             return cls(config_klass)
         else:
-            return cls(**yaml_config)
+            config_klass = yaml_config["config_klass"]
+
+            if isinstance(config_klass, str):
+                config_klass = cls._klass_from_str(config_klass)
+
+            wrapper_klass = yaml_config.get("wrapper_klass")
+
+            if isinstance(wrapper_klass, str):
+                wrapper_klass = cls._klass_from_str(wrapper_klass)
+
+            return cls(config_klass, wrapper_klass)
 
     @property
     def dotted_name(self):
@@ -1296,6 +1334,7 @@ class InstallationConfigMeta:
 
     tool_configs: list[str | ConfigMeta] = ()
     mcp_toolset_configs: list[str | ConfigMeta] = ()
+    mcp_server_tool_wrappers: list[ConfigMeta] = ()
 
     # Set by `from_yaml` factory
     _config_path: pathlib.Path = None
@@ -1317,6 +1356,11 @@ class InstallationConfigMeta:
             for mcp_tc_yaml in config_dict.get("mcp_toolset_configs", ())
         ]
 
+        config_dict["mcp_server_tool_wrappers"] = [
+            ConfigMeta.from_yaml(mcp_tc_yaml)
+            for mcp_tc_yaml in config_dict.get("mcp_server_tool_wrappers", ())
+        ]
+
         return cls(**config_dict)
 
     def __post_init__(self):
@@ -1330,6 +1374,12 @@ class InstallationConfigMeta:
         for mtc_meta in self.mcp_toolset_configs:
             klass = mtc_meta.config_klass
             MCP_TOOLSET_CONFIG_CLASSES_BY_KIND[klass.kind] = klass
+
+        self.mcp_server_tool_wrappers = list(self.mcp_server_tool_wrappers)
+        for mstw_meta in self.mcp_server_tool_wrappers:
+            config_klass = mstw_meta.config_klass
+            wrapper_klass = mstw_meta.wrapper_klass
+            MCP_TOOL_CONFIG_WRAPPERS_BY_KIND[config_klass.kind] = wrapper_klass
 
 
 @dataclasses.dataclass

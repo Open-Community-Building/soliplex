@@ -490,6 +490,7 @@ meta:
 W_TOOL_CONFIGS_ICMETA_KW = {
     "tool_configs": [config.ConfigMeta(config.SearchDocumentsToolConfig)],
     "mcp_toolset_configs": [],
+    "mcp_server_tool_wrappers": [],
 }
 W_TOOL_CONFIGS_ICMETA_YAML = """\
 meta:
@@ -502,11 +503,29 @@ W_MCP_TOOLSET_CONFIGS_ICMETA_KW = {
     "mcp_toolset_configs": [
         config.ConfigMeta(config.Stdio_MCP_ClientToolsetConfig),
     ],
+    "mcp_server_tool_wrappers": [],
 }
 W_MCP_TOOLSET_CONFIGS_ICMETA_YAML = """\
 meta:
   mcp_toolset_configs:
-      - "soliplex.config.Stdio_MCP_ClientToolsetConfig"
+    - "soliplex.config.Stdio_MCP_ClientToolsetConfig"
+"""
+
+W_MCP_SERVER_TOOL_WRAPPER_ICMETA_KW = {
+    "tool_configs": [],
+    "mcp_toolset_configs": [],
+    "mcp_server_tool_wrappers": [
+        config.ConfigMeta(
+            config.SearchDocumentsToolConfig,
+            config.WithQueryMCPWrapper,
+        ),
+    ],
+}
+W_MCP_SERVER_TOOL_WRAPPER_ICMETA_YAML = """\
+meta:
+  mcp_server_tool_wrappers:
+    - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
+      "wrapper_klass": "soliplex.config.WithQueryMCPWrapper"
 """
 
 
@@ -516,6 +535,12 @@ FULL_ICMETA_KW = {
         config.ConfigMeta(config.Stdio_MCP_ClientToolsetConfig),
         config.ConfigMeta(config.HTTP_MCP_ClientToolsetConfig),
     ],
+    "mcp_server_tool_wrappers": [
+        config.ConfigMeta(
+            config.SearchDocumentsToolConfig,
+            config.WithQueryMCPWrapper,
+        ),
+    ],
 }
 FULL_ICMETA_YAML = """\
 meta:
@@ -524,6 +549,9 @@ meta:
   mcp_toolset_configs:
       - "soliplex.config.Stdio_MCP_ClientToolsetConfig"
       - "soliplex.config.HTTP_MCP_ClientToolsetConfig"
+  mcp_server_tool_wrappers:
+    - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
+      "wrapper_klass": "soliplex.config.WithQueryMCPWrapper"
 """
 
 INSTALLATION_ID = "test-installation"
@@ -1409,6 +1437,30 @@ def test_http_mctc_tool_kwargs(
         )
 
 
+def test_noargsmcpwrapper_call():
+    func = mock.Mock(spec_set=())
+    tool_config = mock.create_autospec(config.ToolConfig)
+
+    wrapper = config.NoArgsMCPWrapper(func, tool_config)
+
+    found = wrapper()
+
+    assert found is func.return_value
+    func.assert_called_once_with(tool_config=tool_config)
+
+
+def test_withquerymcpwrapper_call():
+    func = mock.Mock(spec_set=())
+    tool_config = mock.create_autospec(config.ToolConfig)
+
+    wrapper = config.WithQueryMCPWrapper(func, tool_config)
+
+    found = wrapper(query="text")
+
+    assert found is func.return_value
+    func.assert_called_once_with("text", tool_config=tool_config)
+
+
 @pytest.mark.parametrize(
     "kw",
     [
@@ -2278,6 +2330,17 @@ def test_resolve_file_prefix(temp_dir, config_str, expected):
 
 
 @mock.patch("importlib.import_module")
+def test_configmeta__klass_from_str(im):
+    dotted_name = "somemodule.SomeClass"
+
+    faux_module = im.return_value = mock.Mock()
+
+    klass = config.ConfigMeta._klass_from_str(dotted_name)
+
+    assert klass is faux_module.SomeClass
+
+
+@mock.patch("importlib.import_module")
 def test_configmeta_from_yaml_w_dotted_name(im):
     config_yaml = "somemodule.SomeClass"
 
@@ -2288,13 +2351,46 @@ def test_configmeta_from_yaml_w_dotted_name(im):
     assert meta.config_klass is faux_module.SomeClass
 
 
-def test_configmeta_from_yaml_w_dict():
+@pytest.mark.parametrize("w_wrapper", [False, True])
+def test_configmeta_from_yaml_w_dict(w_wrapper):
     config_klass = mock.Mock()
+    wrapper_klass = mock.Mock()
+
     config_yaml = {"config_klass": config_klass}
+
+    if w_wrapper:
+        config_yaml["wrapper_klass"] = wrapper_klass
 
     meta = config.ConfigMeta.from_yaml(config_yaml)
 
     assert meta.config_klass is config_klass
+
+    if w_wrapper:
+        assert meta.wrapper_klass is wrapper_klass
+    else:
+        assert meta.wrapper_klass is None
+
+
+@pytest.mark.parametrize("w_wrapper", [False, True])
+def test_configmeta_from_yaml_w_dict_w_names(w_wrapper):
+    dummy_module = mock.Mock()
+    config_klass = dummy_module.ConfigClass = mock.Mock()
+    wrapper_klass = dummy_module.WrapperClass = mock.Mock()
+
+    config_yaml = {"config_klass": "dummy.ConfigClass"}
+
+    if w_wrapper:
+        config_yaml["wrapper_klass"] = "dummy.WrapperClass"
+
+    with mock.patch.dict("sys.modules", dummy=dummy_module):
+        meta = config.ConfigMeta.from_yaml(config_yaml)
+
+    assert meta.config_klass is config_klass
+
+    if w_wrapper:
+        assert meta.wrapper_klass is wrapper_klass
+    else:
+        assert meta.wrapper_klass is None
 
 
 def test_configmeta_dottedname():
@@ -2314,6 +2410,10 @@ def test_configmeta_dottedname():
         (BARE_ICMETA_YAML, BARE_ICMETA_KW),
         (W_TOOL_CONFIGS_ICMETA_YAML, W_TOOL_CONFIGS_ICMETA_KW),
         (W_MCP_TOOLSET_CONFIGS_ICMETA_YAML, W_MCP_TOOLSET_CONFIGS_ICMETA_KW),
+        (
+            W_MCP_SERVER_TOOL_WRAPPER_ICMETA_YAML,
+            W_MCP_SERVER_TOOL_WRAPPER_ICMETA_KW,
+        ),
         (FULL_ICMETA_YAML, FULL_ICMETA_KW),
     ],
 )
