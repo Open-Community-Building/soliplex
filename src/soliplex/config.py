@@ -1311,6 +1311,7 @@ class InstallationConfigMeta:
 
     tool_configs: list[str | ConfigMeta] = ()
     mcp_toolset_configs: list[str | ConfigMeta] = ()
+    mcp_server_tool_wrappers: list[ConfigMeta] = ()
 
     # Set by `from_yaml` factory
     _config_path: pathlib.Path = None
@@ -1332,6 +1333,11 @@ class InstallationConfigMeta:
             for mcp_tc_yaml in config_dict.get("mcp_toolset_configs", ())
         ]
 
+        config_dict["mcp_server_tool_wrappers"] = [
+            ConfigMeta.from_yaml(mcp_tc_yaml)
+            for mcp_tc_yaml in config_dict.get("mcp_server_tool_wrappers", ())
+        ]
+
         return cls(**config_dict)
 
     def __post_init__(self):
@@ -1345,6 +1351,8 @@ class InstallationConfigMeta:
         for mtc_meta in self.mcp_toolset_configs:
             klass = mtc_meta.config_klass
             MCP_TOOLSET_CONFIG_CLASSES_BY_KIND[klass.kind] = klass
+
+        self.mcp_server_tool_wrappers = list(self.mcp_server_tool_wrappers)
 
 
 @dataclasses.dataclass

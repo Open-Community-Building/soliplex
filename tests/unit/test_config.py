@@ -12,6 +12,7 @@ import pytest
 import yaml
 
 from soliplex import config
+from soliplex import mcp_server
 
 AUTHSYSTEM_ID = "testing"
 AUTHSYSTEM_TITLE = "Testing OIDC"
@@ -490,6 +491,7 @@ meta:
 W_TOOL_CONFIGS_ICMETA_KW = {
     "tool_configs": [config.ConfigMeta(config.SearchDocumentsToolConfig)],
     "mcp_toolset_configs": [],
+    "mcp_server_tool_wrappers": [],
 }
 W_TOOL_CONFIGS_ICMETA_YAML = """\
 meta:
@@ -502,11 +504,29 @@ W_MCP_TOOLSET_CONFIGS_ICMETA_KW = {
     "mcp_toolset_configs": [
         config.ConfigMeta(config.Stdio_MCP_ClientToolsetConfig),
     ],
+    "mcp_server_tool_wrappers": [],
 }
 W_MCP_TOOLSET_CONFIGS_ICMETA_YAML = """\
 meta:
   mcp_toolset_configs:
-      - "soliplex.config.Stdio_MCP_ClientToolsetConfig"
+    - "soliplex.config.Stdio_MCP_ClientToolsetConfig"
+"""
+
+W_MCP_SERVER_TOOL_WRAPPER_ICMETA_KW = {
+    "tool_configs": [],
+    "mcp_toolset_configs": [],
+    "mcp_server_tool_wrappers": [
+        config.ConfigMeta(
+            config.SearchDocumentsToolConfig,
+            mcp_server.WithQueryMCPWrapper,
+        ),
+    ],
+}
+W_MCP_SERVER_TOOL_WRAPPER_ICMETA_YAML = """\
+meta:
+  mcp_server_tool_wrappers:
+    - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
+      "wrapper_klass": "soliplex.mcp_server.WithQueryMCPWrapper"
 """
 
 
@@ -516,6 +536,12 @@ FULL_ICMETA_KW = {
         config.ConfigMeta(config.Stdio_MCP_ClientToolsetConfig),
         config.ConfigMeta(config.HTTP_MCP_ClientToolsetConfig),
     ],
+    "mcp_server_tool_wrappers": [
+        config.ConfigMeta(
+            config.SearchDocumentsToolConfig,
+            mcp_server.WithQueryMCPWrapper,
+        ),
+    ],
 }
 FULL_ICMETA_YAML = """\
 meta:
@@ -524,6 +550,9 @@ meta:
   mcp_toolset_configs:
       - "soliplex.config.Stdio_MCP_ClientToolsetConfig"
       - "soliplex.config.HTTP_MCP_ClientToolsetConfig"
+  mcp_server_tool_wrappers:
+    - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
+      "wrapper_klass": "soliplex.mcp_server.WithQueryMCPWrapper"
 """
 
 INSTALLATION_ID = "test-installation"
@@ -2358,6 +2387,10 @@ def test_configmeta_dottedname():
         (BARE_ICMETA_YAML, BARE_ICMETA_KW),
         (W_TOOL_CONFIGS_ICMETA_YAML, W_TOOL_CONFIGS_ICMETA_KW),
         (W_MCP_TOOLSET_CONFIGS_ICMETA_YAML, W_MCP_TOOLSET_CONFIGS_ICMETA_KW),
+        (
+            W_MCP_SERVER_TOOL_WRAPPER_ICMETA_YAML,
+            W_MCP_SERVER_TOOL_WRAPPER_ICMETA_KW,
+        ),
         (FULL_ICMETA_YAML, FULL_ICMETA_KW),
     ],
 )
