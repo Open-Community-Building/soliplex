@@ -1379,9 +1379,7 @@ class InstallationConfigMeta:
         for mstw_meta in self.mcp_server_tool_wrappers:
             config_klass = mstw_meta.config_klass
             wrapper_klass = mstw_meta.wrapper_klass
-            MCP_TOOL_CONFIG_WRAPPERS_BY_KIND[
-                config_klass.kind
-            ] = wrapper_klass
+            MCP_TOOL_CONFIG_WRAPPERS_BY_KIND[config_klass.kind] = wrapper_klass
 
 
 @dataclasses.dataclass
