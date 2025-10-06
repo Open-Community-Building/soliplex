@@ -771,6 +771,26 @@ quizzes_paths:
     -
 """
 
+AGENT_CONFIG_ID = "agent-config-1"
+
+W_AGENT_CONFIG_INSTALLATION_CONFIG_KW = {
+    "id": INSTALLATION_ID,
+    "agent_configs": [
+        config.AgentConfig(
+            AGENT_CONFIG_ID,
+            model_name=MODEL_NAME,
+            system_prompt=SYSTEM_PROMPT,
+        ),
+    ],
+}
+W_AGENT_CONFIG_INSTALLATION_CONFIG_YAML = f"""\
+id: "{INSTALLATION_ID}"
+agent_configs:
+    - id: "{AGENT_CONFIG_ID}"
+      model_name: "{MODEL_NAME}"
+      system_prompt: "{SYSTEM_PROMPT}"
+"""
+
 
 @pytest.fixture
 def installation_config():
@@ -2562,6 +2582,45 @@ def test_installationconfig_get_environment(w_hit, w_default):
         assert found is None
 
 
+def test_installationconfig_agent_configs_map_wo_existing():
+    agent_configs = [
+        config.AgentConfig(
+            id=f"agent-config-{i_agent_config}",
+        )
+        for i_agent_config in range(5)
+    ]
+
+    i_config = config.InstallationConfig(
+        id="test-ic",
+        agent_configs=agent_configs,
+    )
+
+    found = i_config.agent_configs_map
+
+    for (_f_key, f_val), agent_config in zip(
+        sorted(found.items()),
+        agent_configs,
+        strict=True,
+    ):
+        exp_agent_config = dataclasses.replace(
+            agent_config,
+            _installation_config=i_config,
+        )
+        assert f_val == exp_agent_config
+
+
+def test_installationconfig_agent_configs_map_w_existing():
+    already = object()
+    i_config = config.InstallationConfig(
+        id="test-ic",
+        _agent_configs_map=already,
+    )
+
+    found = i_config.agent_configs_map
+
+    assert found is already
+
+
 @pytest.mark.parametrize(
     "config_yaml, expected_kw",
     [
@@ -2620,6 +2679,10 @@ def test_installationconfig_get_environment(w_hit, w_default):
         (
             W_QUIZZES_PATHS_ONLY_NULL_INSTALLATION_CONFIG_YAML,
             W_QUIZZES_PATHS_ONLY_NULL_INSTALLATION_CONFIG_KW.copy(),
+        ),
+        (
+            W_AGENT_CONFIG_INSTALLATION_CONFIG_YAML,
+            W_AGENT_CONFIG_INSTALLATION_CONFIG_KW.copy(),
         ),
     ],
 )
@@ -2687,6 +2750,12 @@ def test_installationconfig_from_yaml(
         yaml_dict = yaml.safe_load(stream)
 
     found = config.InstallationConfig.from_yaml(yaml_file, yaml_dict)
+
+    if "agent_configs" in expected_kw:
+        # Assign '_installation_config' after found is constructed.
+        for exp_agent_config in expected.agent_configs:
+            exp_agent_config._installation_config = found
+            exp_agent_config._config_path = yaml_file
 
     assert found == expected
 

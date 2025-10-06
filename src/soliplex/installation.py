@@ -68,6 +68,16 @@ class Installation:
     ) -> config.CompletionConfig:
         return self._config.completion_configs[completion_id]
 
+    def get_agent_by_id(
+        self,
+        agent_id: str,
+    ) -> pydantic_ai.Agent:
+        return agents.get_agent_from_configs(
+            self._config.agent_configs_map[agent_id],
+            {},
+            {},
+        )
+
     def get_agent_for_room(
         self,
         room_id: str,

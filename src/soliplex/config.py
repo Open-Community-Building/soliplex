@@ -1440,6 +1440,24 @@ class InstallationConfig:
         return self.environment.get(key, default)
 
     #
+    # Agent configurations not bound to a room or completion.
+    #
+    agent_configs: list[AgentConfig] = dataclasses.field(
+        default_factory=list,
+    )
+    _agent_configs_map: dict[str, AgentConfig] = None
+
+    @property
+    def agent_configs_map(self) -> dict[str, AgentConfig]:
+        if self._agent_configs_map is None:
+            self._agent_configs_map = {
+                agent_config.id: agent_config
+                for agent_config in self.agent_configs
+            }
+
+        return self._agent_configs_map
+
+    #
     # Path(s) to OIDC Authentication System configs
     #
     # Defaults to one path: './oidc' (set in '__post_init__')
@@ -1500,6 +1518,12 @@ class InstallationConfig:
         ]
         config["secrets"] = secret_configs
 
+        agent_configs = [
+            AgentConfig.from_yaml(None, config_path, agent_config)
+            for agent_config in config.pop("agent_configs", ())
+        ]
+        config["agent_configs"] = agent_configs
+
         environment = config.get("environment", {})
 
         if isinstance(environment, list):
@@ -1532,6 +1556,14 @@ class InstallationConfig:
     def __post_init__(self):
         if self.meta is None:
             self.meta = InstallationConfigMeta(tool_configs=[])
+
+        self.agent_configs = [
+            dataclasses.replace(
+                agent_config,
+                _installation_config=self,
+            )
+            for agent_config in self.agent_configs
+        ]
 
         if self.oidc_paths is None:
             self.oidc_paths = ["./oidc"]
