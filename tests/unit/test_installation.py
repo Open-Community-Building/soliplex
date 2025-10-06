@@ -205,6 +205,27 @@ def test_installation_get_completion_config(w_completion_id, raises):
 
 
 @pytest.mark.parametrize(
+    "w_agent_id, raises", [("agent_id", False), ("nonesuch", True)]
+)
+@mock.patch("soliplex.agents.get_agent_from_configs")
+def test_installation_get_agent_by_id(gafc, w_agent_id, raises):
+    a_config = mock.create_autospec(config.AgentConfig)
+
+    i_config = mock.create_autospec(config.InstallationConfig)
+    i_config.agent_configs_map = {"agent_id": a_config}
+
+    the_installation = installation.Installation(i_config)
+
+    if raises:
+        with pytest.raises(KeyError):
+            the_installation.get_agent_by_id(w_agent_id)
+    else:
+        found = the_installation.get_agent_by_id(w_agent_id)
+        assert found is gafc.return_value
+        gafc.assert_called_once_with(a_config, {}, {})
+
+
+@pytest.mark.parametrize(
     "w_room_id, raises", [("room_id", False), ("nonesuch", True)]
 )
 @mock.patch("soliplex.agents.get_agent_from_configs")

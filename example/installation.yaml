@@ -132,6 +132,26 @@ environment:
   - name: "LOGFIRE_SERVICE_NAME"
     value: "soliplex"
 
+#==========================================================================
+# Agent configurations
+#==========================================================================
+# Specify agent configurations which are not bound to rooms / completions
+#==========================================================================
+
+agent_configs:
+
+  #
+  # Application code can get the agent for this config via:
+  # 'the_installation.get_agent_by_id("ollama_gpt_oss")'
+  #
+  - id: "ollama_gpt_oss"
+    model_name: "gpt-oss:20b"
+    system_prompt: |
+      You are an expert AI assistant specializing in information retrieval.
+
+      Your answers should be clear, concise, and ready for production use.
+
+      Always provide code or examples in Markdown blocks.
 
 #==========================================================================
 # OIDC authentication provider configuration
