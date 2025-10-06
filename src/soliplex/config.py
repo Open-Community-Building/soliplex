@@ -1035,6 +1035,8 @@ class CompletionConfig:
 #   Secrets configuration types
 # ============================================================================
 
+SECRET_GETTERS_BY_KIND = {}
+
 
 class _BaseSecretSource:
     @classmethod
