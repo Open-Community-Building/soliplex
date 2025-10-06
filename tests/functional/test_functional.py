@@ -15,7 +15,7 @@ from soliplex import main
 SOLIPLEX_FUNCTEST_MAX_ROOMS = "SOLIPLEX_FUNCTEST_MAX_ROOMS"
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def client():
     with testclient.TestClient(main.create_app()) as client:
         yield client
@@ -150,3 +150,33 @@ def test_get_quiz_post_quiz_question(auth_fn, client):
             assert (
                 answer_info["expected_output"] == question["expected_output"]
             )
+
+
+# Somehow we need the following fixture to make
+# the test_agent_tool_calling test work
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"
+
+
+@pytest.mark.anyio
+async def test_agent_tool_calling(client):
+    def get_current_datetime():
+        return "2025-09-30T09:30:01.0+00:00"
+
+    the_installation = client.app_state["the_installation"]
+    agent = the_installation.get_agent_by_id("ollama_gpt_oss")
+    agent.toolsets[0].add_function(get_current_datetime)
+
+    # Tool support with streaming
+    output = ""
+    async with agent.run_stream("what is the date?") as res:
+        async for message in res.stream_text():
+            output = message
+    assert "2025" in output
+    assert "09" in output or "September" in output
+
+    # Tool support without streaming
+    res = await agent.run("what is the date?")
+    assert "2025" in res.output
+    assert "09" in res.output or "September" in res.output
