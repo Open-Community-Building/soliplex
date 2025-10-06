@@ -256,6 +256,7 @@ class Installation(pydantic.BaseModel):
     id: str
     secrets: list[Secret] = []
     environment: dict[str, str] = {}
+    agents: list[Agent] = []
     oidc_paths: list[pathlib.Path] = []
     room_paths: list[pathlib.Path] = []
     completion_paths: list[pathlib.Path] = []
@@ -272,9 +273,14 @@ class Installation(pydantic.BaseModel):
             Secret.from_config(secret_config)
             for secret_config in installation_config.secrets
         ]
+        agents = [
+            Agent.from_config(agent_config)
+            for agent_config in installation_config.agent_configs
+        ]
         return cls(
             id=installation_config.id,
             secrets=secrets,
+            agents=agents,
             environment=installation_config.environment,
             oidc_paths=installation_config.oidc_paths,
             room_paths=installation_config.room_paths,

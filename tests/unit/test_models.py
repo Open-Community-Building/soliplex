@@ -42,6 +42,9 @@ INSTALLATION_ID = "test-installation"
 INSTALLATION_SECRET = "Seeeeeekrit!"
 INSTALLATION_ENVVAR_NAME = "TEST_ENVVAR"
 INSTALLATION_ENVVAR_VALUE = "Test Envvar"
+INSTALLATION_AGENT_ID = "test-agent"
+INSTALLATION_AGENT_MODEL_NAME = "test-agent-model"
+INSTALLATION_AGENT_SYSTEM_PROMPT = "You are a test!"
 INSTALLATION_OIDC_PATH = pathlib.Path("/path/to/oidc")
 INSTALLATION_ROOM_PATH = pathlib.Path("/path/to/rooms")
 INSTALLATION_COMPLETION_PATH = pathlib.Path("/path/to/completions")
@@ -471,6 +474,22 @@ def installation_environment(request):
     return _from_param(request, "environment")
 
 
+@pytest.fixture(
+    params=[
+        None,
+        [
+            config.AgentConfig(
+                id=INSTALLATION_AGENT_ID,
+                model_name=INSTALLATION_AGENT_MODEL_NAME,
+                system_prompt=INSTALLATION_AGENT_SYSTEM_PROMPT,
+            ),
+        ],
+    ]
+)
+def installation_agents(request):
+    return _from_param(request, "agent_configs")
+
+
 @pytest.fixture(params=[None, [INSTALLATION_OIDC_PATH]])
 def installation_oidc_paths(request):
     return _from_param(request, "oidc_paths")
@@ -507,6 +526,7 @@ def installation_oidc_auth_system_configs(request):
 def test_installation_from_config(
     installation_secrets,
     installation_environment,
+    installation_agents,
     installation_oidc_paths,
     installation_room_paths,
     installation_completion_paths,
@@ -517,6 +537,7 @@ def test_installation_from_config(
         id=INSTALLATION_ID,
         **installation_secrets,
         **installation_environment,
+        **installation_agents,
         **installation_oidc_paths,
         **installation_room_paths,
         **installation_completion_paths,
@@ -542,6 +563,14 @@ def test_installation_from_config(
         )
     else:
         assert installation_model.environment == {}
+
+    for m_agent, c_agent in zip(
+        installation_model.agents,
+        installation_agents.get("agent_configs", ()),
+        strict=True,
+    ):
+        assert m_agent.id == c_agent.id
+        assert m_agent.model_name == c_agent.model_name
 
     if installation_oidc_paths:
         assert (
