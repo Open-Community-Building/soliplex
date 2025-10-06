@@ -1,16 +1,16 @@
 #==========================================================================
-# Secrets
+# Soliplex installation configuration
 #==========================================================================
-#
-# Kept in an external store, such as ASW secret store, Github secrets, or
-# the secrets store managed by `devenv`'s `secrets` script, secrets are
-# expected to be injected into the environment separately.
-#
-# They are named here to allow pulling them into a Docker environment as
-# value-free references in a file formated to be used by
-# 'docker run --env-file <filename>'
-#==========================================================================
+
 id: "soliplex-conf-example"
+
+#==========================================================================
+# Meta-configuration
+#==========================================================================
+#
+# Register custom "kinds" of entities (tool configurations, MCP client
+# toolset configurations, etc.)
+#==========================================================================
 
 meta:
   tool_configs:
@@ -22,7 +22,20 @@ meta:
 
   mcp_server_tool_wrappers:
     - config_klass: "soliplex.config.SearchDocumentsToolConfig"
-      wrapper_class: "soliplex.config.WithQueryMCPWrapper"
+      wrapper_klass: "soliplex.config.WithQueryMCPWrapper"
+
+#==========================================================================
+# Secrets
+#==========================================================================
+#
+# Kept in an external store, such as ASW secret store, Github secrets, or
+# the secrets store managed by `devenv`'s `secrets` script, secrets are
+# expected to be injected into the environment separately.
+#
+# They are named here to allow pulling them into a Docker environment as
+# value-free references in a file formated to be used by
+# 'docker run --env-file <filename>'
+#==========================================================================
 
 secrets:
 
