@@ -1035,6 +1035,8 @@ class CompletionConfig:
 #   Secrets configuration types
 # ============================================================================
 
+SECRET_GETTERS_BY_KIND = {}
+
 
 class _BaseSecretSource:
     @classmethod
@@ -1280,13 +1282,22 @@ class ConfigMeta:
         a class or factory: must have a 'from_yaml' method compatible
         with 'extract_tool_configs' / 'extract_mcp_client_toolset_configs'
         usage above.
+
+    'wrapper_klass'
+        a class or factory used to wrap instances of 'config_klass'
+
+    'registered_func'
+        a callable taking an instance of 'config_klass' (return type
+        unspecified, but it should be the same type for all 'config_klass'
+        classes registered for a given set.
     """
 
     config_klass: typing.Any
     wrapper_klass: typing.Any = None
+    registered_func: typing.Any = None
 
     @staticmethod
-    def _klass_from_str(dotted_name: str):
+    def _from_dotted_name(dotted_name: str):
         module_name, klass_name = dotted_name.rsplit(".", 1)
         module = importlib.import_module(module_name)
         return getattr(module, klass_name)
@@ -1294,20 +1305,29 @@ class ConfigMeta:
     @classmethod
     def from_yaml(cls, yaml_config: str | dict):
         if isinstance(yaml_config, str):
-            config_klass = cls._klass_from_str(yaml_config)
+            config_klass = cls._from_dotted_name(yaml_config)
             return cls(config_klass)
         else:
             config_klass = yaml_config["config_klass"]
 
             if isinstance(config_klass, str):
-                config_klass = cls._klass_from_str(config_klass)
+                config_klass = cls._from_dotted_name(config_klass)
 
             wrapper_klass = yaml_config.get("wrapper_klass")
 
             if isinstance(wrapper_klass, str):
-                wrapper_klass = cls._klass_from_str(wrapper_klass)
+                wrapper_klass = cls._from_dotted_name(wrapper_klass)
 
-            return cls(config_klass, wrapper_klass)
+            registered_func = yaml_config.get("registered_func")
+
+            if isinstance(registered_func, str):
+                registered_func = cls._from_dotted_name(registered_func)
+
+            return cls(
+                config_klass=config_klass,
+                wrapper_klass=wrapper_klass,
+                registered_func=registered_func,
+            )
 
     @property
     def dotted_name(self):
@@ -1335,6 +1355,7 @@ class InstallationConfigMeta:
     tool_configs: list[str | ConfigMeta] = ()
     mcp_toolset_configs: list[str | ConfigMeta] = ()
     mcp_server_tool_wrappers: list[ConfigMeta] = ()
+    secret_sources: list[ConfigMeta] = ()
 
     # Set by `from_yaml` factory
     _config_path: pathlib.Path = None
@@ -1361,6 +1382,11 @@ class InstallationConfigMeta:
             for mcp_tc_yaml in config_dict.get("mcp_server_tool_wrappers", ())
         ]
 
+        config_dict["secret_sources"] = [
+            ConfigMeta.from_yaml(ss_yaml)
+            for ss_yaml in config_dict.get("secret_sources", ())
+        ]
+
         return cls(**config_dict)
 
     def __post_init__(self):
@@ -1380,6 +1406,12 @@ class InstallationConfigMeta:
             config_klass = mstw_meta.config_klass
             wrapper_klass = mstw_meta.wrapper_klass
             MCP_TOOL_CONFIG_WRAPPERS_BY_KIND[config_klass.kind] = wrapper_klass
+
+        self.secret_sources = list(self.secret_sources)
+        for ss_meta in self.mcp_server_tool_wrappers:
+            config_klass = ss_meta.config_klass
+            registered_func = ss_meta.registered_func
+            SECRET_GETTERS_BY_KIND[config_klass.kind] = registered_func
 
 
 @dataclasses.dataclass

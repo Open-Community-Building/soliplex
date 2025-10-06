@@ -482,15 +482,20 @@ COMMAND = "cat"
 BARE_ICMETA_KW = {
     "tool_configs": [],
     "mcp_toolset_configs": [],
+    "mcp_server_tool_wrappers": [],
+    "secret_sources": [],
 }
 BARE_ICMETA_YAML = """\
 meta:
 """
 
 W_TOOL_CONFIGS_ICMETA_KW = {
-    "tool_configs": [config.ConfigMeta(config.SearchDocumentsToolConfig)],
+    "tool_configs": [
+        config.ConfigMeta(config_klass=config.SearchDocumentsToolConfig),
+    ],
     "mcp_toolset_configs": [],
     "mcp_server_tool_wrappers": [],
+    "secret_sources": [],
 }
 W_TOOL_CONFIGS_ICMETA_YAML = """\
 meta:
@@ -501,9 +506,10 @@ meta:
 W_MCP_TOOLSET_CONFIGS_ICMETA_KW = {
     "tool_configs": [],
     "mcp_toolset_configs": [
-        config.ConfigMeta(config.Stdio_MCP_ClientToolsetConfig),
+        config.ConfigMeta(config_klass=config.Stdio_MCP_ClientToolsetConfig),
     ],
     "mcp_server_tool_wrappers": [],
+    "secret_sources": [],
 }
 W_MCP_TOOLSET_CONFIGS_ICMETA_YAML = """\
 meta:
@@ -516,16 +522,36 @@ W_MCP_SERVER_TOOL_WRAPPER_ICMETA_KW = {
     "mcp_toolset_configs": [],
     "mcp_server_tool_wrappers": [
         config.ConfigMeta(
-            config.SearchDocumentsToolConfig,
-            config.WithQueryMCPWrapper,
+            config_klass=config.SearchDocumentsToolConfig,
+            wrapper_klass=config.WithQueryMCPWrapper,
         ),
     ],
+    "secret_sources": [],
 }
 W_MCP_SERVER_TOOL_WRAPPER_ICMETA_YAML = """\
 meta:
   mcp_server_tool_wrappers:
     - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
       "wrapper_klass": "soliplex.config.WithQueryMCPWrapper"
+"""
+
+SECRET_SOURCE_FUNC = lambda source: "SEEKRIT"  # noqa E731
+W_SECRET_SOURCE_ICMETA_KW = {
+    "tool_configs": [],
+    "mcp_toolset_configs": [],
+    "mcp_server_tool_wrappers": [],
+    "secret_sources": [
+        config.ConfigMeta(
+            config_klass=config.SearchDocumentsToolConfig,
+            registered_func=SECRET_SOURCE_FUNC,
+        ),
+    ],
+}
+W_SECRET_SOURCE_ICMETA_YAML = """\
+meta:
+  secret_sources:
+    - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
+      "registered_func": "soliplex.config.TestSecretSource"
 """
 
 
@@ -541,6 +567,12 @@ FULL_ICMETA_KW = {
             config.WithQueryMCPWrapper,
         ),
     ],
+    "secret_sources": [
+        config.ConfigMeta(
+            config_klass=config.SearchDocumentsToolConfig,
+            registered_func=SECRET_SOURCE_FUNC,
+        ),
+    ],
 }
 FULL_ICMETA_YAML = """\
 meta:
@@ -552,6 +584,9 @@ meta:
   mcp_server_tool_wrappers:
     - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
       "wrapper_klass": "soliplex.config.WithQueryMCPWrapper"
+  secret_sources:
+    - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
+      "registered_func": "soliplex.config.TestSecretSource"
 """
 
 INSTALLATION_ID = "test-installation"
@@ -2350,12 +2385,12 @@ def test_resolve_file_prefix(temp_dir, config_str, expected):
 
 
 @mock.patch("importlib.import_module")
-def test_configmeta__klass_from_str(im):
+def test_configmeta__from_dotted_name(im):
     dotted_name = "somemodule.SomeClass"
 
     faux_module = im.return_value = mock.Mock()
 
-    klass = config.ConfigMeta._klass_from_str(dotted_name)
+    klass = config.ConfigMeta._from_dotted_name(dotted_name)
 
     assert klass is faux_module.SomeClass
 
@@ -2424,6 +2459,14 @@ def test_configmeta_dottedname():
     assert meta.dotted_name == "some.module.some_config"
 
 
+@pytest.fixture
+def patched_soliplex_config():
+    with mock.patch.dict(config.__dict__) as patched:
+        patched["TestSecretSource"] = SECRET_SOURCE_FUNC
+
+        yield patched
+
+
 @pytest.mark.parametrize(
     "config_yaml, expected_kw",
     [
@@ -2434,10 +2477,19 @@ def test_configmeta_dottedname():
             W_MCP_SERVER_TOOL_WRAPPER_ICMETA_YAML,
             W_MCP_SERVER_TOOL_WRAPPER_ICMETA_KW,
         ),
+        (
+            W_SECRET_SOURCE_ICMETA_YAML,
+            W_SECRET_SOURCE_ICMETA_KW,
+        ),
         (FULL_ICMETA_YAML, FULL_ICMETA_KW),
     ],
 )
-def test_installationconfigmeta_from_yaml(temp_dir, config_yaml, expected_kw):
+def test_installationconfigmeta_from_yaml(
+    temp_dir,
+    patched_soliplex_config,
+    config_yaml,
+    expected_kw,
+):
     yaml_file = temp_dir / "config.yaml"
     yaml_file.write_text(config_yaml)
 
@@ -2448,6 +2500,7 @@ def test_installationconfigmeta_from_yaml(temp_dir, config_yaml, expected_kw):
         yaml_file,
         config_dict["meta"],
     )
+
     expected = config.InstallationConfigMeta(
         _config_path=yaml_file,
         **expected_kw,
@@ -2688,6 +2741,7 @@ def test_installationconfig_agent_configs_map_w_existing():
 )
 def test_installationconfig_from_yaml(
     temp_dir,
+    patched_soliplex_config,
     config_yaml,
     expected_kw,
 ):

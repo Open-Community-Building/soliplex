@@ -66,6 +66,11 @@ def get_env_var_secret(source: config.EnvVarSecretSource):
         ) from exc
 
 
+config.SECRET_GETTERS_BY_KIND[config.EnvVarSecretSource.kind] = (
+    get_env_var_secret
+)
+
+
 def get_file_path_secret(source: config.FilePathSecretSource):
     file_path = pathlib.Path(source.file_path)
     if not file_path.is_absolute():
@@ -78,6 +83,11 @@ def get_file_path_secret(source: config.FilePathSecretSource):
             source.secret_name,
             file_path,
         ) from exc
+
+
+config.SECRET_GETTERS_BY_KIND[config.FilePathSecretSource.kind] = (
+    get_file_path_secret
+)
 
 
 def get_subprocess_secret(source: config.SubprocessSecretSource):
@@ -101,16 +111,18 @@ def get_subprocess_secret(source: config.SubprocessSecretSource):
     return found.strip()
 
 
+config.SECRET_GETTERS_BY_KIND[config.SubprocessSecretSource.kind] = (
+    get_subprocess_secret
+)
+
+
 def get_random_chars_secret(source: config.RandomCharsSecretSource):
     return os.urandom(source.n_chars).hex()
 
 
-SECRET_GETTERS_BY_KIND = {
-    config.EnvVarSecretSource.kind: get_env_var_secret,
-    config.FilePathSecretSource.kind: get_file_path_secret,
-    config.SubprocessSecretSource.kind: get_subprocess_secret,
-    config.RandomCharsSecretSource.kind: get_random_chars_secret,
-}
+config.SECRET_GETTERS_BY_KIND[config.RandomCharsSecretSource.kind] = (
+    get_random_chars_secret
+)
 
 
 def get_secret(secret_config: config.SecretConfig) -> str:
@@ -118,7 +130,7 @@ def get_secret(secret_config: config.SecretConfig) -> str:
     sources = secret_config.sources
     while secret_config.resolved is None and sources:
         source, *sources = sources
-        getter = SECRET_GETTERS_BY_KIND[source.kind]
+        getter = config.SECRET_GETTERS_BY_KIND[source.kind]
         try:
             secret_config._resolved = getter(source)
         except SecretError as exc:
