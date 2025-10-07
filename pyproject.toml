@@ -50,6 +50,10 @@ dev = [
     "trio",
     "ruff",
 ]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.6.19",
+]
 
 [tool.pytest.ini_options]
 pythonpath = "."
