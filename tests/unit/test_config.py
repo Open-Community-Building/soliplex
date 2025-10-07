@@ -39,8 +39,7 @@ BARE_AUTHSYSTEM_CONFIG_KW = {
     "client_id": AUTHSYSTEM_CLIENT_ID,
 }
 BARE_AUTHSYSTEM_CONFIG_YAML = f"""
-auth_systems:
-  - id: "{AUTHSYSTEM_ID}"
+    id: "{AUTHSYSTEM_ID}"
     title: "{AUTHSYSTEM_TITLE}"
     server_url: "{AUTHSYSTEM_SERVER_URL}"
     token_validation_pem: |
@@ -68,7 +67,7 @@ W_PEM_AUTHSYSTEM_CONFIG_KW = BARE_AUTHSYSTEM_CONFIG_KW.copy()
 W_PEM_AUTHSYSTEM_CONFIG_KW["oidc_client_pem_path"] = (
     ABSOLUTE_OIDC_CLIENT_PEM_PATH
 )
-W__AUTHSYSTEM_CONFIG_YAML = f"""
+W_PEM_AUTHSYSTEM_CONFIG_YAML = f"""
 {BARE_AUTHSYSTEM_CONFIG_YAML}
     oidc_client_pem_path: "{ABSOLUTE_OIDC_CLIENT_PEM_PATH}"
 """
@@ -109,6 +108,103 @@ W_OIDC_CPP_ABS_KW["oidc_client_pem_path"] = AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS
 W_OIDC_CPP_ABS_CONFIG_YAML = f"""
 {BARE_AUTHSYSTEM_CONFIG_YAML}
     oidc_client_pem_path: "{AUTHSYSTEM_OIDC_CLIENT_PEM_PATH_ABS}"
+"""
+
+W_ERROR_AUTHSYSTM_CONFIG_YAML = f"""
+{BARE_AUTHSYSTEM_CONFIG_YAML}
+    unknown: "BOGUS"
+"""
+
+
+# This one raises
+BOGUS_STDC_CONFIG_YAML = """
+    #rag_lancedb_stem: "rag"
+    #rag_lancedb_override_path: "/path/to/rag.lancedb"
+"""
+
+W_STEM_STDC_CONFIG_KW = {
+    "rag_lancedb_stem": "rag",
+    "return_citations": True,
+    "expand_context_radius": 3,
+    "search_documents_limit": 7,
+    "allow_mcp": True,
+}
+W_STEM_STDC_CONFIG_YAML = """
+    rag_lancedb_stem: "rag"
+    return_citations: true
+    expand_context_radius: 3
+    search_documents_limit: 7
+    allow_mcp: true
+"""
+
+
+W_OVERRIDE_STDC_CONFIG_KW = {
+    "rag_lancedb_override_path": "/path/to/rag.lancedb",
+}
+W_OVERRIDE_STDC_CONFIG_YAML = """
+    rag_lancedb_override_path: "/path/to/rag.lancedb"
+"""
+
+# This one raises
+BOGUS_STDIO_MCTC_CONFIG_YAML = ""
+
+BARE_STDIO_MCTC_CONFIG_KW = {
+    "command": "cat",
+}
+BARE_STDIO_MCTC_CONFIG_YAML = """
+    command: "cat"
+"""
+
+FULL_STDIO_MCTC_CONFIG_KW = {
+    "command": "cat",
+    "args": [
+        "-a",
+    ],
+    "env": {"FOO": "BAR"},
+    "allowed_tools": [
+        "some_tool",
+    ],
+}
+FULL_STDIO_MCTC_CONFIG_YAML = """
+    command: "cat"
+    args:
+       - "-a"
+    env:
+        FOO: "BAR"
+    allowed_tools:
+      - "some_tool"
+"""
+
+# This one raises
+BOGUS_HTTP_MCTC_CONFIG_YAML = ""
+
+BARE_HTTP_MCTC_CONFIG_KW = {
+    "url": "https://example.com/api",
+}
+BARE_HTTP_MCTC_CONFIG_YAML = """
+    url: "https://example.com/api"
+"""
+
+FULL_HTTP_MCTC_CONFIG_KW = {
+    "url": "https://example.com/api",
+    "headers": {
+        "Authorization": "Bearer DEADBEEF",
+    },
+    "query_params": {
+        "foo": "bar",
+    },
+    "allowed_tools": [
+        "some_tool",
+    ],
+}
+FULL_HTTP_MCTC_CONFIG_YAML = """
+    url: "https://example.com/api"
+    headers:
+        Authorization: "Bearer DEADBEEF"
+    query_params:
+        foo: "bar"
+    allowed_tools:
+      - "some_tool"
 """
 
 
@@ -221,6 +317,8 @@ FADTC_CONFIG_KW = {
 }
 
 
+BOGUS_AGENT_CONFIG_YAML = ""
+
 EMPTY_AGENT_CONFIG_KW = dict(
     id=AGENT_ID,
 )
@@ -279,6 +377,8 @@ QUESTIONS = [
         ),
     ),
 ]
+
+BOGUS_ROOM_CONFIG_YAML = ""
 
 BARE_ROOM_CONFIG_KW = {
     "id": ROOM_ID,
@@ -479,6 +579,10 @@ SECRET_VALUE = "DEADBEEF"
 ENV_VAR_NAME = "TEST_ENV_VAR"
 COMMAND = "cat"
 
+BOGUS_ICMETA_YAML = """\
+meta:
+    tool_configs:
+"""
 BARE_ICMETA_KW = {
     "tool_configs": [],
     "mcp_toolset_configs": [],
@@ -590,6 +694,8 @@ meta:
 """
 
 INSTALLATION_ID = "test-installation"
+
+BOGUS_INSTALLATION_CONFIG_YAML = ""
 
 BARE_INSTALLATION_CONFIG_KW = {
     "id": INSTALLATION_ID,
@@ -832,21 +938,52 @@ def installation_config():
     return mock.create_autospec(config.InstallationConfig)
 
 
+def test_authsystem_from_yaml_w_error(
+    installation_config,
+    temp_dir,
+):
+    config_path = temp_dir / "config.yaml"
+    config_path.write_text(W_ERROR_AUTHSYSTM_CONFIG_YAML)
+
+    with config_path.open() as stream:
+        config_dict = yaml.safe_load(stream)
+
+    with pytest.raises(config.FromYamlException) as exc_info:
+        config.OIDCAuthSystemConfig.from_yaml(
+            installation_config,
+            config_path,
+            config_dict,
+        )
+
+    assert exc_info.value._config_path == config_path
+
+
 @pytest.mark.parametrize(
-    "w_config",
+    "config_yaml, exp_config",
     [
-        BARE_AUTHSYSTEM_CONFIG_KW.copy(),
-        W_SCOPE_AUTHSYSTEM_CONFIG_KW.copy(),
-        W_PEM_AUTHSYSTEM_CONFIG_KW.copy(),
+        (BARE_AUTHSYSTEM_CONFIG_YAML, BARE_AUTHSYSTEM_CONFIG_KW.copy()),
+        (W_SCOPE_AUTHSYSTEM_CONFIG_YAML, W_SCOPE_AUTHSYSTEM_CONFIG_KW.copy()),
+        (W_PEM_AUTHSYSTEM_CONFIG_YAML, W_PEM_AUTHSYSTEM_CONFIG_KW.copy()),
     ],
 )
-def test_authsystem_from_yaml(installation_config, temp_dir, w_config):
+def test_authsystem_from_yaml(
+    installation_config,
+    temp_dir,
+    config_yaml,
+    exp_config,
+):
     expected = config.OIDCAuthSystemConfig(
         _installation_config=installation_config,
-        **w_config,
+        **exp_config,
     )
 
-    oidc_client_pem_path = w_config.get("oidc_client_pem_path")
+    config_path = temp_dir / "config.yaml"
+    config_path.write_text(config_yaml)
+
+    with config_path.open() as stream:
+        config_dict = yaml.safe_load(stream)
+
+    oidc_client_pem_path = exp_config.get("oidc_client_pem_path")
 
     if oidc_client_pem_path is not None:
         expected = dataclasses.replace(
@@ -854,28 +991,28 @@ def test_authsystem_from_yaml(installation_config, temp_dir, w_config):
             oidc_client_pem_path=pathlib.Path(oidc_client_pem_path),
         )
 
-    expected._config_path = temp_dir
+    expected._config_path = config_path
 
     found = config.OIDCAuthSystemConfig.from_yaml(
         installation_config,
-        temp_dir,
-        w_config,
+        config_path,
+        config_dict,
     )
 
     assert found == expected
 
 
 @pytest.mark.parametrize(
-    "exp_config, config_yaml, exp_secret",
+    "config_yaml, exp_config, exp_secret",
     [
         (
-            W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW,
             W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_YAML,
+            W_CLIENT_SECRET_LIT_AUTHSYSTEM_CONFIG_KW,
             AUTHSYSTEM_CLIENT_SECRET_LIT,
         ),
         (
-            W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_KW,
             W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_YAML,
+            W_CLIENT_SECRET_SECRET_AUTHSYSTEM_CONFIG_KW,
             AUTHSYSTEM_CLIENT_SECRET_SECRET,
         ),
     ],
@@ -883,34 +1020,34 @@ def test_authsystem_from_yaml(installation_config, temp_dir, w_config):
 def test_authsystem_from_yaml_w_client_secret(
     installation_config,
     temp_dir,
-    exp_config,
     config_yaml,
+    exp_config,
     exp_secret,
 ):
-    config_file = temp_dir / "config.yaml"
-    config_file.write_text(config_yaml)
+    config_path = temp_dir / "config.yaml"
+    config_path.write_text(config_yaml)
 
-    with config_file.open() as stream:
+    with config_path.open() as stream:
         config_dict = yaml.safe_load(stream)
 
     expected = config.OIDCAuthSystemConfig(
         _installation_config=installation_config,
-        _config_path=config_file,
+        _config_path=config_path,
         **exp_config,
     )
     expected.client_secret = exp_secret
 
     found = config.OIDCAuthSystemConfig.from_yaml(
         installation_config,
-        config_file,
-        config_dict["auth_systems"][0],
+        config_path,
+        config_dict,
     )
 
     assert found == expected
 
 
 @pytest.mark.parametrize(
-    "w_config, exp_path",
+    "exp_config, exp_path",
     [
         (W_OIDC_CPP_REL_KW, "{temp_dir}/{rel_name}"),
         (
@@ -922,12 +1059,12 @@ def test_authsystem_from_yaml_w_client_secret(
 def test_authsystem_from_yaml_w_oid_cpp(
     installation_config,
     temp_dir,
-    w_config,
+    exp_config,
     exp_path,
 ):
     expected = config.OIDCAuthSystemConfig(
         _installation_config=installation_config,
-        **w_config,
+        **exp_config,
     )
     config_path = expected._config_path = temp_dir / "config.yaml"
 
@@ -943,7 +1080,7 @@ def test_authsystem_from_yaml_w_oid_cpp(
     found = config.OIDCAuthSystemConfig.from_yaml(
         installation_config,
         config_path,
-        w_config,
+        exp_config,
     )
 
     assert found == expected
@@ -1016,6 +1153,24 @@ def test_authsystem_oauth_client_args(
         assert found["client_secret"] is icgs.return_value
 
     icgs.assert_called_once_with(exp_secret)
+
+
+def test_toolconfig_from_yaml_w_error(temp_dir):
+    tool_name = "soliplex.tools.test_tool"
+    config_path = temp_dir / "thing_config.yaml"
+
+    with pytest.raises(config.FromYamlException) as exc_info:
+        config.ToolConfig.from_yaml(
+            installation_config=installation_config,
+            config_path=config_path,
+            config={
+                "tool_name": tool_name,
+                "allow_mcp": True,
+                "nonesuch": "BOGUS",
+            },
+        )
+
+    assert exc_info.value._config_path == config_path
 
 
 def test_toolconfig_from_yaml(installation_config, temp_dir):
@@ -1303,24 +1458,81 @@ def test_sdtc_ctor(installation_config, temp_dir, stem, override, which):
 
 
 @pytest.mark.parametrize(
+    "config_yaml, exp_config",
+    [
+        (BOGUS_STDC_CONFIG_YAML, None),
+        (W_STEM_STDC_CONFIG_YAML, W_STEM_STDC_CONFIG_KW),
+        (W_OVERRIDE_STDC_CONFIG_YAML, W_OVERRIDE_STDC_CONFIG_KW),
+    ],
+)
+def test_sdtc_from_yaml(
+    installation_config,
+    temp_dir,
+    config_yaml,
+    exp_config,
+):
+    db_rag_dir = temp_dir / "db" / "rag"
+    db_rag_dir.mkdir(parents=True)
+
+    ic_environ = {"RAG_LANCE_DB_PATH": str(db_rag_dir)}
+    installation_config.get_environment = ic_environ.get
+
+    config_dir = temp_dir / "rooms" / "test_room"
+    config_dir.mkdir(parents=True)
+
+    config_path = config_dir / "room_config.yaml"
+    config_path.write_text(config_yaml)
+
+    with config_path.open() as stream:
+        config_dict = yaml.safe_load(stream)
+
+    if exp_config is None:
+        with pytest.raises(config.FromYamlException) as exc:
+            config.SearchDocumentsToolConfig.from_yaml(
+                installation_config=installation_config,
+                config_path=config_path,
+                config=config_dict,
+            )
+
+        assert exc.value._config_path == config_path
+
+    else:
+        sdt_config = config.SearchDocumentsToolConfig.from_yaml(
+            installation_config=installation_config,
+            config_path=config_path,
+            config=config_dict,
+        )
+        expected = config.SearchDocumentsToolConfig(
+            _installation_config=installation_config,
+            _config_path=config_path,
+            **exp_config,
+        )
+        assert sdt_config == expected
+
+
+@pytest.mark.parametrize(
     "stem, override, which",
     [
-        (None, None, None),
-        ("testing", "/dev/null", None),
         ("testing", None, "stem"),
         ("nonesuch", None, "stem"),
         (None, "./foo.lancedb", "override"),
         (None, "./nonesuch", "override"),
     ],
 )
-def test_sdtc_from_yaml(installation_config, temp_dir, stem, override, which):
+def test_sdtc_rag_lance_db_path(
+    installation_config,
+    temp_dir,
+    stem,
+    override,
+    which,
+):
     db_rag_path = temp_dir / "db" / "rag"
     db_rag_path.mkdir(parents=True)
 
     ic_environ = {"RAG_LANCE_DB_PATH": str(db_rag_path)}
     installation_config.get_environment = ic_environ.get
 
-    kw = {"_installation_config": installation_config}
+    kw = {}
 
     if stem is not None:
         kw["rag_lancedb_stem"] = stem
@@ -1339,8 +1551,7 @@ def test_sdtc_from_yaml(installation_config, temp_dir, stem, override, which):
         from_override = pathlib.Path(override)
         if "nonesuch" not in override:
             expectation = contextlib.nullcontext()
-            if not from_override.exists():
-                from_override.mkdir()
+            from_override.mkdir(exist_ok=True)
             expected = from_override
         else:
             expectation = pytest.raises(config.RagDbFileNotFound)
@@ -1349,31 +1560,64 @@ def test_sdtc_from_yaml(installation_config, temp_dir, stem, override, which):
     room_dir = temp_dir / "rooms" / "testroom"
     config_path = room_dir / "room_config.yaml"
 
-    if which is None:
+    sdt_config = config.SearchDocumentsToolConfig(
+        _installation_config=installation_config,
+        _config_path=config_path,
+        **kw,
+    )
+
+    with expectation:
+        found = sdt_config.rag_lancedb_path
+
+    if expected is not None:
+        assert found.resolve() == expected.resolve()
+
+
+@pytest.mark.parametrize(
+    "config_yaml, exp_config",
+    [
+        (BOGUS_STDIO_MCTC_CONFIG_YAML, None),
+        (BARE_STDIO_MCTC_CONFIG_YAML, BARE_STDIO_MCTC_CONFIG_KW),
+        (FULL_STDIO_MCTC_CONFIG_YAML, FULL_STDIO_MCTC_CONFIG_KW),
+    ],
+)
+def test_stdio_mctc_from_yaml(
+    installation_config,
+    temp_dir,
+    config_yaml,
+    exp_config,
+):
+    config_dir = temp_dir / "rooms" / "test_room"
+    config_dir.mkdir(parents=True)
+
+    config_path = config_dir / "room_config.yaml"
+    config_path.write_text(config_yaml)
+
+    with config_path.open() as stream:
+        config_dict = yaml.safe_load(stream)
+
+    if exp_config is None:
         with pytest.raises(config.FromYamlException) as exc:
-            config.SearchDocumentsToolConfig.from_yaml(
+            config.Stdio_MCP_ClientToolsetConfig.from_yaml(
                 installation_config=installation_config,
                 config_path=config_path,
-                config=kw,
+                config=config_dict,
             )
 
-        assert exc.value.config_path == config_path
+        assert exc.value._config_path == config_path
 
     else:
-        sdt_config = config.SearchDocumentsToolConfig.from_yaml(
+        stdio_mctc = config.Stdio_MCP_ClientToolsetConfig.from_yaml(
             installation_config=installation_config,
             config_path=config_path,
-            config=kw,
+            config=config_dict,
         )
-
-        assert sdt_config._installation_config == installation_config
-        assert sdt_config._config_path == config_path
-
-        with expectation:
-            found = sdt_config.rag_lancedb_path
-
-        if expected is not None:
-            assert found.resolve() == expected.resolve()
+        expected = config.Stdio_MCP_ClientToolsetConfig(
+            _installation_config=installation_config,
+            _config_path=config_path,
+            **exp_config,
+        )
+        assert stdio_mctc == expected
 
 
 @pytest.mark.parametrize("w_env", [{}, {"foo": "bar"}])
@@ -1418,6 +1662,53 @@ def test_stdio_mctc_tool_kwargs(installation_config, w_env):
             mock.call(cfg_value)
             in installation_config.get_secret.call_args_list
         )
+
+
+@pytest.mark.parametrize(
+    "config_yaml, exp_config",
+    [
+        (BOGUS_HTTP_MCTC_CONFIG_YAML, None),
+        (BARE_HTTP_MCTC_CONFIG_YAML, BARE_HTTP_MCTC_CONFIG_KW),
+        (FULL_HTTP_MCTC_CONFIG_YAML, FULL_HTTP_MCTC_CONFIG_KW),
+    ],
+)
+def test_http_mctc_from_yaml(
+    installation_config,
+    temp_dir,
+    config_yaml,
+    exp_config,
+):
+    config_dir = temp_dir / "rooms" / "test_room"
+    config_dir.mkdir(parents=True)
+
+    config_path = config_dir / "room_config.yaml"
+    config_path.write_text(config_yaml)
+
+    with config_path.open() as stream:
+        config_dict = yaml.safe_load(stream)
+
+    if exp_config is None:
+        with pytest.raises(config.FromYamlException) as exc:
+            config.HTTP_MCP_ClientToolsetConfig.from_yaml(
+                installation_config=installation_config,
+                config_path=config_path,
+                config=config_dict,
+            )
+
+        assert exc.value._config_path == config_path
+
+    else:
+        http_mctc = config.HTTP_MCP_ClientToolsetConfig.from_yaml(
+            installation_config=installation_config,
+            config_path=config_path,
+            config=config_dict,
+        )
+        expected = config.HTTP_MCP_ClientToolsetConfig(
+            _installation_config=installation_config,
+            _config_path=config_path,
+            **exp_config,
+        )
+        assert http_mctc == expected
 
 
 @pytest.mark.parametrize("w_headers", [{}, HTTP_MCP_AUTH_HEADER])
@@ -1540,6 +1831,7 @@ def test_agentconfig_ctor(installation_config, kw):
 @pytest.mark.parametrize(
     "config_yaml, expected_kw",
     [
+        (BOGUS_AGENT_CONFIG_YAML, None),
         (EMPTY_AGENT_CONFIG_YAML, EMPTY_AGENT_CONFIG_KW.copy()),
         (BARE_AGENT_CONFIG_YAML, BARE_AGENT_CONFIG_KW.copy()),
         (
@@ -1557,24 +1849,32 @@ def test_agentconfig_from_yaml(
     yaml_file = temp_dir / "test.yaml"
     yaml_file.write_text(config_yaml)
 
-    expected = config.AgentConfig(**expected_kw)
-
-    expected = dataclasses.replace(
-        expected,
-        _installation_config=installation_config,
-        _config_path=yaml_file,
-    )
-
     with yaml_file.open() as stream:
-        yaml_dict = yaml.safe_load(stream)
+        config_dict = yaml.safe_load(stream)
 
-    found = config.AgentConfig.from_yaml(
-        installation_config,
-        yaml_file,
-        yaml_dict,
-    )
+    if expected_kw is None:
+        with pytest.raises(config.FromYamlException):
+            config.AgentConfig.from_yaml(
+                installation_config,
+                yaml_file,
+                config_dict,
+            )
+    else:
+        expected = config.AgentConfig(**expected_kw)
 
-    assert found == expected
+        expected = dataclasses.replace(
+            expected,
+            _installation_config=installation_config,
+            _config_path=yaml_file,
+        )
+
+        found = config.AgentConfig.from_yaml(
+            installation_config,
+            yaml_file,
+            config_dict,
+        )
+
+        assert found == expected
 
 
 @pytest.mark.parametrize("w_config_path", [False, True])
@@ -1785,7 +2085,7 @@ def test_quizconfig_from_yaml_exceptions(installation_config, temp_dir):
             config_kw,
         )
 
-    assert exc.value.config_path == config_path
+    assert exc.value._config_path == config_path
 
 
 @pytest.mark.parametrize(
@@ -1825,12 +2125,12 @@ def test_quizconfig_from_yaml(
     )
 
     with yaml_file.open() as stream:
-        yaml_dict = yaml.safe_load(stream)
+        config_dict = yaml.safe_load(stream)
 
     found = config.QuizConfig.from_yaml(
         installation_config,
         yaml_file,
-        yaml_dict,
+        config_dict,
     )
 
     assert found == expected
@@ -1965,6 +2265,7 @@ def test_quizconfig_get_question(w_loaded, w_miss):
 @pytest.mark.parametrize(
     "config_yaml, expected_kw",
     [
+        (BOGUS_ROOM_CONFIG_YAML, None),
         (BARE_ROOM_CONFIG_YAML, BARE_ROOM_CONFIG_KW),
         (FULL_ROOM_CONFIG_YAML, FULL_ROOM_CONFIG_KW),
     ],
@@ -1975,60 +2276,71 @@ def test_roomconfig_from_yaml(
     config_yaml,
     expected_kw,
 ):
-    expected = config.RoomConfig(**expected_kw)
-
     yaml_file = temp_dir / "test.yaml"
     yaml_file.write_text(config_yaml)
 
-    expected = dataclasses.replace(
-        expected,
-        _installation_config=installation_config,
-        _config_path=yaml_file,
-    )
+    with yaml_file.open() as stream:
+        config_dict = yaml.safe_load(stream)
 
-    expected.agent_config = dataclasses.replace(
-        expected.agent_config,
-        _installation_config=installation_config,
-        _config_path=yaml_file,
-    )
+    if expected_kw is None:
+        with pytest.raises(config.FromYamlException) as exc:
+            config.RoomConfig.from_yaml(
+                installation_config,
+                yaml_file,
+                {},
+            )
+        assert exc.value._config_path == yaml_file
 
-    for exp_quiz in expected.quizzes:
-        exp_quiz.judge_agent = dataclasses.replace(
-            exp_quiz.judge_agent,
+    else:
+        expected = config.RoomConfig(**expected_kw)
+        expected = dataclasses.replace(
+            expected,
             _installation_config=installation_config,
             _config_path=yaml_file,
         )
 
-    if len(expected_kw.get("tool_configs", {})) > 0:
-        for tool_config in expected_kw["tool_configs"].values():
-            tool_config._installation_config = installation_config
-            tool_config._config_path = yaml_file
+        expected.agent_config = dataclasses.replace(
+            expected.agent_config,
+            _installation_config=installation_config,
+            _config_path=yaml_file,
+        )
 
-    if len(expected_kw.get("mcp_client_toolset_configs", {})) > 0:
-        for mcts_config in expected_kw["mcp_client_toolset_configs"].values():
-            mcts_config._installation_config = installation_config
-            mcts_config._config_path = yaml_file
-
-    if "quizzes" in config_yaml:
-        expected.quizzes = [
-            dataclasses.replace(
-                qc,
+        for exp_quiz in expected.quizzes:
+            exp_quiz.judge_agent = dataclasses.replace(
+                exp_quiz.judge_agent,
                 _installation_config=installation_config,
                 _config_path=yaml_file,
             )
-            for qc in expected.quizzes
-        ]
 
-    with yaml_file.open() as stream:
-        yaml_dict = yaml.safe_load(stream)
+        if len(expected_kw.get("tool_configs", {})) > 0:
+            for tool_config in expected_kw["tool_configs"].values():
+                tool_config._installation_config = installation_config
+                tool_config._config_path = yaml_file
 
-    found = config.RoomConfig.from_yaml(
-        installation_config,
-        yaml_file,
-        yaml_dict,
-    )
+        if len(expected_kw.get("mcp_client_toolset_configs", {})) > 0:
+            for mcts_config in expected_kw[
+                "mcp_client_toolset_configs"
+            ].values():
+                mcts_config._installation_config = installation_config
+                mcts_config._config_path = yaml_file
 
-    assert found == expected
+        if "quizzes" in config_yaml:
+            expected.quizzes = [
+                dataclasses.replace(
+                    qc,
+                    _installation_config=installation_config,
+                    _config_path=yaml_file,
+                )
+                for qc in expected.quizzes
+            ]
+
+        found = config.RoomConfig.from_yaml(
+            installation_config,
+            yaml_file,
+            config_dict,
+        )
+
+        assert found == expected
 
 
 @pytest.mark.parametrize("w_existing", [False, True])
@@ -2159,12 +2471,12 @@ def test_completionconfig_from_yaml(
             mcts_config._config_path = yaml_file
 
     with yaml_file.open() as stream:
-        yaml_dict = yaml.safe_load(stream)
+        config_dict = yaml.safe_load(stream)
 
     found = config.CompletionConfig.from_yaml(
         installation_config,
         yaml_file,
-        yaml_dict,
+        config_dict,
     )
 
     assert found == expected
@@ -2274,7 +2586,7 @@ def test__load_config_yaml_w_missing(temp_dir):
     with pytest.raises(config.NoSuchConfig) as exc:
         config._load_config_yaml(missing_cfg)
 
-    assert exc.value.config_path == missing_cfg
+    assert exc.value._config_path == missing_cfg
 
 
 @pytest.mark.parametrize(
@@ -2301,7 +2613,7 @@ def test__load_config_yaml_w_invalid(temp_dir, invalid):
     with pytest.raises(config.FromYamlException) as exc:
         config._load_config_yaml(invalid_cfg)
 
-    assert exc.value.config_path == invalid_cfg
+    assert exc.value._config_path == invalid_cfg
 
 
 def test__find_configs_w_single(temp_dir):
@@ -2470,6 +2782,7 @@ def patched_soliplex_config():
 @pytest.mark.parametrize(
     "config_yaml, expected_kw",
     [
+        (BOGUS_ICMETA_YAML, None),
         (BARE_ICMETA_YAML, BARE_ICMETA_KW),
         (W_TOOL_CONFIGS_ICMETA_YAML, W_TOOL_CONFIGS_ICMETA_KW),
         (W_MCP_TOOLSET_CONFIGS_ICMETA_YAML, W_MCP_TOOLSET_CONFIGS_ICMETA_KW),
@@ -2496,17 +2809,26 @@ def test_installationconfigmeta_from_yaml(
     with yaml_file.open() as fp:
         config_dict = yaml.safe_load(fp)
 
-    ic_meta = config.InstallationConfigMeta.from_yaml(
-        yaml_file,
-        config_dict["meta"],
-    )
+    if expected_kw is None:
+        with pytest.raises(config.FromYamlException) as exc:
+            config.InstallationConfigMeta.from_yaml(
+                yaml_file,
+                config_dict["meta"],
+            )
+        assert exc.value._config_path == yaml_file
 
-    expected = config.InstallationConfigMeta(
-        _config_path=yaml_file,
-        **expected_kw,
-    )
+    else:
+        expected = config.InstallationConfigMeta(
+            _config_path=yaml_file,
+            **expected_kw,
+        )
 
-    assert ic_meta == expected
+        ic_meta = config.InstallationConfigMeta.from_yaml(
+            yaml_file,
+            config_dict["meta"],
+        )
+
+        assert ic_meta == expected
 
 
 def test_installationconfig_secrets_map_wo_existing():
@@ -2678,6 +3000,10 @@ def test_installationconfig_agent_configs_map_w_existing():
     "config_yaml, expected_kw",
     [
         (
+            BOGUS_INSTALLATION_CONFIG_YAML,
+            None,
+        ),
+        (
             BARE_INSTALLATION_CONFIG_YAML,
             BARE_INSTALLATION_CONFIG_KW.copy(),
         ),
@@ -2745,73 +3071,80 @@ def test_installationconfig_from_yaml(
     config_yaml,
     expected_kw,
 ):
+    config_path = temp_dir / "installation.yaml"
+    config_path.write_text(config_yaml)
+
+    with config_path.open() as stream:
+        config_dict = yaml.safe_load(stream)
+
     expected_kw = copy.deepcopy(expected_kw)
 
-    for env_key, env_val in expected_kw.get("environment", {}).items():
-        if env_val == "<temp_dir>":
-            expected_kw["environment"][env_key] = str(temp_dir)
+    if expected_kw is None:
+        with pytest.raises(config.FromYamlException) as exc:
+            config.InstallationConfig.from_yaml(config_path, config_dict)
 
-    expected = config.InstallationConfig(**expected_kw)
+        assert exc.value._config_path == config_path
 
-    yaml_file = temp_dir / "installation.yaml"
-    yaml_file.write_text(config_yaml)
-    expected = dataclasses.replace(
-        expected,
-        _config_path=yaml_file,
-    )
+    else:
+        for env_key, env_val in expected_kw.get("environment", {}).items():
+            if env_val == "<temp_dir>":
+                expected_kw["environment"][env_key] = str(temp_dir)
 
-    replaced_meta = dataclasses.replace(
-        expected.meta,
-        _config_path=yaml_file,
-    )
-    expected = dataclasses.replace(expected, meta=replaced_meta)
+        expected = config.InstallationConfig(**expected_kw)
+        expected = dataclasses.replace(
+            expected,
+            _config_path=config_path,
+        )
 
-    if "secrets" in expected_kw:
-        replaced_secrets = []
-        for secret in expected.secrets:
-            replaced_sources = [
-                dataclasses.replace(source, _config_path=yaml_file)
-                for source in secret.sources
-            ]
-            replaced_secrets.append(
-                dataclasses.replace(
-                    secret,
-                    sources=replaced_sources,
-                    _config_path=yaml_file,
+        replaced_meta = dataclasses.replace(
+            expected.meta,
+            _config_path=config_path,
+        )
+        expected = dataclasses.replace(expected, meta=replaced_meta)
+
+        if "secrets" in expected_kw:
+            replaced_secrets = []
+            for secret in expected.secrets:
+                replaced_sources = [
+                    dataclasses.replace(source, _config_path=config_path)
+                    for source in secret.sources
+                ]
+                replaced_secrets.append(
+                    dataclasses.replace(
+                        secret,
+                        sources=replaced_sources,
+                        _config_path=config_path,
+                    )
                 )
-            )
-        expected = dataclasses.replace(expected, secrets=replaced_secrets)
+            expected = dataclasses.replace(expected, secrets=replaced_secrets)
 
-    if "oidc_paths" in expected_kw:
-        exp_oidc_paths = [
-            temp_dir / oidc_path for oidc_path in expected_kw["oidc_paths"]
-        ]
-    else:
-        exp_oidc_paths = [temp_dir / "oidc"]
+        if "oidc_paths" in expected_kw:
+            exp_oidc_paths = [
+                temp_dir / oidc_path for oidc_path in expected_kw["oidc_paths"]
+            ]
+        else:
+            exp_oidc_paths = [temp_dir / "oidc"]
 
-    expected = dataclasses.replace(expected, oidc_paths=exp_oidc_paths)
+        expected = dataclasses.replace(expected, oidc_paths=exp_oidc_paths)
 
-    if "room_paths" in expected_kw:
-        exp_room_paths = [
-            temp_dir / room_path for room_path in expected_kw["room_paths"]
-        ]
-    else:
-        exp_room_paths = [temp_dir / "rooms"]
+        if "room_paths" in expected_kw:
+            exp_room_paths = [
+                temp_dir / room_path for room_path in expected_kw["room_paths"]
+            ]
+        else:
+            exp_room_paths = [temp_dir / "rooms"]
 
-    expected = dataclasses.replace(expected, room_paths=exp_room_paths)
+        expected = dataclasses.replace(expected, room_paths=exp_room_paths)
 
-    with yaml_file.open() as stream:
-        yaml_dict = yaml.safe_load(stream)
+        found = config.InstallationConfig.from_yaml(config_path, config_dict)
 
-    found = config.InstallationConfig.from_yaml(yaml_file, yaml_dict)
+        if "agent_configs" in expected_kw:
+            # Assign '_installation_config' after found is constructed.
+            for exp_agent_config in expected.agent_configs:
+                exp_agent_config._installation_config = found
+                exp_agent_config._config_path = config_path
 
-    if "agent_configs" in expected_kw:
-        # Assign '_installation_config' after found is constructed.
-        for exp_agent_config in expected.agent_configs:
-            exp_agent_config._installation_config = found
-            exp_agent_config._config_path = yaml_file
-
-    assert found == expected
+        assert found == expected
 
 
 W_ENVIRONMENT_LIST_ONLY_STR_INSTALLATION_CONFIG_YAML = f"""\
@@ -2866,10 +3199,10 @@ def test_installationconfig_from_yaml_environ_wo_value(temp_dir, config_yaml):
     )
 
     with yaml_file.open() as stream:
-        yaml_dict = yaml.safe_load(stream)
+        config_dict = yaml.safe_load(stream)
 
     with mock.patch.dict("os.environ", clear=True, TEST_ENVVAR=TEST_VALUE):
-        found = config.InstallationConfig.from_yaml(yaml_file, yaml_dict)
+        found = config.InstallationConfig.from_yaml(yaml_file, config_dict)
 
     assert found == expected
 
@@ -2909,9 +3242,9 @@ IGNORED=bogus
     )
 
     with yaml_file.open() as stream:
-        yaml_dict = yaml.safe_load(stream)
+        config_dict = yaml.safe_load(stream)
 
-    found = config.InstallationConfig.from_yaml(yaml_file, yaml_dict)
+    found = config.InstallationConfig.from_yaml(yaml_file, config_dict)
 
     assert found == expected
 

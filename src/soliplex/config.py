@@ -25,9 +25,9 @@ FILE_PREFIX = "file:"
 
 
 class FromYamlException(ValueError):
-    def __init__(self, config_path):
-        self.config_path = config_path
-        super().__init__(f"Error in YAML configuration: {config_path}")
+    def __init__(self, _config_path):
+        self._config_path = _config_path
+        super().__init__(f"Error in YAML configuration: {_config_path}")
 
 
 class NoConfigPath(ValueError):
@@ -36,9 +36,9 @@ class NoConfigPath(ValueError):
 
 
 class NoSuchConfig(ValueError):
-    def __init__(self, config_path):
-        self.config_path = config_path
-        super().__init__(f"Config path is not a YAML file: {config_path}")
+    def __init__(self, _config_path):
+        self._config_path = _config_path
+        super().__init__(f"Config path is not a YAML file: {_config_path}")
 
 
 class NotADict(ValueError):
@@ -48,53 +48,64 @@ class NotADict(ValueError):
 
 
 class ToolRequirementConflict(ValueError):
-    def __init__(self, tool_name):
+    def __init__(self, tool_name, _config_path):
         self.tool_name = tool_name
+        self._config_path = _config_path
         super().__init__(
-            f"Tool {tool_name} requires both context and tool config"
+            f"Tool {tool_name} requires both context and tool config "
+            f"(configured in {_config_path}"
         )
 
 
 class RagDbExactlyOneOfStemOrOverride(TypeError):
-    _config_path = None
-
-    def __init__(self):
+    def __init__(self, _config_path):
+        self._config_path = _config_path
         super().__init__(
-            "Configure exactly one of 'rag_lancedb_stem' or "
-            "'rag_lancedb_override_path'"
+            f"Configure exactly one of 'rag_lancedb_stem' or "
+            f"'rag_lancedb_override_path' "
+            f"(configured in {_config_path})"
         )
 
 
 class RagDbFileNotFound(ValueError):
-    _config_path = None
-
-    def __init__(self, rag_db_filename):
+    def __init__(self, rag_db_filename, _config_path):
         self.rag_db_filename = rag_db_filename
-        super().__init__(f"RAG DB file not found: {rag_db_filename}")
+        self._config_path = _config_path
+        super().__init__(
+            f"RAG DB file not found: {rag_db_filename} "
+            f"(configured in {_config_path})"
+        )
 
 
 class QCExactlyOneOfStemOrOverride(TypeError):
-    def __init__(self):
+    def __init__(self, _config_path):
+        self._config_path = _config_path
         super().__init__(
-            "Configure exactly one of '_question_file_stem' or "
-            "'_question_file_override_path'"
+            f"Configure exactly one of '_question_file_stem' or "
+            f"'_question_file_override_path' "
+            f"(configured in {_config_path})"
         )
 
 
 class QuestionFileNotFoundWithStem(ValueError):
-    def __init__(self, stem, quizzes_paths):
+    def __init__(self, stem, quizzes_paths, _config_path):
         self.stem = stem
         self.quizzes_paths = quizzes_paths
+        self._config_path = _config_path
         super().__init__(
             f"'{stem}.json' file not found on paths: "
-            f"{','.join([str(qp) for qp in quizzes_paths])}"
+            f"{','.join([str(qp) for qp in quizzes_paths])} "
+            f"(configured in {_config_path})"
         )
 
 
 class QuestionFileNotFoundWithOverride(ValueError):
-    def __init__(self, override):
+    def __init__(self, override, _config_path):
         self.override = override
-        super().__init__(f"'{override}' file not found")
+        self._config_path = _config_path
+        super().__init__(
+            f"'{override}' file not found (configured in {_config_path})"
+        )
 
 
 class NotASecret(ValueError):
@@ -144,7 +155,10 @@ class OIDCAuthSystemConfig:
                 config_path.parent / oidc_client_pem_path
             )
 
-        return cls(**config)
+        try:
+            return cls(**config)
+        except Exception as exc:
+            raise FromYamlException(config_path) from exc
 
     @property
     def server_metadata_url(self):
@@ -217,7 +231,11 @@ class ToolConfig:
     ):
         config["_installation_config"] = installation_config
         config["_config_path"] = config_path
-        return cls(**config)
+
+        try:
+            return cls(**config)
+        except Exception as exc:
+            raise FromYamlException(config_path) from exc
 
     @property
     def kind(self):
@@ -246,7 +264,7 @@ class ToolConfig:
         tool_params = inspect.signature(self.tool).parameters
 
         if "ctx" in tool_params and "tool_config" in tool_params:
-            raise ToolRequirementConflict(self.tool_name)
+            raise ToolRequirementConflict(self.tool_name, self._config_path)
 
         if "ctx" in tool_params:
             return ToolRequires.FASTAPI_CONTEXT
@@ -307,12 +325,13 @@ class SearchDocumentsToolConfig(ToolConfig):
         config_path: pathlib.Path,
         config: dict[str, typing.Any],
     ):
-        config["_installation_config"] = installation_config
-        config["_config_path"] = config_path
         try:
+            config["_installation_config"] = installation_config
+            config["_config_path"] = config_path
+
             instance = cls(**config)
-        except RagDbExactlyOneOfStemOrOverride as exactly_one:
-            raise FromYamlException(config_path) from exactly_one
+        except Exception as exc:
+            raise FromYamlException(config_path) from exc
 
         return instance
 
@@ -324,7 +343,7 @@ class SearchDocumentsToolConfig(ToolConfig):
         passed = list(filter(None, exclusive_required))
 
         if len(list(passed)) != 1:
-            raise RagDbExactlyOneOfStemOrOverride()
+            raise RagDbExactlyOneOfStemOrOverride(self._config_path)
 
     @property
     def rag_lancedb_path(self) -> pathlib.Path:
@@ -338,7 +357,7 @@ class SearchDocumentsToolConfig(ToolConfig):
                 rsop = pathlib.Path(rsop).resolve()
 
             if not rsop.is_dir():
-                raise RagDbFileNotFound(rsop)
+                raise RagDbFileNotFound(rsop, self._config_path)
 
             return rsop
         else:
@@ -350,7 +369,7 @@ class SearchDocumentsToolConfig(ToolConfig):
             rspdb = (db_rag_dir / f"{self.rag_lancedb_stem}.lancedb").resolve()
 
             if not rspdb.is_dir():
-                raise RagDbFileNotFound(rspdb)
+                raise RagDbFileNotFound(rspdb, self._config_path)
 
             return rspdb
 
@@ -421,9 +440,13 @@ class Stdio_MCP_ClientToolsetConfig:
         config_path: pathlib.Path,
         config: dict[str, typing.Any],
     ):
-        config["_installation_config"] = installation_config
-        config["_config_path"] = config_path
-        return cls(**config)
+        try:
+            config["_installation_config"] = installation_config
+            config["_config_path"] = config_path
+
+            return cls(**config)
+        except Exception as exc:
+            raise FromYamlException(config_path) from exc
 
     @property
     def toolset_params(self) -> dict:
@@ -474,9 +497,13 @@ class HTTP_MCP_ClientToolsetConfig:
         config_path: pathlib.Path,
         config: dict[str, typing.Any],
     ):
-        config["_installation_config"] = installation_config
-        config["_config_path"] = config_path
-        return cls(**config)
+        try:
+            config["_installation_config"] = installation_config
+            config["_config_path"] = config_path
+
+            return cls(**config)
+        except Exception as exc:
+            raise FromYamlException(config_path) from exc
 
     @property
     def toolset_params(self) -> dict:
@@ -615,18 +642,21 @@ class AgentConfig:
         config_path: pathlib.Path,
         config: dict,
     ):
-        config["_installation_config"] = installation_config
-        config["_config_path"] = config_path
+        try:
+            config["_installation_config"] = installation_config
+            config["_config_path"] = config_path
 
-        if "system_prompt" in config:
-            system_prompt = config.pop("system_prompt")
+            if "system_prompt" in config:
+                system_prompt = config.pop("system_prompt")
 
-            if system_prompt.startswith("./"):
-                config["_system_prompt_path"] = system_prompt
-            else:
-                config["system_prompt"] = system_prompt
+                if system_prompt.startswith("./"):
+                    config["_system_prompt_path"] = system_prompt
+                else:
+                    config["system_prompt"] = system_prompt
 
-        return cls(**config)
+            return cls(**config)
+        except Exception as exc:
+            raise FromYamlException(config_path) from exc
 
     def get_system_prompt(self) -> str | None:
         if self._system_prompt_text is not None:
@@ -706,6 +736,33 @@ class QuizConfig:
 
     judge_agent: AgentConfig | None = None
 
+    # Set by `from_yaml` factory
+    _installation_config: InstallationConfig = None
+    _config_path: pathlib.Path = None
+
+    @classmethod
+    def from_yaml(
+        cls,
+        installation_config: InstallationConfig,
+        config_path: pathlib.Path,
+        config: dict,
+    ):
+        try:
+            config["_installation_config"] = installation_config
+            config["_config_path"] = config_path
+
+            ja_config = config.pop("judge_agent", None)
+            if ja_config is not None:
+                config["judge_agent"] = AgentConfig.from_yaml(
+                    installation_config,
+                    config_path,
+                    ja_config,
+                )
+
+            return cls(**config)
+        except Exception as exc:
+            raise FromYamlException(config_path) from exc
+
     def __post_init__(self, question_file):
         if question_file is not None:
             if "/" in question_file:
@@ -722,7 +779,7 @@ class QuizConfig:
             self._question_file_stem is not None
             and self._question_file_path_override is not None
         ):
-            raise QCExactlyOneOfStemOrOverride()
+            raise QCExactlyOneOfStemOrOverride(self._config_path)
 
         if self.judge_agent is None:
             kwargs = {
@@ -735,33 +792,6 @@ class QuizConfig:
                     "OLLAMA_BASE_URL",
                 )
             self.judge_agent = AgentConfig(**kwargs)
-
-    # Set by `from_yaml` factory
-    _installation_config: InstallationConfig = None
-    _config_path: pathlib.Path = None
-
-    @classmethod
-    def from_yaml(
-        cls,
-        installation_config: InstallationConfig,
-        config_path: pathlib.Path,
-        config: dict,
-    ):
-        config["_installation_config"] = installation_config
-        config["_config_path"] = config_path
-
-        ja_config = config.pop("judge_agent", None)
-        if ja_config is not None:
-            config["judge_agent"] = AgentConfig.from_yaml(
-                installation_config,
-                config_path,
-                ja_config,
-            )
-
-        try:
-            return cls(**config)
-        except QCExactlyOneOfStemOrOverride as exc:
-            raise FromYamlException(config_path) from exc
 
     @property
     def question_file_path(self) -> pathlib.Path:
@@ -794,11 +824,13 @@ class QuizConfig:
             raise QuestionFileNotFoundWithStem(
                 self._question_file_stem,
                 self._installation_config.quizzes_paths,
+                self._config_path,
             )
 
         if not question_file.is_file():
             raise QuestionFileNotFoundWithOverride(
                 self._question_file_path_override,
+                self._config_path,
             )
 
         quiz_json = json.loads(self.question_file_path.read_text())
@@ -894,48 +926,52 @@ class RoomConfig:
         config_path: pathlib.Path,
         config: dict,
     ):
-        config["_installation_config"] = installation_config
-        config["_config_path"] = config_path
+        try:
+            config["_installation_config"] = installation_config
+            config["_config_path"] = config_path
 
-        room_id = config["id"]
-        agent_config_yaml = config.pop("agent")
-        agent_config_yaml["id"] = f"room-{room_id}"
+            room_id = config["id"]
+            agent_config_yaml = config.pop("agent")
+            agent_config_yaml["id"] = f"room-{room_id}"
 
-        config["agent_config"] = AgentConfig.from_yaml(
-            installation_config,
-            config_path,
-            agent_config_yaml,
-        )
+            config["agent_config"] = AgentConfig.from_yaml(
+                installation_config,
+                config_path,
+                agent_config_yaml,
+            )
 
-        config["tool_configs"] = extract_tool_configs(
-            installation_config,
-            config_path,
-            config,
-        )
-
-        config["mcp_client_toolset_configs"] = (
-            extract_mcp_client_toolset_configs(
+            config["tool_configs"] = extract_tool_configs(
                 installation_config,
                 config_path,
                 config,
             )
-        )
 
-        quizzes_config_yaml = config.pop("quizzes", None)
-        if quizzes_config_yaml is not None:
-            config["quizzes"] = [
-                QuizConfig.from_yaml(
+            config["mcp_client_toolset_configs"] = (
+                extract_mcp_client_toolset_configs(
                     installation_config,
                     config_path,
-                    quiz_config_yaml,
+                    config,
                 )
-                for quiz_config_yaml in quizzes_config_yaml
-            ]
+            )
 
-        logo_image = config.pop("logo_image", None)
-        config["_logo_image"] = logo_image
+            quizzes_config_yaml = config.pop("quizzes", None)
+            if quizzes_config_yaml is not None:
+                config["quizzes"] = [
+                    QuizConfig.from_yaml(
+                        installation_config,
+                        config_path,
+                        quiz_config_yaml,
+                    )
+                    for quiz_config_yaml in quizzes_config_yaml
+                ]
 
-        return cls(**config)
+            logo_image = config.pop("logo_image", None)
+            config["_logo_image"] = logo_image
+
+            return cls(**config)
+
+        except Exception as exc:
+            raise FromYamlException(config_path) from exc
 
     @property
     def sort_key(self):
@@ -1367,27 +1403,34 @@ class InstallationConfigMeta:
 
         config_dict["_config_path"] = config_path
 
-        config_dict["tool_configs"] = [
-            ConfigMeta.from_yaml(tc_yaml)
-            for tc_yaml in config_dict.get("tool_configs", ())
-        ]
+        try:
+            config_dict["tool_configs"] = [
+                ConfigMeta.from_yaml(tc_yaml)
+                for tc_yaml in config_dict.get("tool_configs", ())
+            ]
 
-        config_dict["mcp_toolset_configs"] = [
-            ConfigMeta.from_yaml(mcp_tc_yaml)
-            for mcp_tc_yaml in config_dict.get("mcp_toolset_configs", ())
-        ]
+            config_dict["mcp_toolset_configs"] = [
+                ConfigMeta.from_yaml(mcp_tc_yaml)
+                for mcp_tc_yaml in config_dict.get("mcp_toolset_configs", ())
+            ]
 
-        config_dict["mcp_server_tool_wrappers"] = [
-            ConfigMeta.from_yaml(mcp_tc_yaml)
-            for mcp_tc_yaml in config_dict.get("mcp_server_tool_wrappers", ())
-        ]
+            config_dict["mcp_server_tool_wrappers"] = [
+                ConfigMeta.from_yaml(mcp_tc_yaml)
+                for mcp_tc_yaml in config_dict.get(
+                    "mcp_server_tool_wrappers",
+                    (),
+                )
+            ]
 
-        config_dict["secret_sources"] = [
-            ConfigMeta.from_yaml(ss_yaml)
-            for ss_yaml in config_dict.get("secret_sources", ())
-        ]
+            config_dict["secret_sources"] = [
+                ConfigMeta.from_yaml(ss_yaml)
+                for ss_yaml in config_dict.get("secret_sources", ())
+            ]
 
-        return cls(**config_dict)
+            return cls(**config_dict)
+
+        except Exception as exc:
+            raise FromYamlException(config_path) from exc
 
     def __post_init__(self):
         self.tool_configs = list(self.tool_configs)
@@ -1536,54 +1579,62 @@ class InstallationConfig:
 
     @classmethod
     def from_yaml(cls, config_path: pathlib.Path, config: dict):
-        config["_config_path"] = config_path
+        try:
+            config["_config_path"] = config_path
 
-        meta = config.get("meta")
-        config["meta"] = InstallationConfigMeta.from_yaml(
-            config_path,
-            meta,
-        )
+            meta = config.get("meta")
+            config["meta"] = InstallationConfigMeta.from_yaml(
+                config_path,
+                meta,
+            )
 
-        secret_configs = [
-            SecretConfig.from_yaml(config_path, secret_config)
-            for secret_config in config.pop("secrets", ())
-        ]
-        config["secrets"] = secret_configs
-
-        agent_configs = [
-            AgentConfig.from_yaml(None, config_path, agent_config)
-            for agent_config in config.pop("agent_configs", ())
-        ]
-        config["agent_configs"] = agent_configs
-
-        environment = config.get("environment", {})
-
-        if isinstance(environment, list):
-            environment = [
-                fill_missing_environment_entry(entry) for entry in environment
+            secret_configs = [
+                SecretConfig.from_yaml(config_path, secret_config)
+                for secret_config in config.pop("secrets", ())
             ]
-            config["environment"] = {
-                item["name"]: resolve_file_prefix(item["value"], config_path)
-                for item in environment
-            }
-        else:
-            environment = fill_missing_environment_items(environment)
-            config["environment"] = {
-                key: resolve_file_prefix(value, config_path)
-                for key, value in environment.items()
-            }
+            config["secrets"] = secret_configs
 
-        dotenv_file = config_path.parent / ".env"
+            agent_configs = [
+                AgentConfig.from_yaml(None, config_path, agent_config)
+                for agent_config in config.pop("agent_configs", ())
+            ]
+            config["agent_configs"] = agent_configs
 
-        if dotenv_file.is_file():
-            with dotenv_file.open() as stream:
-                dotenv_env = dotenv.dotenv_values(stream=stream)
+            environment = config.get("environment", {})
 
-            for key, value in dotenv_env.items():
-                if key in config["environment"]:
-                    config["environment"][key] = value
+            if isinstance(environment, list):
+                environment = [
+                    fill_missing_environment_entry(entry)
+                    for entry in environment
+                ]
+                config["environment"] = {
+                    item["name"]: resolve_file_prefix(
+                        item["value"],
+                        config_path,
+                    )
+                    for item in environment
+                }
+            else:
+                environment = fill_missing_environment_items(environment)
+                config["environment"] = {
+                    key: resolve_file_prefix(value, config_path)
+                    for key, value in environment.items()
+                }
 
-        return cls(**config)
+            dotenv_file = config_path.parent / ".env"
+
+            if dotenv_file.is_file():
+                with dotenv_file.open() as stream:
+                    dotenv_env = dotenv.dotenv_values(stream=stream)
+
+                for key, value in dotenv_env.items():
+                    if key in config["environment"]:
+                        config["environment"][key] = value
+
+            return cls(**config)
+
+        except Exception as exc:
+            raise FromYamlException(config_path) from exc
 
     def __post_init__(self):
         if self.meta is None:
