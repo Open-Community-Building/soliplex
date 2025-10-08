@@ -2696,6 +2696,83 @@ def test_resolve_file_prefix(temp_dir, config_str, expected):
     assert found == expected
 
 
+@pytest.mark.parametrize(
+    "entry, dotenv_env, osenv_patch, expectation",
+    [
+        ("ENVVAR", {}, {}, pytest.raises(config.MissingEnvVar)),
+        ("ENVVAR", {"ENVVAR": "dotenv"}, {}, contextlib.nullcontext("dotenv")),
+        ("ENVVAR", {}, {"ENVVAR": "osenv"}, contextlib.nullcontext("osenv")),
+        (
+            "ENVVAR",
+            {"ENVVAR": "dotenv"},
+            {"ENVVAR": "osenv"},
+            contextlib.nullcontext("dotenv"),  # dotenv_env wins
+        ),
+        ({"name": "ENVVAR"}, {}, {}, pytest.raises(config.MissingEnvVar)),
+        (
+            {"name": "ENVVAR"},
+            {"ENVVAR": "dotenv"},
+            {},
+            contextlib.nullcontext("dotenv"),
+        ),
+        (
+            {"name": "ENVVAR"},
+            {},
+            {"ENVVAR": "osenv"},
+            contextlib.nullcontext("osenv"),
+        ),
+        (
+            {"name": "ENVVAR"},
+            {"ENVVAR": "dotenv"},
+            {"ENVVAR": "osenv"},
+            contextlib.nullcontext("dotenv"),  # dotenv_env wins
+        ),
+        (
+            {"name": "ENVVAR", "value": "baz"},
+            {},
+            {},
+            contextlib.nullcontext("baz"),
+        ),
+        (
+            {"name": "ENVVAR", "value": "baz"},
+            {"ENVVAR": "dotenv"},
+            {},
+            contextlib.nullcontext("dotenv"),  # dotenv wins
+        ),
+        (
+            {"name": "ENVVAR", "value": "baz"},
+            {},
+            {"ENVVAR": "osenv"},
+            contextlib.nullcontext("baz"),
+        ),
+        (
+            {"name": "ENVVAR", "value": "baz"},
+            {"ENVVAR": "dotenv"},
+            {"ENVVAR": "osenv"},
+            contextlib.nullcontext("dotenv"),  # dotenv wins
+        ),
+    ],
+)
+def test_fill_missing_environment_entry(
+    entry,
+    dotenv_env,
+    osenv_patch,
+    expectation,
+):
+    with (
+        mock.patch.dict("os.environ", **osenv_patch),
+        expectation as expected,
+    ):
+        found = config.fill_missing_environment_entry(entry, dotenv_env)
+
+    if isinstance(expected, str):
+        assert found["name"] == "ENVVAR"
+        assert found["value"] == expected
+
+    else:
+        assert expected.value.env_var == "ENVVAR"
+
+
 @mock.patch("importlib.import_module")
 def test_configmeta__from_dotted_name(im):
     dotted_name = "somemodule.SomeClass"
@@ -3166,6 +3243,26 @@ id: "{INSTALLATION_ID}"
 environment:
   TEST_ENVVAR:
 """
+
+
+@mock.patch("soliplex.config.fill_missing_environment_entry")
+def test_installationconfig_from_yaml_environ_w_miss(fmee, temp_dir):
+    fmee.side_effect = config.MissingEnvVar("TEST_ENVVAR")
+
+    config_yaml = W_ENVIRONMENT_LIST_ONLY_STR_INSTALLATION_CONFIG_YAML
+
+    yaml_file = temp_dir / "installation.yaml"
+    yaml_file.write_text(config_yaml)
+
+    with yaml_file.open() as stream:
+        config_dict = yaml.safe_load(stream)
+
+    with pytest.raises(config.FromYamlException) as exc:
+        config.InstallationConfig.from_yaml(yaml_file, config_dict)
+
+    context = exc.value.__context__
+    assert isinstance(context, config.MissingEnvVars)
+    assert context.env_vars == "TEST_ENVVAR"
 
 
 @pytest.mark.parametrize(
