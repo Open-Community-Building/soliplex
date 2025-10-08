@@ -25,9 +25,15 @@ FILE_PREFIX = "file:"
 
 
 class FromYamlException(ValueError):
-    def __init__(self, _config_path):
+    def __init__(self, _config_path, kind: str, config: dict):
         self._config_path = _config_path
-        super().__init__(f"Error in YAML configuration: {_config_path}")
+        self.kind = kind
+        self.config = config
+        super().__init__(
+            f"Error in YAML configuration: {_config_path}; "
+            f"Kind: {kind}; "
+            f"Config: {config}; "
+        )
 
 
 class NoConfigPath(ValueError):
@@ -116,6 +122,23 @@ class NotASecret(ValueError):
         )
 
 
+class MissingEnvVar(ValueError):
+    def __init__(self, env_var):
+        self.env_var = env_var
+        super().__init__(
+            f"Environment variable '{env_var}' cannot be resolved"
+        )
+
+
+class MissingEnvVars(ExceptionGroup, ValueError):
+    def __init__(self, env_vars, excs):
+        self.env_vars = env_vars
+        super().__init__(
+            f"Environment variables cannot be resolved: {env_vars}",
+            excs,
+        )
+
+
 # ============================================================================
 #   OIDC Authentication system configuration types
 # ============================================================================
@@ -158,7 +181,7 @@ class OIDCAuthSystemConfig:
         try:
             return cls(**config)
         except Exception as exc:
-            raise FromYamlException(config_path) from exc
+            raise FromYamlException(config_path, "oidc", config) from exc
 
     @property
     def server_metadata_url(self):
@@ -235,7 +258,7 @@ class ToolConfig:
         try:
             return cls(**config)
         except Exception as exc:
-            raise FromYamlException(config_path) from exc
+            raise FromYamlException(config_path, "toolconfig", config) from exc
 
     @property
     def kind(self):
@@ -331,7 +354,7 @@ class SearchDocumentsToolConfig(ToolConfig):
 
             instance = cls(**config)
         except Exception as exc:
-            raise FromYamlException(config_path) from exc
+            raise FromYamlException(config_path, "sdtc", config) from exc
 
         return instance
 
@@ -446,7 +469,11 @@ class Stdio_MCP_ClientToolsetConfig:
 
             return cls(**config)
         except Exception as exc:
-            raise FromYamlException(config_path) from exc
+            raise FromYamlException(
+                config_path,
+                "stdio_mcptc",
+                config,
+            ) from exc
 
     @property
     def toolset_params(self) -> dict:
@@ -503,7 +530,7 @@ class HTTP_MCP_ClientToolsetConfig:
 
             return cls(**config)
         except Exception as exc:
-            raise FromYamlException(config_path) from exc
+            raise FromYamlException(config_path, "http_mcptc", config) from exc
 
     @property
     def toolset_params(self) -> dict:
@@ -656,7 +683,7 @@ class AgentConfig:
 
             return cls(**config)
         except Exception as exc:
-            raise FromYamlException(config_path) from exc
+            raise FromYamlException(config_path, "agent", config) from exc
 
     def get_system_prompt(self) -> str | None:
         if self._system_prompt_text is not None:
@@ -761,7 +788,7 @@ class QuizConfig:
 
             return cls(**config)
         except Exception as exc:
-            raise FromYamlException(config_path) from exc
+            raise FromYamlException(config_path, "quiz", config) from exc
 
     def __post_init__(self, question_file):
         if question_file is not None:
@@ -971,7 +998,7 @@ class RoomConfig:
             return cls(**config)
 
         except Exception as exc:
-            raise FromYamlException(config_path) from exc
+            raise FromYamlException(config_path, "room", config) from exc
 
     @property
     def sort_key(self):
@@ -1229,7 +1256,7 @@ def _load_config_yaml(config_path: pathlib.Path) -> dict:
             )
 
     except Exception as exc:
-        raise FromYamlException(config_path) from exc
+        raise FromYamlException(config_path, None, {}) from exc
 
     return config_yaml
 
@@ -1291,23 +1318,25 @@ def resolve_file_prefix(config_str: str, config_path: pathlib.Path) -> str:
     return str(config_str)
 
 
-def fill_missing_environment_entry(environment_config: dict | str) -> dict:
+def fill_missing_environment_entry(
+    environment_config: dict | str,
+    dotenv_env: dict[str, str],
+) -> dict:
     if isinstance(environment_config, str):
         environment_config = {"name": environment_config}
 
+    name = environment_config["name"]
+
+    if name in dotenv_env:
+        environment_config["value"] = dotenv_env[name]
+
     if environment_config.get("value") is None:
-        environment_config["value"] = os.environ[environment_config["name"]]
+        try:
+            environment_config["value"] = os.environ[name]
+        except KeyError:
+            raise MissingEnvVar(name) from None
 
     return environment_config
-
-
-def fill_missing_environment_items(
-    environment: dict[str, str],
-) -> dict[str, str]:
-    return {
-        key: os.environ[key] if value is None else value
-        for key, value in environment.items()
-    }
 
 
 @dataclasses.dataclass
@@ -1430,7 +1459,11 @@ class InstallationConfigMeta:
             return cls(**config_dict)
 
         except Exception as exc:
-            raise FromYamlException(config_path) from exc
+            raise FromYamlException(
+                config_path,
+                "icmeta",
+                config_dict,
+            ) from exc
 
     def __post_init__(self):
         self.tool_configs = list(self.tool_configs)
@@ -1594,47 +1627,65 @@ class InstallationConfig:
             ]
             config["secrets"] = secret_configs
 
-            agent_configs = [
-                AgentConfig.from_yaml(None, config_path, agent_config)
-                for agent_config in config.pop("agent_configs", ())
-            ]
-            config["agent_configs"] = agent_configs
-
-            environment = config.get("environment", {})
-
-            if isinstance(environment, list):
-                environment = [
-                    fill_missing_environment_entry(entry)
-                    for entry in environment
-                ]
-                config["environment"] = {
-                    item["name"]: resolve_file_prefix(
-                        item["value"],
-                        config_path,
-                    )
-                    for item in environment
-                }
-            else:
-                environment = fill_missing_environment_items(environment)
-                config["environment"] = {
-                    key: resolve_file_prefix(value, config_path)
-                    for key, value in environment.items()
-                }
-
             dotenv_file = config_path.parent / ".env"
 
             if dotenv_file.is_file():
                 with dotenv_file.open() as stream:
                     dotenv_env = dotenv.dotenv_values(stream=stream)
+            else:
+                dotenv_env = {}
 
-                for key, value in dotenv_env.items():
-                    if key in config["environment"]:
-                        config["environment"][key] = value
+            environment = config.get("environment", {})
+
+            if isinstance(environment, dict):
+                environment = [
+                    {"name": key, "value": value}
+                    for key, value in environment.items()
+                ]
+
+            resolved = []
+            failed = []
+            excs = []
+
+            for entry in environment:
+                try:
+                    resolved.append(
+                        fill_missing_environment_entry(entry, dotenv_env),
+                    )
+                except MissingEnvVar as exc:
+                    excs.append(exc)
+                    failed.append(exc.env_var)
+
+            if excs:
+                raise MissingEnvVars(",".join(failed), excs)  # noqa: TRY301
+
+            else:
+                config["environment"] = {
+                    item["name"]: resolve_file_prefix(
+                        item["value"], config_path
+                    )
+                    for item in resolved
+                }
+
+            agent_configs = config.pop("agent_configs", ())
+            agent_configs = [
+                AgentConfig.from_yaml(None, config_path, agent_config)
+                for agent_config in agent_configs
+            ]
+            config["agent_configs"] = agent_configs
+
+            environment = config.get("environment", {})
 
             return cls(**config)
 
+        except FromYamlException:  # pragma: NO COVER
+            raise
         except Exception as exc:
-            raise FromYamlException(config_path) from exc
+            raise FromYamlException(
+                config_path,
+                "installation",
+                config,
+            ) from exc
 
     def __post_init__(self):
         if self.meta is None:
