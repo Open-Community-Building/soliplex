@@ -124,15 +124,15 @@ environment:
   - name: "DEFAULT_AGENT_MODEL"
     value: "qwen3:latest"
 
-#   This version pulls the value from 'os.environ':
+    # This version pulls the value from 'os.environ':
   - "OLLAMA_BASE_URL"
 
-#   It can also be spelled:
-#  - name: "OLLAMA_BASE_URL"
+    # It can also be spelled:
+# - name: "OLLAMA_BASE_URL"
 
-#   This version configures the value explicitly:
-#  - name: "OLLAMA_BASE_URL"
-#    value: "http://localhost:11434"
+    # This version configures the value explicitly:
+# - name: "OLLAMA_BASE_URL"
+#   value: "http://localhost:11434"
 
 # Uncomment this to expire MCP room server tokens after one hour.
 # - name: "MCP_TOKEN_MAX_AGE"

@@ -37,6 +37,9 @@ dependencies = [
     "uvicorn[standard]",
 ]
 
+[project.scripts]
+soliplex-cli = "soliplex.cli:the_cli"
+
 [dependency-groups]
 dev = [
     "pytest",
