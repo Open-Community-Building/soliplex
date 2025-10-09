@@ -1314,29 +1314,26 @@ def strip_secret_prefix(config_str: str) -> str:
 def resolve_file_prefix(config_str: str, config_path: pathlib.Path) -> str:
     if config_str.startswith(FILE_PREFIX):
         config_str = config_path.parent / config_str[len(FILE_PREFIX) :]
+        config_str = config_str.resolve()
 
     return str(config_str)
 
 
-def fill_missing_environment_entry(
-    environment_config: dict | str,
+def resolve_environment_entry(
+    env_name: str,
+    env_value: str,
     dotenv_env: dict[str, str],
 ) -> dict:
-    if isinstance(environment_config, str):
-        environment_config = {"name": environment_config}
+    if env_name in dotenv_env:
+        return dotenv_env[env_name]
 
-    name = environment_config["name"]
-
-    if name in dotenv_env:
-        environment_config["value"] = dotenv_env[name]
-
-    if environment_config.get("value") is None:
+    if env_value is None:
         try:
-            environment_config["value"] = os.environ[name]
+            return os.environ[env_name]
         except KeyError:
-            raise MissingEnvVar(name) from None
+            raise MissingEnvVar(env_name) from None
 
-    return environment_config
+    return env_value
 
 
 @dataclasses.dataclass
@@ -1547,6 +1544,38 @@ class InstallationConfig:
         """Find the configured value for a given quasi-envvar"""
         return self.environment.get(key, default)
 
+    def resolve_environment(self):
+        dotenv_file = self._config_path.parent / ".env"
+
+        if dotenv_file.is_file():
+            with dotenv_file.open() as stream:
+                dotenv_env = dotenv.dotenv_values(stream=stream)
+        else:
+            dotenv_env = {}
+
+        resolved = {}
+        failed = []
+        excs = []
+
+        for key, value in self.environment.items():
+            try:
+                resolved[key] = resolve_environment_entry(
+                    key,
+                    value,
+                    dotenv_env,
+                )
+            except MissingEnvVar as exc:
+                excs.append(exc)
+                failed.append(exc.env_var)
+
+        if excs:
+            raise MissingEnvVars(",".join(failed), excs)  # noqa: TRY301
+
+        self.environment = {
+            key: resolve_file_prefix(value, self._config_path)
+            for key, value in resolved.items()
+        }
+
     #
     # Agent configurations not bound to a room or completion.
     #
@@ -1627,45 +1656,19 @@ class InstallationConfig:
             ]
             config["secrets"] = secret_configs
 
-            dotenv_file = config_path.parent / ".env"
-
-            if dotenv_file.is_file():
-                with dotenv_file.open() as stream:
-                    dotenv_env = dotenv.dotenv_values(stream=stream)
-            else:
-                dotenv_env = {}
-
             environment = config.get("environment", {})
 
-            if isinstance(environment, dict):
+            if isinstance(environment, list):
                 environment = [
-                    {"name": key, "value": value}
-                    for key, value in environment.items()
+                    {"name": entry} if isinstance(entry, str) else entry
+                    for entry in environment
                 ]
 
-            resolved = []
-            failed = []
-            excs = []
-
-            for entry in environment:
-                try:
-                    resolved.append(
-                        fill_missing_environment_entry(entry, dotenv_env),
-                    )
-                except MissingEnvVar as exc:
-                    excs.append(exc)
-                    failed.append(exc.env_var)
-
-            if excs:
-                raise MissingEnvVars(",".join(failed), excs)  # noqa: TRY301
-
-            else:
-                config["environment"] = {
-                    item["name"]: resolve_file_prefix(
-                        item["value"], config_path
-                    )
-                    for item in resolved
+                environment = {
+                    entry["name"]: entry.get("value") for entry in environment
                 }
+
+            config["environment"] = environment
 
             agent_configs = config.pop("agent_configs", ())
             agent_configs = [

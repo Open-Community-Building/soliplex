@@ -781,7 +781,7 @@ CONFIG_VAL_2 = "val_2"
 W_ENVIRONMENT_INSTALLATION_CONFIG_KW = {
     "id": INSTALLATION_ID,
     "environment": {
-        CONFIG_KEY_0: "<temp_dir>",
+        CONFIG_KEY_0: CONFIG_VAL_0,
         CONFIG_KEY_1: CONFIG_VAL_1,
         CONFIG_KEY_2: CONFIG_VAL_2,
     },
@@ -2697,64 +2697,63 @@ def test_resolve_file_prefix(temp_dir, config_str, expected):
 
 
 @pytest.mark.parametrize(
-    "entry, dotenv_env, osenv_patch, expectation",
+    "env_name, env_value, dotenv_env, osenv_patch, expectation",
     [
-        ("ENVVAR", {}, {}, pytest.raises(config.MissingEnvVar)),
-        ("ENVVAR", {"ENVVAR": "dotenv"}, {}, contextlib.nullcontext("dotenv")),
-        ("ENVVAR", {}, {"ENVVAR": "osenv"}, contextlib.nullcontext("osenv")),
+        ("ENVVAR", None, {}, {}, pytest.raises(config.MissingEnvVar)),
         (
             "ENVVAR",
-            {"ENVVAR": "dotenv"},
-            {"ENVVAR": "osenv"},
-            contextlib.nullcontext("dotenv"),  # dotenv_env wins
-        ),
-        ({"name": "ENVVAR"}, {}, {}, pytest.raises(config.MissingEnvVar)),
-        (
-            {"name": "ENVVAR"},
+            None,
             {"ENVVAR": "dotenv"},
             {},
             contextlib.nullcontext("dotenv"),
         ),
         (
-            {"name": "ENVVAR"},
+            "ENVVAR",
+            None,
             {},
             {"ENVVAR": "osenv"},
             contextlib.nullcontext("osenv"),
         ),
         (
-            {"name": "ENVVAR"},
+            "ENVVAR",
+            None,
             {"ENVVAR": "dotenv"},
             {"ENVVAR": "osenv"},
             contextlib.nullcontext("dotenv"),  # dotenv_env wins
         ),
         (
-            {"name": "ENVVAR", "value": "baz"},
+            "ENVVAR",
+            "baz",
             {},
             {},
             contextlib.nullcontext("baz"),
         ),
         (
-            {"name": "ENVVAR", "value": "baz"},
+            "ENVVAR",
+            "baz",
             {"ENVVAR": "dotenv"},
             {},
             contextlib.nullcontext("dotenv"),  # dotenv wins
         ),
         (
-            {"name": "ENVVAR", "value": "baz"},
+            "ENVVAR",
+            "baz",
             {},
             {"ENVVAR": "osenv"},
             contextlib.nullcontext("baz"),
         ),
         (
-            {"name": "ENVVAR", "value": "baz"},
+            "ENVVAR",
+            "baz",
             {"ENVVAR": "dotenv"},
             {"ENVVAR": "osenv"},
             contextlib.nullcontext("dotenv"),  # dotenv wins
         ),
     ],
 )
-def test_fill_missing_environment_entry(
-    entry,
+def test_resolve_environment_entry(
+    env_name,
+    env_value,
     dotenv_env,
     osenv_patch,
     expectation,
@@ -2763,11 +2762,14 @@ def test_fill_missing_environment_entry(
         mock.patch.dict("os.environ", **osenv_patch),
         expectation as expected,
     ):
-        found = config.fill_missing_environment_entry(entry, dotenv_env)
+        found = config.resolve_environment_entry(
+            env_name,
+            env_value,
+            dotenv_env,
+        )
 
     if isinstance(expected, str):
-        assert found["name"] == "ENVVAR"
-        assert found["value"] == expected
+        assert found == expected
 
     else:
         assert expected.value.env_var == "ENVVAR"
@@ -3034,6 +3036,93 @@ def test_installationconfig_get_environment(w_hit, w_default):
         assert found is None
 
 
+UNRESOLVED = {"name": "UNRESOLVED"}
+UNRESOLVED_MOAR = {"name": "UNRESOLVED_MOAR"}
+RESOLVED = {"name": "RESOLVED", "value": "resolved"}
+
+
+@pytest.mark.parametrize(
+    "env_entries, dotenv_text, expectation, exp_missing, exp_env",
+    [
+        (
+            [],
+            None,
+            contextlib.nullcontext(None),
+            None,
+            {},
+        ),
+        (
+            [RESOLVED],
+            None,
+            contextlib.nullcontext(None),
+            None,
+            {"RESOLVED": "resolved"},
+        ),
+        (
+            [UNRESOLVED],
+            None,
+            pytest.raises(config.MissingEnvVars),
+            "UNRESOLVED",
+            None,
+        ),
+        (
+            [UNRESOLVED, UNRESOLVED_MOAR],
+            None,
+            pytest.raises(config.MissingEnvVars),
+            "UNRESOLVED,UNRESOLVED_MOAR",
+            None,
+        ),
+        (
+            [UNRESOLVED, UNRESOLVED_MOAR],
+            "UNRESOLVED=via_dotenv",
+            pytest.raises(config.MissingEnvVars),
+            "UNRESOLVED_MOAR",
+            None,
+        ),
+        (
+            [UNRESOLVED],
+            "UNRESOLVED=via_dotenv",
+            contextlib.nullcontext(None),
+            None,
+            {"UNRESOLVED": "via_dotenv"},
+        ),
+        (
+            [RESOLVED],
+            "RESOLVED=via_dotenv",
+            contextlib.nullcontext(None),
+            None,
+            {"RESOLVED": "via_dotenv"},  # dotenv wins
+        ),
+    ],
+)
+def test_installation_resolve_environment(
+    temp_dir,
+    env_entries,
+    dotenv_text,
+    expectation,
+    exp_missing,
+    exp_env,
+):
+    environment = {entry["name"]: entry.get("value") for entry in env_entries}
+    if dotenv_text is not None:
+        dotenv_file = temp_dir / ".env"
+        dotenv_file.write_text(dotenv_text)
+
+    i_config = config.InstallationConfig(
+        id="test-ic",
+        _config_path=temp_dir / "installation.yaml",
+        environment=environment,
+    )
+
+    with expectation as expected:
+        i_config.resolve_environment()
+
+    if expected is not None:
+        assert expected.value.env_vars == exp_missing
+    else:
+        assert i_config.environment == exp_env
+
+
 def test_installationconfig_agent_configs_map_wo_existing():
     agent_configs = [
         config.AgentConfig(
@@ -3163,10 +3252,6 @@ def test_installationconfig_from_yaml(
         assert exc.value._config_path == config_path
 
     else:
-        for env_key, env_val in expected_kw.get("environment", {}).items():
-            if env_val == "<temp_dir>":
-                expected_kw["environment"][env_key] = str(temp_dir)
-
         expected = config.InstallationConfig(**expected_kw)
         expected = dataclasses.replace(
             expected,
@@ -3245,26 +3330,6 @@ environment:
 """
 
 
-@mock.patch("soliplex.config.fill_missing_environment_entry")
-def test_installationconfig_from_yaml_environ_w_miss(fmee, temp_dir):
-    fmee.side_effect = config.MissingEnvVar("TEST_ENVVAR")
-
-    config_yaml = W_ENVIRONMENT_LIST_ONLY_STR_INSTALLATION_CONFIG_YAML
-
-    yaml_file = temp_dir / "installation.yaml"
-    yaml_file.write_text(config_yaml)
-
-    with yaml_file.open() as stream:
-        config_dict = yaml.safe_load(stream)
-
-    with pytest.raises(config.FromYamlException) as exc:
-        config.InstallationConfig.from_yaml(yaml_file, config_dict)
-
-    context = exc.value.__context__
-    assert isinstance(context, config.MissingEnvVars)
-    assert context.env_vars == "TEST_ENVVAR"
-
-
 @pytest.mark.parametrize(
     "config_yaml",
     [
@@ -3280,7 +3345,7 @@ def test_installationconfig_from_yaml_environ_wo_value(temp_dir, config_yaml):
     yaml_file.write_text(config_yaml)
 
     expected_kw = copy.deepcopy(BARE_INSTALLATION_CONFIG_KW)
-    expected_kw["environment"] = {"TEST_ENVVAR": TEST_VALUE}
+    expected_kw["environment"] = {"TEST_ENVVAR": None}
     expected = config.InstallationConfig(**expected_kw)
     expected = dataclasses.replace(
         expected,
@@ -3300,48 +3365,6 @@ def test_installationconfig_from_yaml_environ_wo_value(temp_dir, config_yaml):
 
     with mock.patch.dict("os.environ", clear=True, TEST_ENVVAR=TEST_VALUE):
         found = config.InstallationConfig.from_yaml(yaml_file, config_dict)
-
-    assert found == expected
-
-
-def test_installationconfig_from_yaml_w_dotenv(temp_dir):
-    REPLACEMENT = "other value"
-    DOTENV_TEXT = f"""
-{CONFIG_KEY_1}={REPLACEMENT}
-IGNORED=bogus
-"""
-    dotenv_file = temp_dir / ".env"
-    dotenv_file.write_text(DOTENV_TEXT)
-
-    config_yaml = W_ENVIRONMENT_MAPPING_INSTALLATION_CONFIG_YAML
-    yaml_file = temp_dir / "installation.yaml"
-    yaml_file.write_text(config_yaml)
-
-    expected_kw = copy.deepcopy(W_ENVIRONMENT_INSTALLATION_CONFIG_KW)
-
-    for env_key, env_val in expected_kw.get("environment", {}).items():
-        if env_val == "<temp_dir>":
-            expected_kw["environment"][env_key] = str(temp_dir)
-
-    expected_kw["environment"][CONFIG_KEY_1] = REPLACEMENT
-    expected = config.InstallationConfig(**expected_kw)
-    expected = dataclasses.replace(
-        expected,
-        _config_path=yaml_file,
-        meta=dataclasses.replace(
-            expected.meta,
-            _config_path=yaml_file,
-        ),
-        oidc_paths=[temp_dir / "oidc"],
-        room_paths=[temp_dir / "rooms"],
-        completion_paths=[temp_dir / "completions"],
-        quizzes_paths=[temp_dir / "quizzes"],
-    )
-
-    with yaml_file.open() as stream:
-        config_dict = yaml.safe_load(stream)
-
-    found = config.InstallationConfig.from_yaml(yaml_file, config_dict)
 
     assert found == expected
 
