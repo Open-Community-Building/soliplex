@@ -16,24 +16,32 @@ to OpenAI and provides RAG functionality.
    cd soliplex/
    ```
 
-2. Set up your environment variables:
+2. Set up a Python3 virtual environment:
    ```bash
-   cat > .env
-   OPENAI_API_KEY=sk-....
-   # Press Ctrl+C to exit
+   python -m venv venv
+   source venv/bin/activate
+   pip install --upgrade setuptools pip
    ```
 
-3. Install dependencies:
+3. Install `soliplex` and its dependencies:
    ```bash
    pip install -e .
    ```
+
+4. Check for missing secrets / environment varisables:
+   ```bash
+   soliplex-cli --installation-path example check_config
+   ```bash
+
+5. Configure any missing secrets, e.g. using a `.env` file.
+
 
 ## Running the Server
 
 Start the FastAPI server with auto-reload:
 
 ```bash
-uvicorn factory:soliplex.main:create_app --reload
+soliplex-cli --installation-path example serve
 ```
 
 The server will be available at `http://localhost:8000` by default.
