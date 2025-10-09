@@ -28,12 +28,13 @@ to OpenAI and provides RAG functionality.
    pip install -e .
    ```
 
-4. Check for missing secrets / environment varisables:
+4. Check for missing secrets / environment variables:
    ```bash
    soliplex-cli --installation-path example check_config
-   ```bash
+   ```
 
-5. Configure any missing secrets, e.g. using a `.env` file.
+5. Configure any missing secrets, e.g. by sourcing a `.env` file, or
+   by exporting them directly.
 
 
 ## Running the Server
@@ -41,15 +42,12 @@ to OpenAI and provides RAG functionality.
 Start the FastAPI server with auto-reload:
 
 ```bash
-soliplex-cli --installation-path example serve
+soliplex-cli --installation-path example serve -r both
 ```
 
 The server will be available at `http://localhost:8000` by default.
 
 ## API Endpoints
 
-The server provides various endpoints for:
-- Chat completions
-- RAG queries
-- Document management
-- Authentication
+If the `soliplex-cli` server is running, you can browse the
+[live OpenAPI documentation](http://localhost:8000/docs).
