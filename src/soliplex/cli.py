@@ -181,7 +181,9 @@ def list_secrets(
     the_console.print("Configured secrets")
     the_console.print("==================")
     for secret_config in the_installation._config.secrets:
-        print(f"- {secret_config.secret_name}")
+        the_console.print(f"- {secret_config.secret_name}")
+
+    the_console.print()
 
 
 @the_cli.command(
@@ -196,7 +198,71 @@ def list_environment(
     the_console.print("Configured environment variables")
     the_console.print("================================")
     for key, value in the_installation._config.environment.items():
-        print(f"- {key}: {value}")
+        the_console.print(f"- {key}: {value}")
+
+    the_console.print()
+
+
+@the_cli.command(
+    "list_oidc_auth_providers",
+)
+def list_oidc_auth_providers(
+    ctx: typer.Context,
+):
+    """List OIDC Auth Providers defined in the installation"""
+    the_installation = get_installation(ctx)
+
+    the_console.print("==============================")
+    the_console.print("Configured OIDC Auth Providers")
+    the_console.print("==============================")
+
+    for oidc_config in the_installation.oidc_auth_system_configs:
+        the_console.print()
+        the_console.print(f"- [ {oidc_config.id} ] {oidc_config.title}: ")
+        the_console.print(f"  {oidc_config.server_url}")
+
+    the_console.print()
+
+
+@the_cli.command(
+    "list_rooms",
+)
+def list_rooms(
+    ctx: typer.Context,
+):
+    """List rooms defined in the installation"""
+    the_installation = get_installation(ctx)
+
+    the_console.print("================")
+    the_console.print("Configured Rooms")
+    the_console.print("================")
+
+    for room_config in the_installation.get_room_configs(None).values():
+        the_console.print()
+        the_console.print(f"- [ {room_config.id} ] {room_config.name}: ")
+        the_console.print(f"  {room_config.description}")
+
+    the_console.print()
+
+
+@the_cli.command(
+    "list_completions",
+)
+def list_completions(
+    ctx: typer.Context,
+):
+    """List completions defined in the installation"""
+    the_installation = get_installation(ctx)
+
+    the_console.print("======================")
+    the_console.print("Configured Completions")
+    the_console.print("======================")
+
+    for compl_config in the_installation.get_completion_configs(None).values():
+        the_console.print()
+        the_console.print(f"- [ {compl_config.id} ] {compl_config.name}: ")
+
+    the_console.print()
 
 
 if __name__ == "__main__":
