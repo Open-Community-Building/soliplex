@@ -14,7 +14,7 @@ from soliplex import main
 from soliplex import secrets
 
 
-class ReloadOption(enum.StrEnum):
+class ReloadOption(str, enum.Enum):
     CONFIG = "config"
     PYTHON = "python"
     BOTH = "both"
@@ -87,7 +87,7 @@ reload_option: ReloadOption = typer.Option(
     None,
     "-r",
     "--reload",
-    help="Reload on changes to config, Python, or both",
+    help="Reload on file changes",
 )
 
 
@@ -102,7 +102,7 @@ def serve(
         "--port",
         help="Port number",
     ),
-    reload=reload_option,
+    reload: ReloadOption=reload_option,
 ):
     """Run the Soliplex server"""
     installation_path = get_installation_path(ctx)
