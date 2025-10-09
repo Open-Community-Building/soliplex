@@ -9,9 +9,7 @@ router = fastapi.APIRouter()
 #   'process_control' canary
 @util.logfire_span("GET /ok")
 @router.get(
-    "/ok",
-    response_class=responses.PlainTextResponse,
-    tags=["process"]
+    "/ok", response_class=responses.PlainTextResponse, tags=["process"]
 )
 async def health_check() -> str:
     """Check that the server is up and running.

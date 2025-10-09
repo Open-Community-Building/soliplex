@@ -103,7 +103,7 @@ def serve(
         "--port",
         help="Port number",
     ),
-    reload: ReloadOption=reload_option,
+    reload: ReloadOption = reload_option,
 ):
     """Run the Soliplex server"""
     installation_path = get_installation_path(ctx)
