@@ -6,7 +6,7 @@ from soliplex import installation
 from soliplex import models
 from soliplex import quizzes
 
-router = fastapi.APIRouter()
+router = fastapi.APIRouter(tags=["quizzes"])
 
 depend_the_installation = installation.depend_the_installation
 
@@ -19,6 +19,7 @@ async def get_quiz(
     the_installation: installation.Installation = depend_the_installation,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.Quiz:
+    """Return a quiz as configured from a room"""
     user = auth.authenticate(the_installation, token)
 
     try:
@@ -50,6 +51,7 @@ async def post_quiz_question(
     the_installation: installation.Installation = depend_the_installation,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.QuizQuestionResponse:
+    """Check a user's response to a quiz question."""
     user = auth.authenticate(the_installation, token)
 
     try:

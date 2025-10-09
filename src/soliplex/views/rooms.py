@@ -8,18 +8,19 @@ from soliplex import mcp_auth
 from soliplex import models
 from soliplex import util
 
-router = fastapi.APIRouter()
+router = fastapi.APIRouter(tags=["rooms"])
 
 depend_the_installation = installation.depend_the_installation
 
 
 @util.logfire_span("GET /v1/rooms")
-@router.get("/v1/rooms")
+@router.get("/v1/rooms", summary="Get available rooms")
 async def get_rooms(
     request: fastapi.Request,
     the_installation: installation.Installation = depend_the_installation,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.ConfiguredRooms:
+    """Return a manifest of the rooms available to the user"""
     user = auth.authenticate(the_installation, token)
     room_configs = the_installation.get_room_configs(user)
 
@@ -42,6 +43,7 @@ async def get_room(
     the_installation: installation.Installation = depend_the_installation,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.Room:
+    """Return a single room's configuration"""
     user = auth.authenticate(the_installation, token)
 
     try:
@@ -65,7 +67,8 @@ async def get_room_bg_image(
     room_id: str,
     the_installation: installation.Installation = depend_the_installation,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
-):
+) -> str:  # file path, converted to file response by FastAPI
+    """Return a room's background image"""
     user = auth.authenticate(the_installation, token)
 
     try:
@@ -88,13 +91,14 @@ async def get_room_bg_image(
 
 
 @util.logfire_span("GET /v1/rooms/{room_id}/mcp_token")
-@router.get("/v1/rooms/{room_id}/mcp_token", response_model=models.MCPToken)
+@router.get("/v1/rooms/{room_id}/mcp_token")
 async def get_room_mcp_token(
     request: fastapi.Request,
     room_id: str,
     the_installation: installation.Installation = depend_the_installation,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
-):
+) -> models.MCPToken:
+    """Return a token for use in an MCP client addressing the room"""
     user = auth.authenticate(the_installation, token)
 
     try:
