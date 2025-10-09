@@ -13,7 +13,7 @@ from soliplex import installation
 from soliplex import models
 from soliplex import util
 
-router = fastapi.APIRouter()
+router = fastapi.APIRouter(tags=["conversations"])
 
 depend_the_installation = installation.depend_the_installation
 
@@ -23,7 +23,11 @@ depend_the_installation = installation.depend_the_installation
 
 
 @util.logfire_span("POST /v1/convos/new")
-@router.post("/v1/convos/new")
+@router.post(
+    "/v1/convos/new",
+    summary="Post new conversation",
+    deprecated=True,
+)
 async def post_convos_new(
     request: fastapi.Request,
     convo_msg: models.NewConvoClientMessage,
@@ -31,7 +35,11 @@ async def post_convos_new(
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.Conversation:
-    """Create a new convo, including room ID and URI with UUID"""
+    """Create a new conversation
+
+    Room ID supplied in the request body, along with the initial
+    user message.
+    """
     user = auth.authenticate(the_installation, token)
     user_profile = models.UserProfile(
         given_name=user.get("given_name", "<unknown>"),
@@ -77,7 +85,7 @@ async def post_convos_new(
 
 
 @util.logfire_span("POST /v1/convos/new/{room_id}")
-@router.post("/v1/convos/new/{room_id}")
+@router.post("/v1/convos/new/{room_id}", summary="Post new conversation")
 async def post_convos_new_room(
     request: fastapi.Request,
     room_id: str,
@@ -86,7 +94,10 @@ async def post_convos_new_room(
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.Conversation:
-    """Create a new convo, including room ID and URI with UUID"""
+    """Create a new conversation
+
+    Room ID supplied in the URL.
+    """
     user = auth.authenticate(the_installation, token)
     user_profile = models.UserProfile(
         given_name=user.get("given_name", "<unknown>"),
@@ -132,14 +143,14 @@ async def post_convos_new_room(
 
 
 @util.logfire_span("GET /v1/convos")
-@router.get("/v1/convos")
+@router.get("/v1/convos", summary="Get Conversations")
 async def get_convos(
     request: fastapi.Request,
     the_installation: installation.Installation = depend_the_installation,
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.ConversationMap:
-    """Return a map of conversations by UUID, including name and room ID"""
+    """Return the user's conversations"""
     user = auth.authenticate(the_installation, token)
     user_name = user.get("preferred_username", "<unknown>")
     user_convos = await the_convos.user_conversations(user_name)
@@ -150,7 +161,7 @@ async def get_convos(
 
 
 @util.logfire_span("GET /v1/convos/{convo_uuid}")
-@router.get("/v1/convos/{convo_uuid}")
+@router.get("/v1/convos/{convo_uuid}", summary="Get Conversation")
 async def get_convo(
     request: fastapi.Request,
     convo_uuid: uuid.UUID,
@@ -158,7 +169,7 @@ async def get_convo(
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> models.Conversation:
-    """Return the conversation, by id
+    """Return the conversation specified by its UUID.
 
     Include the message history for the conversation, along with room ID, etc.
     """
@@ -169,7 +180,7 @@ async def get_convo(
 
 
 @util.logfire_span("POST /v1/convos/{convo_uuid}")
-@router.post("/v1/convos/{convo_uuid}")
+@router.post("/v1/convos/{convo_uuid}", summary="Post to Conversation")
 async def post_convo(
     request: fastapi.Request,
     convo_uuid: uuid.UUID,
@@ -178,7 +189,7 @@ async def post_convo(
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> responses.StreamingResponse:
-    """Send another query to an existing convo.
+    """Send another user message to an existing converation
 
     Return the final response message.
     """
@@ -263,7 +274,11 @@ async def post_convo(
 
 
 @util.logfire_span("DELETE /v1/convos/{convo_uuid}")
-@router.delete("/v1/convos/{convo_uuid}", status_code=204)
+@router.delete(
+    "/v1/convos/{convo_uuid}",
+    status_code=204,
+    summary="Delete Conversation",
+)
 async def delete_convo(
     request: fastapi.Request,
     convo_uuid: uuid.UUID,
@@ -271,7 +286,7 @@ async def delete_convo(
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ):
-    """Delete an existing convo."""
+    """Delete an existing conversation"""
     user = auth.authenticate(the_installation, token)
     user_name = user.get("preferred_username", "<unknown>")
 
