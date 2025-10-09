@@ -11,6 +11,7 @@ import soliplex
 from soliplex import config
 from soliplex import installation
 from soliplex import main
+from soliplex import models
 from soliplex import secrets
 
 
@@ -167,6 +168,16 @@ def check_config(
             the_console.print(f"- {env_var}")
     else:
         the_console.print("Environment variables: OK")
+
+    # Check that conversion to models doesn't raise
+    models.Installation.from_config(the_installation._config)
+    the_console.print("Installation model: OK")
+    for room_config in the_installation.get_room_configs(None).values():
+        models.Room.from_config(room_config)
+    the_console.print("Room models: OK")
+    for compl_config in the_installation.get_completion_configs(None).values():
+        models.Completion.from_config(compl_config)
+    the_console.print("Completion models: OK")
 
 
 @the_cli.command(
