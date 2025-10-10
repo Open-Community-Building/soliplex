@@ -124,7 +124,7 @@ def serve(
 
 
 @the_cli.command(
-    "check_config",
+    "check-config",
 )
 def check_config(
     ctx: typer.Context,
@@ -201,7 +201,7 @@ def check_config(
 
 
 @the_cli.command(
-    "list_secrets",
+    "list-secrets",
 )
 def list_secrets(
     ctx: typer.Context,
@@ -219,7 +219,7 @@ def list_secrets(
 
 
 @the_cli.command(
-    "list_environment",
+    "list-environment",
 )
 def list_environment(
     ctx: typer.Context,
@@ -237,7 +237,7 @@ def list_environment(
 
 
 @the_cli.command(
-    "list_oidc_auth_providers",
+    "list-oidc-auth-providers",
 )
 def list_oidc_auth_providers(
     ctx: typer.Context,
@@ -259,7 +259,7 @@ def list_oidc_auth_providers(
 
 
 @the_cli.command(
-    "list_rooms",
+    "list-rooms",
 )
 def list_rooms(
     ctx: typer.Context,
@@ -281,7 +281,7 @@ def list_rooms(
 
 
 @the_cli.command(
-    "list_completions",
+    "list-completions",
 )
 def list_completions(
     ctx: typer.Context,
