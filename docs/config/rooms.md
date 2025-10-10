@@ -232,7 +232,8 @@ agent:
 ### Quiz-related elements
 
 - `quizzes` is a list of mappings (default `()`):  each mapping defines a
-  quiz which can be run in the room (see `quizzes/README.md`).
+  quiz which can be run in the room (see [this page](quizzes.md) for
+  details of the quiz dataset).
 
   ```yaml
   quizzes:
@@ -248,9 +249,5 @@ agent:
 Rooms using the ``search_documents`` tool need to be able to find the
 LanceDB database containing the chunks and embeddings extracted by
 Haiku-RAG.  At present, there should be a single database per room,
-named `<room-id>.lancedb`, and stored in the `db/rag/` subdirectory
-of the project root.
-
-DO NOT CHECK THESE FILES IN!  Git is configured to ignore any files
-under the `db/` directory, so you shouldn't notice them as "dirty".
-But they may contain controlled information.
+named by convension `<stem>.lancedb`, and stored in the `db/rag/`
+subdirectory of the project root.

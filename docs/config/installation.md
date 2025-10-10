@@ -36,39 +36,7 @@ Example layout:
     ...
 ```
 
-### OIDC Provier Configuration Filesystem Layout
-
-This directory contains configuration files defining the OIDC identity
-providers configured for use in this installation.
-
-See `example/oidc/README.md` for documentation on the contents and
-schema of these files.
-
-
-### Quiz Configuration Filesystem Layout
-
-This directory contains question sets as individual JSON files, derived
-from the evaluation dataset entries.
-
-See `example/quizzes/README.md` for documentation on the contents and
-schema of these files.
-
-### Completions Endpoint Configuration Filesystem Layout
-
-Within a "completions" directory, each endpoint is represented by a
-subdirectory, whose name is the endpoint ID.
-
-Within that subdirectory should be one or two files:
-
-- `completion_config.yaml` holds metadata about the endpoint (see below)
-
-- `prompt.txt` (if present) holds the system prompt for conversations
-  which are initiated from the endpoint.
-
-See `example/completions/README.md` for documentation on the contents and
-schema of these files.
-
-### Room Configuration Filesystem Layout
+### Room Configuration
 
 Within a "rooms" directory, each room is represented by a subdirectory,
 whose name is the room ID.
@@ -82,5 +50,37 @@ Within that subdirectory should be one or two files:
 
 - A logo image file (optional)
 
-See `example/rooms/README.md` for documentation on the contents and
+See [this page](rooms.md) for documentation on the contents and
+schema of these files.
+
+### Completions Endpoint Configuration
+
+Within a "completions" directory, each endpoint is represented by a
+subdirectory, whose name is the endpoint ID.
+
+Within that subdirectory should be one or two files:
+
+- `completion_config.yaml` holds metadata about the endpoint (see below)
+
+- `prompt.txt` (if present) holds the system prompt for conversations
+  which are initiated from the endpoint.
+
+See [this page](completions.md) for documentation on the contents and
+schema of these files.
+
+
+### Quiz Configuration
+
+This directory contains question sets as individual JSON files, derived
+from the evaluation dataset entries.
+
+See [this page](quizzes.md) for documentation on the contents
+and schema of these files.
+
+### OIDC Provider Configuration
+
+This directory contains configuration files defining the OIDC identity
+providers configured for use in this installation.
+
+See [this page](oidc_providers.md) for documentation on the contents and
 schema of these files.
