@@ -20,11 +20,15 @@ async def health_check() -> str:
 
 
 # testing and validation
+
+CHECK_HEADERS_VALUE_TYPE = str | None | dict[str, str]
+
+
 @util.logfire_span("GET /check-headers")
 @router.get("/check-headers", tags=["debug"])
 async def check_headers(
     request: fastapi.Request,
-) -> dict[str, str]:  # pragma: NO COVER
+) -> dict[str, CHECK_HEADERS_VALUE_TYPE]:  # pragma: NO COVER
     """Dump request headers for debugging"""
     return_to = "https://google.com"
     redirect_uri = request.url_for("health_check")
@@ -37,6 +41,6 @@ async def check_headers(
         "X-Forwarded-Port": request.headers.get("x-forwarded-port"),
         "X-Real-IP": request.headers.get("x-real-ip"),
         "Host": request.headers.get("host"),
-        "redirect_uri": redirect_uri,
+        "redirect_uri": str(redirect_uri),
         "headers": request.headers,
     }
