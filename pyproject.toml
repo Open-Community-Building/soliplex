@@ -39,6 +39,7 @@ dependencies = [
 
 [project.scripts]
 soliplex-cli = "soliplex.cli:the_cli"
+soliplex-tui = "soliplex.tui.cli:the_cli"
 
 [dependency-groups]
 dev = [
@@ -55,6 +56,10 @@ docs = [
     "mkdocs-material>=9.6.19",
     # See https://github.com/mkdocs/mkdocs/issues/4032
     "click != 8.2.2, != 8.3.0",
+]
+tui = [
+    "textual",
+    "typer",
 ]
 
 [tool.pytest.ini_options]
