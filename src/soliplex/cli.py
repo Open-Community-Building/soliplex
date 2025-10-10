@@ -26,6 +26,7 @@ the_cli = typer.Typer(
         "help_option_names": ["-h", "--help"],
     },
     no_args_is_help=True,
+    add_completion=False,
 )
 
 the_console = console.Console()
