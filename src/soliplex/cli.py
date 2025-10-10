@@ -22,6 +22,15 @@ class ReloadOption(str, enum.Enum):
     BOTH = "both"
 
 
+class LogLevelOption(str, enum.Enum):
+    CRITICAL = "critical"
+    ERROR = "error"
+    WARNING = "warning"
+    INFO = "info"
+    DEBUG = "debug"
+    TRACE = "trace"
+
+
 the_cli = typer.Typer(
     context_settings={
         "help_option_names": ["-h", "--help"],
@@ -78,19 +87,78 @@ reload_option: ReloadOption = typer.Option(
 )
 
 
+log_config_option: pathlib.Path = typer.Option(
+    None,
+    "--log-config",
+    help="Logging configuration file. Supported formats: .ini, .json, .yaml.",
+)
+
+
+log_level_option: LogLevelOption = typer.Option(
+    None, "--log-level", help="Log level"
+)
+
+
 @the_cli.command(
     "serve",
 )
 def serve(
     ctx: typer.Context,
     installation_path: installation_path_type,
+    host: str = typer.Option(
+        "127.0.0.1",
+        "-h",
+        "--host",
+        help="Bind socket to this host",
+    ),
     port: int = typer.Option(
         8000,
         "-p",
         "--port",
         help="Port number",
     ),
+    uds: str = typer.Option(
+        None,
+        "--uds",
+        help="Bind to a Unix domain socket",
+    ),
+    fd: int = typer.Option(
+        None,
+        "--fd",
+        help="Bind to socket from this file descriptor",
+    ),
     reload: ReloadOption = reload_option,
+    workers: int = typer.Option(
+        None,
+        "--workers",
+        envvar="WEB_CONCURRENCY",
+        help="Number of worker processes. Defaults to the "
+        "$WEB_CONCURRENCY environment variable if available, or 1. "
+        "Not valid with --reload.",
+    ),
+    log_config: pathlib.Path = log_config_option,
+    log_level: LogLevelOption = log_level_option,
+    access_log: bool = typer.Option(
+        True,
+        "--access-log",
+        help="Enable/Disable access log",
+    ),
+    proxy_headers: bool = typer.Option(
+        True,
+        "--proxy-headers",
+        help="Enable/Disable X-Forwarded-Proto, X-Forwarded-For "
+        "to populate url scheme and remote address info.",
+    ),
+    forwarded_allow_ips: str = typer.Option(
+        None,
+        "--forwarded-allow-ips",
+        envvar="FORWARDED_ALLOW_IPS",
+        help="Comma separated list of IP Addresses, IP Networks, or "
+        "literals (e.g. UNIX Socket path) to trust with proxy headers. "
+        "Defaults to the $FORWARDED_ALLOW_IPS environment "
+        "variable if available, or '127.0.0.1'. "
+        "The literal '*' means trust everything.",
+    ),
 ):
     """Run the Soliplex server"""
     reload_dirs = []
@@ -106,21 +174,39 @@ def serve(
         reload_includes.append("*.yml")
         reload_includes.append("*.txt")
 
-    if reload:
+    uvicorn_kw = {
+        "host": host,
+        "port": port,
+        "log_config": log_config,
+        "log_level": log_level,
+        "access_log": access_log,
+        "proxy_headers": proxy_headers,
+    }
+
+    if uds is not None:
+        uvicorn_kw["uds"] = uds
+
+    if fd is not None:
+        uvicorn_kw["fd"] = fd
+
+    if workers is not None:
+        uvicorn_kw["workers"] = workers
+
+    if forwarded_allow_ips is not None:
+        uvicorn_kw["forwarded_allow_ips"] = forwarded_allow_ips
+
+    if reload or workers:
         os.environ["SOLIPLEX_INSTALLATION_PATH"] = str(installation_path)
         uvicorn.run(
             "soliplex.main:create_app",
-            port=port,
             reload=reload,
             reload_dirs=reload_dirs,
             reload_includes=reload_includes,
+            **uvicorn_kw,
         )
     else:
         app = main.create_app(installation_path)
-        uvicorn.run(
-            app,
-            port=port,
-        )
+        uvicorn.run(app, **uvicorn_kw)
 
 
 @the_cli.command(
