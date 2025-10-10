@@ -30,7 +30,7 @@ to OpenAI and provides RAG functionality.
 
 4. Check for missing secrets / environment variables:
    ```bash
-   soliplex-cli --installation-path example check_config
+   soliplex-cli check_config example/
    ```
 
 5. Configure any missing secrets, e.g. by sourcing a `.env` file, or
@@ -42,7 +42,7 @@ to OpenAI and provides RAG functionality.
 Start the FastAPI server with auto-reload:
 
 ```bash
-soliplex-cli --installation-path example serve -r both
+soliplex-cli serve example -r both
 ```
 
 The server will be available at `http://localhost:8000` by default.
