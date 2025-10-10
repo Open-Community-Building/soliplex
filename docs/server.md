@@ -34,7 +34,13 @@ to OpenAI and provides RAG functionality.
    ```
 
 5. Configure any missing secrets, e.g. by sourcing a `.env` file, or
-   by exporting them directly.
+   by exporting them directly. (Note the related issue about whether
+   `soliplex` should support using a `.env` file to define secrets:
+   https://github.com/enfold/soliplex/issues/89 .)
+
+6.  Configure any missing environment varibles, e.g. by editing
+    the installation YAML file, adding them to a `.env` file in the
+    installation path, or exporting them directly.
 
 
 ## Running the Server
