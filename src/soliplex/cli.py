@@ -136,34 +136,68 @@ def check_config(
     try:
         the_installation.resolve_secrets()
     except secrets.SecretsNotFound as exc:
+        the_console.print("")
         the_console.print("===============")
         the_console.print("Missing secrets")
         the_console.print("===============")
         for secret_name in exc.secret_names.split(","):
             the_console.print(f"- {secret_name}")
     else:
+        the_console.print("")
         the_console.print("Secrets: OK")
 
     try:
         the_installation.resolve_environment()
     except config.MissingEnvVars as exc:
+        the_console.print("")
         the_console.print("=============================")
         the_console.print("Missing environment variables")
         the_console.print("=============================")
         for env_var in exc.env_vars.split(","):
             the_console.print(f"- {env_var}")
     else:
+        the_console.print("")
         the_console.print("Environment variables: OK")
 
     # Check that conversion to models doesn't raise
-    models.Installation.from_config(the_installation._config)
-    the_console.print("Installation model: OK")
+    the_console.print("")
+    the_console.print("=============================")
+    the_console.print("Validating installation model")
+    the_console.print("=============================")
+    try:
+        models.Installation.from_config(the_installation._config)
+    except Exception as exc:
+        the_console.print(exc)
+    else:
+        the_console.print("OK")
+
+    the_console.print("")
+    the_console.print("======================")
+    the_console.print("Validating room models")
+    the_console.print("======================")
     for room_config in the_installation.get_room_configs(None).values():
-        models.Room.from_config(room_config)
-    the_console.print("Room models: OK")
+        the_console.print("")
+        the_console.print(f"Room: {room_config.id}")
+        try:
+            models.Room.from_config(room_config)
+        except Exception as exc:
+            the_console.print(exc)
+        else:
+            the_console.print("OK")
+
+    the_console.print("")
+    the_console.print("============================")
+    the_console.print("Validating completion models")
+    the_console.print("============================")
     for compl_config in the_installation.get_completion_configs(None).values():
-        models.Completion.from_config(compl_config)
-    the_console.print("Completion models: OK")
+        the_console.print("")
+        the_console.print(f"Completion: {compl_config.id}")
+        try:
+            models.Completion.from_config(compl_config)
+        except Exception as exc:
+            the_console.print(exc)
+        else:
+            the_console.print("OK")
 
 
 @the_cli.command(
