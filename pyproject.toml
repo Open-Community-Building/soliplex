@@ -40,6 +40,7 @@ dependencies = [
 [project.scripts]
 soliplex-cli = "soliplex.cli:the_cli"
 soliplex-tui = "soliplex.tui.cli:the_cli"
+soliplex-tui-serve = "soliplex.tui.serve:main"
 
 [dependency-groups]
 dev = [
@@ -59,6 +60,7 @@ docs = [
 ]
 tui = [
     "textual",
+    "textual-serve",
     "typer",
 ]
 
