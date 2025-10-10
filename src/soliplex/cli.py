@@ -1,6 +1,7 @@
 import enum
 import os
 import pathlib
+import typing
 from importlib.metadata import version
 
 import typer
@@ -38,36 +39,21 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
-def get_installation_path(ctx: typer.Context) -> pathlib.Path:
-    while ctx is not None:
-        i_path = ctx.params.get("installation_path")
-
-        if i_path is not None:
-            return pathlib.Path(i_path).resolve()
-
-        ctx = ctx.parent
-
-    i_path = os.getenv("SOLIPLEX_INSTALLATION_PATH")
-    if i_path is not None:
-        return pathlib.Path(i_path).resolve()
-
-    the_console.print("Installation path not found.")
-    raise typer.Exit(code=1)
+installation_path_type = typing.Annotated[
+    pathlib.Path,
+    typer.Argument(
+        envvar="SOLIPLEX_INSTALLATION_PATH",
+        help="Soliplex instllation path",
+    ),
+]
 
 
-def get_installation(ctx: typer.Context) -> installation.Installation:
-    installation_path = get_installation_path(ctx)
+def get_installation(
+    installation_path: pathlib.Path,
+) -> installation.Installation:
     i_config = config.load_installation(installation_path)
     i_config.reload_configurations()
     return installation.Installation(i_config)
-
-
-installation_path_option: pathlib.Path | None = typer.Option(
-    None,
-    "-c",
-    "--installation-path",
-    help="Soliplex instllation path",
-)
 
 
 @the_cli.callback()
@@ -79,7 +65,6 @@ def app(
         callback=version_callback,
         help="Show version and exit",
     ),
-    installation_path=installation_path_option,
 ):
     """soliplex CLI - RAG system"""
 
@@ -97,6 +82,7 @@ reload_option: ReloadOption = typer.Option(
 )
 def serve(
     ctx: typer.Context,
+    installation_path: installation_path_type,
     port: int = typer.Option(
         8000,
         "-p",
@@ -106,8 +92,6 @@ def serve(
     reload: ReloadOption = reload_option,
 ):
     """Run the Soliplex server"""
-    installation_path = get_installation_path(ctx)
-
     reload_dirs = []
     reload_includes = []
 
@@ -143,9 +127,10 @@ def serve(
 )
 def check_config(
     ctx: typer.Context,
+    installation_path: installation_path_type,
 ):
     """Check that secrets / env vars can be resolved"""
-    the_installation = get_installation(ctx)
+    the_installation = get_installation(installation_path)
 
     try:
         the_installation.resolve_secrets()
@@ -185,9 +170,10 @@ def check_config(
 )
 def list_secrets(
     ctx: typer.Context,
+    installation_path: installation_path_type,
 ):
     """List secrets defined in the installation"""
-    the_installation = get_installation(ctx)
+    the_installation = get_installation(installation_path)
     the_console.print("==================")
     the_console.print("Configured secrets")
     the_console.print("==================")
@@ -202,9 +188,10 @@ def list_secrets(
 )
 def list_environment(
     ctx: typer.Context,
+    installation_path: installation_path_type,
 ):
     """List environment variables defined in the installation"""
-    the_installation = get_installation(ctx)
+    the_installation = get_installation(installation_path)
     the_console.print("================================")
     the_console.print("Configured environment variables")
     the_console.print("================================")
@@ -219,9 +206,10 @@ def list_environment(
 )
 def list_oidc_auth_providers(
     ctx: typer.Context,
+    installation_path: installation_path_type,
 ):
     """List OIDC Auth Providers defined in the installation"""
-    the_installation = get_installation(ctx)
+    the_installation = get_installation(installation_path)
 
     the_console.print("==============================")
     the_console.print("Configured OIDC Auth Providers")
@@ -240,9 +228,10 @@ def list_oidc_auth_providers(
 )
 def list_rooms(
     ctx: typer.Context,
+    installation_path: installation_path_type,
 ):
     """List rooms defined in the installation"""
-    the_installation = get_installation(ctx)
+    the_installation = get_installation(installation_path)
 
     the_console.print("================")
     the_console.print("Configured Rooms")
@@ -261,9 +250,10 @@ def list_rooms(
 )
 def list_completions(
     ctx: typer.Context,
+    installation_path: installation_path_type,
 ):
     """List completions defined in the installation"""
-    the_installation = get_installation(ctx)
+    the_installation = get_installation(installation_path)
 
     the_console.print("======================")
     the_console.print("Configured Completions")
