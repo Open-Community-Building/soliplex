@@ -7,6 +7,7 @@ to OpenAI and provides RAG functionality.
 
 - Python 3.13+
 - Access to OpenAI API (API key required) or Ollama.
+- Logfire (optional) - A token from logfire ( [https://logfire-us.pydantic.dev/login](https://logfire-us.pydantic.dev/login) ) allows for visibility into the application. (see [ https://logfire.pydantic.dev/docs/integrations/web-frameworks/fastapi/](https://logfire.pydantic.dev/docs/integrations/web-frameworks/fastapi/) for more information)
 
 ## Installation
 
@@ -27,20 +28,34 @@ to OpenAI and provides RAG functionality.
    ```bash
    pip install -e .
    ```
+4. Set up environment variables:
 
-4. Check for missing secrets / environment variables:
+   An environment file can be used to configure secrets.  For logfire, create a .env file with
+   ```
+   LOGFIRE_TOKEN=<your_token_here>
+   ```
+## Running the example
+
+The example configuration provides an overview of how a soliplex application is assembled.  It includes a number of rooms that 
+
+1. Configure resources:
+   The example needs access to a model server using either openapi or ollama as well as access to example MCP services. The example uses [https://smithery.ai/](https://smithery.ai/) but others can be configured.
+   ```
+   SMITHERY_AI_API_KEY=<your key>
+   SMITHERY_AI_PROFILE=<your profile>
+   OLLAMA_BASE_URL=http://localhost:11434
+   OPENAI_API_KEY=<your key>
+   ```
+   a. OIDC configuration:
+   TODO
+
+2. Check for missing secrets / environment variables:
+   This command will check the server for any missing variables or invalid configuration files.
    ```bash
-   soliplex-cli check_config example/
+   soliplex-cli check-config example/
    ```
 
-5. Configure any missing secrets, e.g. by sourcing a `.env` file, or
-   by exporting them directly. (Note the related issue about whether
-   `soliplex` should support using a `.env` file to define secrets:
-   https://github.com/enfold/soliplex/issues/89 .)
 
-6.  Configure any missing environment varibles, e.g. by editing
-    the installation YAML file, adding them to a `.env` file in the
-    installation path, or exporting them directly.
 
 
 ## Running the Server
@@ -48,10 +63,15 @@ to OpenAI and provides RAG functionality.
 Start the FastAPI server with auto-reload:
 
 ```bash
-soliplex-cli serve example -r both
+soliplex-cli serve example/installation.yaml -r both
 ```
 
 The server will be available at `http://localhost:8000` by default.
+
+For testing purposes, the server can be run with authentication disabled. To run without authentication:
+```bash
+soliplex-cli serve example/no_auth.yaml -r both
+```
 
 ## API Endpoints
 
