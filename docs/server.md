@@ -6,7 +6,9 @@ to OpenAI and provides RAG functionality.
 ## Prerequisites
 
 - Python 3.13+
-- Access to OpenAI API (API key required) or Ollama.
+- Access to LLM:
+   - OpenAI - an API key is required to use OpenAI
+   - Ollama  ([https://ollama.com/] https://ollama.com/)
 - Logfire (optional) - A token from logfire ( [https://logfire-us.pydantic.dev/login](https://logfire-us.pydantic.dev/login) ) allows for visibility into the application. (see [ https://logfire.pydantic.dev/docs/integrations/web-frameworks/fastapi/](https://logfire.pydantic.dev/docs/integrations/web-frameworks/fastapi/) for more information)
 
 ## Installation
@@ -48,11 +50,16 @@ The example configuration provides an overview of how a soliplex application is 
    ```
    a. OIDC configuration:
    TODO
+2. Configure Ollama:
+   The example configuration uses the qwen3 model.  To install:
+   ```bash
+   ollama pull qwen3:latest
+   ```
 
-2. Check for missing secrets / environment variables:
+3. Check for missing secrets / environment variables:
    This command will check the server for any missing variables or invalid configuration files.
    ```bash
-   soliplex-cli check-config example/
+   soliplex-cli check-config example/installation.yaml
    ```
 
 
@@ -71,6 +78,13 @@ The server will be available at `http://localhost:8000` by default.
 For testing purposes, the server can be run with authentication disabled. To run without authentication:
 ```bash
 soliplex-cli serve example/no_auth.yaml -r both
+```
+
+To confirm your room configuration:
+```bash
+curl -X 'GET' \
+  'http://127.0.0.1:8000/api/v1/rooms' \
+  -H 'accept: application/json'
 ```
 
 ## API Endpoints
