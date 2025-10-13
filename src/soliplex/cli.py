@@ -219,37 +219,35 @@ def check_config(
     """Check that secrets / env vars can be resolved"""
     the_installation = get_installation(installation_path)
 
+    the_console.line()
+    the_console.rule("Checking secrets")
+    the_console.line()
     try:
         the_installation.resolve_secrets()
     except secrets.SecretsNotFound as exc:
-        the_console.print("")
-        the_console.print("===============")
         the_console.print("Missing secrets")
-        the_console.print("===============")
         for secret_name in exc.secret_names.split(","):
             the_console.print(f"- {secret_name}")
     else:
-        the_console.print("")
-        the_console.print("Secrets: OK")
+        the_console.print("OK")
 
+    the_console.line()
+    the_console.rule("Checking environment")
+    the_console.line()
     try:
         the_installation.resolve_environment()
     except config.MissingEnvVars as exc:
-        the_console.print("")
-        the_console.print("=============================")
+        the_console.line()
         the_console.print("Missing environment variables")
-        the_console.print("=============================")
         for env_var in exc.env_vars.split(","):
             the_console.print(f"- {env_var}")
     else:
-        the_console.print("")
-        the_console.print("Environment variables: OK")
+        the_console.print("OK")
 
     # Check that conversion to models doesn't raise
-    the_console.print("")
-    the_console.print("=============================")
-    the_console.print("Validating installation model")
-    the_console.print("=============================")
+    the_console.line()
+    the_console.rule("Validating installation model")
+    the_console.line()
     try:
         models.Installation.from_config(the_installation._config)
     except Exception as exc:
@@ -257,12 +255,10 @@ def check_config(
     else:
         the_console.print("OK")
 
-    the_console.print("")
-    the_console.print("======================")
-    the_console.print("Validating room models")
-    the_console.print("======================")
+    the_console.line()
+    the_console.rule("Validating room models")
+    the_console.line()
     for room_config in the_installation.get_room_configs(None).values():
-        the_console.print("")
         the_console.print(f"Room: {room_config.id}")
         try:
             models.Room.from_config(room_config)
@@ -270,13 +266,12 @@ def check_config(
             the_console.print(exc)
         else:
             the_console.print("OK")
+        the_console.line()
 
-    the_console.print("")
-    the_console.print("============================")
-    the_console.print("Validating completion models")
-    the_console.print("============================")
+    the_console.line()
+    the_console.rule("Validating completion models")
+    the_console.line()
     for compl_config in the_installation.get_completion_configs(None).values():
-        the_console.print("")
         the_console.print(f"Completion: {compl_config.id}")
         try:
             models.Completion.from_config(compl_config)
@@ -284,6 +279,7 @@ def check_config(
             the_console.print(exc)
         else:
             the_console.print("OK")
+        the_console.line()
 
 
 @the_cli.command(
@@ -295,11 +291,20 @@ def list_secrets(
 ):
     """List secrets defined in the installation"""
     the_installation = get_installation(installation_path)
-    the_console.print("==================")
-    the_console.print("Configured secrets")
-    the_console.print("==================")
+    try:
+        the_installation.resolve_secrets()
+    except secrets.SecretsNotFound as exc:
+        missing = set(exc.secret_names.split(","))
+    else:
+        missing = set()
+
+    the_console.line()
+    the_console.rule("Configured secrets")
+    the_console.line()
+
     for secret_config in the_installation._config.secrets:
-        the_console.print(f"- {secret_config.secret_name}")
+        flag = "MISSING" if secret_config.secret_name in missing else "OK"
+        the_console.print(f"- {secret_config.secret_name:25} {flag}")
 
     the_console.print()
 
@@ -313,11 +318,22 @@ def list_environment(
 ):
     """List environment variables defined in the installation"""
     the_installation = get_installation(installation_path)
-    the_console.print("================================")
-    the_console.print("Configured environment variables")
-    the_console.print("================================")
+    try:
+        the_installation.resolve_environment()
+    except config.MissingEnvVars as exc:
+        missing = set(exc.env_vars.split(","))
+    else:
+        missing = set()
+
+    the_console.line()
+    the_console.rule("Configured environment variables")
+    the_console.line()
+
     for key, value in the_installation._config.environment.items():
-        the_console.print(f"- {key}: {value}")
+        if key in missing:
+            value = "MISSING"
+
+        the_console.print(f"- {key:25}: {value}")
 
     the_console.print()
 
@@ -332,16 +348,14 @@ def list_oidc_auth_providers(
     """List OIDC Auth Providers defined in the installation"""
     the_installation = get_installation(installation_path)
 
-    the_console.print("==============================")
-    the_console.print("Configured OIDC Auth Providers")
-    the_console.print("==============================")
+    the_console.line()
+    the_console.rule("Configured OIDC Auth Providers")
+    the_console.line()
 
     for oidc_config in the_installation.oidc_auth_system_configs:
-        the_console.print()
         the_console.print(f"- [ {oidc_config.id} ] {oidc_config.title}: ")
         the_console.print(f"  {oidc_config.server_url}")
-
-    the_console.print()
+        the_console.line()
 
 
 @the_cli.command(
@@ -354,16 +368,14 @@ def list_rooms(
     """List rooms defined in the installation"""
     the_installation = get_installation(installation_path)
 
-    the_console.print("================")
-    the_console.print("Configured Rooms")
-    the_console.print("================")
+    the_console.line()
+    the_console.rule("Configured Rooms")
+    the_console.line()
 
     for room_config in the_installation.get_room_configs(None).values():
-        the_console.print()
         the_console.print(f"- [ {room_config.id} ] {room_config.name}: ")
         the_console.print(f"  {room_config.description}")
-
-    the_console.print()
+        the_console.line()
 
 
 @the_cli.command(
@@ -376,15 +388,13 @@ def list_completions(
     """List completions defined in the installation"""
     the_installation = get_installation(installation_path)
 
-    the_console.print("======================")
-    the_console.print("Configured Completions")
-    the_console.print("======================")
+    the_console.line()
+    the_console.rule("Configured Completions")
+    the_console.line()
 
     for compl_config in the_installation.get_completion_configs(None).values():
-        the_console.print()
         the_console.print(f"- [ {compl_config.id} ] {compl_config.name}: ")
-
-    the_console.print()
+        the_console.line()
 
 
 if __name__ == "__main__":
