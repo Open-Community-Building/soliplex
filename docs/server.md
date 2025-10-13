@@ -30,7 +30,7 @@ to OpenAI and provides RAG functionality.
 
 4. Check for missing secrets / environment variables:
    ```bash
-   soliplex-cli check_config example/
+   soliplex-cli check-config example/
    ```
 
 5. Configure any missing secrets, e.g. by sourcing a `.env` file, or
@@ -38,9 +38,9 @@ to OpenAI and provides RAG functionality.
    `soliplex` should support using a `.env` file to define secrets:
    https://github.com/enfold/soliplex/issues/89 .)
 
-6.  Configure any missing environment varibles, e.g. by editing
-    the installation YAML file, adding them to a `.env` file in the
-    installation path, or exporting them directly.
+6. Configure any missing environment varibles, e.g. by editing
+   the installation YAML file, adding them to a `.env` file in the
+   installation path, or exporting them directly.
 
 
 ## Running the Server
