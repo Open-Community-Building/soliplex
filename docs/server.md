@@ -33,14 +33,24 @@ to OpenAI and provides RAG functionality.
    soliplex-cli check-config example/
    ```
 
+   Note that there is an alternate installation configuration,
+   `example/minimal.yaml` which requires no secrets, but still expects
+   the `OLLAMA_BASE_URL` environment variable to be set (or present in
+   an `.env` file):
+   ```bash
+   soliplex-cli check-config example/minimal.yaml
+   ```
+
 5. Configure any missing secrets, e.g. by sourcing a `.env` file, or
-   by exporting them directly. (Note the related issue about whether
-   `soliplex` should support using a `.env` file to define secrets:
-   https://github.com/enfold/soliplex/issues/89 .)
+   by exporting them directly.
 
 6. Configure any missing environment varibles, e.g. by editing
    the installation YAML file, adding them to a `.env` file in the
    installation path, or exporting them directly.
+   ```bash
+   export OLLAMA_BASE_URL=http://<your-ollama-host>:11434
+   soliplex-cli check-config example/
+   ```
 
 
 ## Running the Server
