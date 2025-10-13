@@ -61,6 +61,7 @@ nav:
       - Server: server.md  
       - Client: client.md
   - Configuration:
+      - Filesytem Layout: config/filesystem_layout.md
       - Installation: config/installation.md
       - Rooms: config/rooms.md
       - Completions: config/completions.md

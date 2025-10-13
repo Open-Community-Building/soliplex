@@ -1,13 +1,8 @@
-# Disk-based Room Configuration
+# Room Configuration Filesystem Layout
 
-This directory tree is the location for on-disk room configuration.
+A foom is configured via directory, whose name is the room ID.
 
-## Room Configuration Filesystem Layout
-
-Within this directory, each room is represented by a subdirectory, whose
-name is the room ID.
-
-Within that subdirectory should be one or two files:
+Within that directory should be one or two files:
 
 - `room_config.yaml` holds metadata about the room (see below)
 
@@ -15,15 +10,17 @@ Within that subdirectory should be one or two files:
   which are initiated from the room.
 
 
-Example layout:
+Example layout without extermal prompt file:
+```yaml
+simple/
+    room_config.yaml
 
 ```
-rooms/
-    chat/
-        prompt.txt
-        room_config.yaml
-    simple/
-        room_config.yaml
+
+```yaml
+chat/
+    prompt.txt
+    room_config.yaml
 ```
 
 ## Room Configuration File Schema
@@ -86,57 +83,19 @@ A minimal room configuration must include the above elements, e.g.:
 
 ### Agent configuration
 
-The agent mapping is used to configure the Pydantic AI agent used to
+The `agent` mapping is used to configure the Pydantic AI agent used to
 make the room's calls to the LLM.
 
-- `system_prompt` is the "instructions" for the LLM serving the room.
-  If it starts with a `./`, it will be treated as a filename in the
-  same directory, whose contents will be read in its place.
-
-A minimal configuration, without an external prompt file:
-
 ```yaml
 agent:
-    system_prompt: |
-        You are a knowledgeable assistant that helps users find information from a document knowledge base.
-
-        Your process:
-        1. When a user asks a question, use the search_documents tool to find relevant information
-        ...
-
-```
-
-A minimal configuration, but with the prompt stored in external file:
-
-```yaml
-agent:
+    model_name: "qwen3:latest"
     system_prompt: "./prompt.txt"
 ```
 
-#### Optional agent elements
+Please see [this page](agents.md) for a full description of the options
+for configuring an agent.
 
-- `model_name` (a string, default `cogito:latest` for now) should be the
-  identifier of an alternate model for the room LLM.  E.g.:
-
-  ```yaml
-  model_name: "mistral:7b"
-  ```
-
-- `provider_base_url` (a string, default's to the value of the
-  `OLLAMA_BASE_URL` environment variable) is base API URL for the room's
-  LLM provider.  *without* the `/v1` suffix. E.g.:
-
-  ```yaml
-  provider_base_url: "https://provider.example.com/api"
-  ```
-
-- `provider_key` (a string, default's to None) should be the
-  *name* of the scret holding the LLM provider's API key
-  (*not* the value of the API key), prefixed with `secret:`
-
-  ```yaml
-  provider_key: "secret:FOO_PROVIDER_API_KEY"
-  ```
+### Tool Configurations
 
 - `tools` should be a list of mappings, with at least the key
   `tool_name`, whose value is a dotted name identifying a Python function
@@ -149,8 +108,6 @@ agent:
    ```
   Each tool mapping can contain additional elements, which are used to 
   configure the tool's behavior.
-
-### Tool Configurations
 
 #### RAG / search-related
 

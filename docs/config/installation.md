@@ -1,86 +1,178 @@
-# Installation Directory
+# Installation Configuration
 
-An "installation" is a set of filesystem-based configuration files, organized
-as a directory tree.
+## Installation ID
 
-## Installation Filesystem Layout
+A required field, to allow quick disambiguation between alternative
+configurations.
 
-At the root of an installation directory is a file, `installation.yaml`, which
-is used to configure environment variables and secrets used by the
-installation.  There may be alternative configrations available, e.g. to
-configure how the installation runs inside a container.
-
-An installation directory typically containts subdirectories, each holding
-configurations for a given type of entity.
-
-Example layout:
-
+```yaml
+id: "soliplex-example"
 ```
-/
-  installation.yaml
-  completions/
-    chat-bot/
-      completion_config.yaml
-      prompt.txt
-    ...
-  oidc/
-    cacert.pem
-    config.yaml
-  quizzes/
-    quiz_name.json
-    ...
-  rooms/
-    quiztest/
-      prompt.txt
-      room_config.yaml
-    ...
+## Installation Metaconfiguration
+
+The `meta` section allows you to register custom "kinds" of entities (tool
+configurations, MCP client toolset configurations, etc., such that you
+can use them within your own configurations (e.g., to register a configuration
+class for use with a custom tool in a given room).
+
+```yaml
+meta:
 ```
 
-### Room Configuration
+See [this page](meta.md) for documentation on the meta-configuration schema.
 
-Within a "rooms" directory, each room is represented by a subdirectory,
-whose name is the room ID.
+## Secrets
 
-Within that subdirectory should be one or two files:
+```yaml
+secrets:
+```
 
-- `room_config.yaml` holds metadata about the room (see below)
+Secrets are values used to authenticate access to different resources or
+APIs.
 
-- `prompt.txt` (if present) holds the system prompt for conversations
-  which are initiated from the room.
+The may be kept in an external store, such as:
 
-- A logo image file (optional)
+- ASW secret store
+- Github secrets
+- Docker Compose secrets files
+- The user keyring
 
-See [this page](rooms.md) for documentation on the contents and
-schema of these files.
+See [this page](secrets.md) for documentation on configuring installation
+secrets.
 
-### Completions Endpoint Configuration
+## Environment
 
-Within a "completions" directory, each endpoint is represented by a
-subdirectory, whose name is the endpoint ID.
+The `environment` section configures non-secret values used by various
+portions of the Soliplex application.  Application code should use the
+`Installation.get_environment` API to fetch configured values, rather than
+using `os.environ`.
 
-Within that subdirectory should be one or two files:
+```yaml
+environment:
+```
 
-- `completion_config.yaml` holds metadata about the endpoint (see below)
+See [this page](environment.md) for documentation on configuring the
+installation environment.
 
-- `prompt.txt` (if present) holds the system prompt for conversations
-  which are initiated from the endpoint.
+## Agent Configurations
 
-See [this page](completions.md) for documentation on the contents and
-schema of these files.
+An installation can declare agent configurations (which are normally bound
+to rooms / completions) at the top-level, such that they can be
+looked up by by ID from Python code using `the_installation.get_agent_by_id`.
 
+```yaml
+agent_configs:
 
-### Quiz Configuration
+  - id: "ollama_gpt_oss"
+    model_name: "gpt-oss:20b"
+    system_prompt: |
+      You are an expert AI assistant specializing in information retrieval.
+      ...
 
-This directory contains question sets as individual JSON files, derived
-from the evaluation dataset entries.
+```
+Plese see [this page](agents.md) for details on configuring agents.
+In addition to the values described there, note that the `id` element is
+required here.
 
-See [this page](quizzes.md) for documentation on the contents
-and schema of these files.
+## OIDC Auth Provider Paths
 
-### OIDC Provider Configuration
+The `oidc_paths` element specifies one or more filesystem paths to be
+searched for OIDC provider configs.
 
-This directory contains configuration files defining the OIDC identity
-providers configured for use in this installation.
+Please see [this page](oidc_providers.md) for details on how to configure
+these providers.
 
-See [this page](oidc_providers.md) for documentation on the contents and
-schema of these files.
+```yaml
+
+oidc_paths:
+  - "/path/to/oidc/config/dir"
+```
+
+Non-absolute paths will be evaluated relative to the installation directory.
+
+By default, Soliplex loads provider configurations found under the path
+'./oicd', just as though we had configured:
+
+```yaml
+oidc_paths:
+  - "./oidc"
+```
+
+To disable authentication, list a single, "null" path, e.g.:
+```yaml
+oidc_paths:
+  -
+```
+Or else run 'soliplex-cli serve --no-auth-mode'
+
+## Room Configuration Paths
+
+The `room_paths` element specify one or more filesystem paths to
+search for room configs.
+
+Please see [this page](rooms.md) for details on how to configure
+these providers.
+
+Each path can be either:
+
+- a directory containing its own `room_config.yaml` file:  this directory
+  will be mapped as a single room.
+
+- a directory whose immediate subdirectories will be treated as rooms
+  IFF they contain a `room_config.yaml` file.
+
+Non-absolute paths are evaluated relative to the installation directory.
+
+The order of `room_paths` in this list controls which room configuration
+is used for any conflict on room ID:  rooms found earlier in the list
+"win" over later ones with the same ID.
+
+By default, Soliplex loads room configurations found under the path './rooms',
+just as though we had configured:
+
+```yaml
+room_paths:
+  - "./rooms"
+```
+To disable all rooms, list a single, "null" path, e.g.:
+
+```yaml
+room_paths:
+   -
+```
+
+## Completion Configuration Paths
+
+The `completion_paths` entry specifies one or more filesystem paths to
+search for completion configs.
+
+Please see [this page](completions.md) for details on how to configure
+these providers.
+
+Each path can be either:
+
+- a directory containing its own `completion_config.yaml` file:  this
+  directory will be mapped as a single completion.
+
+- a directory whose immediate subdirectories will be treated as rooms
+  IFF they contain a `room_config.yaml` file.
+
+Non-absolute paths will be evaluated relative to the installation directory.
+
+The order of entries in the `completion_paths` list controls which completion
+configuration is used for any conflict on completion ID:  completions
+found earlier in the list "win" over later ones with the same ID.
+
+By default, Soliplex loads completion configurations found under the path
+'./completions', just as though we had configured:
+
+```yaml
+completion_paths:
+  - "./completions"
+```
+
+To disable all completions, list a single, "null" path, e.g.:
+```yaml
+completion_paths:
+  -
+```

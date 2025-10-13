@@ -1,9 +1,8 @@
 #==========================================================================
 # Minimal Soliplex installation configuration
 #
-# NOTE This configuration does not wire up any external APIs / MCP client
-# tools, and therefore requires no secrets beyond the one defined below,
-# which gets auto-populated at startup if it is not found in the environment.
+# Please See the corresponding sections 'example/installation.yaml' for
+# descriptions of the defaults for sections not configured here.
 #==========================================================================
 
 id: "soliplex-conf-minimal"
@@ -11,27 +10,23 @@ id: "soliplex-conf-minimal"
 #==========================================================================
 # Meta-configuration
 #==========================================================================
-#
-# Register custom "kinds" of entities (tool configurations, MCP client
-# toolset configurations, etc.)
-#==========================================================================
 
 #==========================================================================
 # Secrets
-#==========================================================================
 #
-# Kept in an external store, such as ASW secret store, Github secrets, or
-# the secrets store managed by `devenv`'s `secrets` script, secrets are
-# expected to be injected into the environment separately.
-#
-# They are named here to allow pulling them into a Docker environment as
-# value-free references in a file formated to be used by
-# 'docker run --env-file <filename>'
+# NOTE This configuration does not wire up any external APIs / MCP client
+# tools, and therefore requires no secrets beyond the one defined below,
+# which gets auto-populated at startup if it is not found in the environment.
 #==========================================================================
 
 secrets:
 
+  # ----------------------------------------------------------------------
   # MCP room token generation / validation secret
+  #
+  # If not set in the environment, we generate a random value at startup,
+  # which will invalidate any previously-generated MCP room tokens.
+  # ----------------------------------------------------------------------
   - secret_name: "URL_SAFE_TOKEN_SECRET"
     sources:
       - kind: "env_var"
@@ -41,23 +36,18 @@ secrets:
 #==========================================================================
 # Environment Variables
 #==========================================================================
-#
-# Unlike secrets, environment variables are configured explicitly as part
-# of an installation.
-#==========================================================================
 
 environment:
-  # Don't set this in development:  should only be set by the script whih
-  # is starting a container
-  #
-  #- name: "CONTAINER_IS_RUNNING"
-  #  value: "1"
 
+  - "OLLAMA_BASE_URL"
+
+  - name: "DEFAULT_AGENT_MODEL"
+    value: "qwen3:latest"
 
   #------------------------------------------------------------------------
   # 'haiku.rag' config vars
   #------------------------------------------------------------------------
-  #
+
   - name: "EMBEDDINGS_PROVIDER"
     value: "ollama"
 
@@ -79,150 +69,36 @@ environment:
   #------------------------------------------------------------------------
   # 'soliplex': on-disk configuration locations
   #------------------------------------------------------------------------
-  #
+
   - name: "INSTALLATION_PATH"
     value: "file:."
-
-  - name: "DEFAULT_AGENT_MODEL"
-    value: "qwen3:latest"
-
-    # This version pulls the value from 'os.environ':
-  - "OLLAMA_BASE_URL"
-
-    # It can also be spelled:
-# - name: "OLLAMA_BASE_URL"
-
-    # This version configures the value explicitly:
-# - name: "OLLAMA_BASE_URL"
-#   value: "http://localhost:11434"
-
-# Uncomment this to expire MCP room server tokens after one hour.
-# - name: "MCP_TOKEN_MAX_AGE"
-#   value: 3600
 
   - name: "RAG_LANCE_DB_PATH"
     value: "file:../db/rag"
 
+
 #==========================================================================
 # Agent configurations
 #==========================================================================
-# Specify agent configurations which are not bound to rooms / completions
-#==========================================================================
-
-agent_configs:
-
-  #
-  # Application code can get the agent for this config via:
-  # 'the_installation.get_agent_by_id("ollama_gpt_oss")'
-  #
-  - id: "ollama_gpt_oss"
-    model_name: "gpt-oss:20b"
-    system_prompt: |
-      You are an expert AI assistant specializing in information retrieval.
-
-      Your answers should be clear, concise, and ready for production use.
-
-      Always provide code or examples in Markdown blocks.
 
 #==========================================================================
 # OIDC authentication provider configuration
 #==========================================================================
-# Specify one or more filesystem paths to search for OIDC provider configs.
-#
-# Non-absolute paths will be evaluated relative to the installation directory.
-#
-# If the 'oidc_paths' key is not found, load provider configurations found
-# under the path './oidc'.
-#
-# To disable authentication, list a single, "null" path, e.g.:
-#
-# oidc_paths:
-#   -
-#
-# Or run 'soliplex-cli serve --no-auth-mode'
-#==========================================================================
-
 
 #==========================================================================
 # Rooms configuration
-#==========================================================================
-# Specify one or more filesystem paths to search for room configs.
 #
-# Each path can be either:
-#
-# - a directory containing its own 'room_config.yaml' file:  this directory
-#   will be mapped as a single room.
-#
-# - a directory whose immediate subdirectories will be treated as rooms
-#   IFF they contain a `room_config.yaml` file.
-#
-# Non-absolute paths will be evaluated relative to the installation directory.
-#
-# The order of 'room_paths' in this list controls which room configuration
-# is used for any conflict on room ID:  rooms found earlier in the list
-# "win" over later ones with the same ID.
-#
-# If the 'room_paths' key is not found, load room configurations found
-# under the path './rooms'.
-#
-# To disable all rooms, list a single, "null" path, e.g.:
-#
-# room_paths:
-#   -
+# We avoid the default here, because the 'mcptest' room uses the SmitheryAI
+# registry, and hence requires additional secrets
 #==========================================================================
 room_paths:
   - "./rooms/haiku"
   - "./rooms/quiztest"
 
-
 #==========================================================================
 # Completions configuration
 #==========================================================================
-# Specify one or more filesystem paths to search for completion configs.
-#
-# Each path can be either:
-#
-# - a directory containing its own 'room_config.yaml' file:  this directory
-#   will be mapped as a single completion.
-#
-# - a directory whose immediate subdirectories will be treated as rooms
-#   IFF they contain a `room_config.yaml` file.
-#
-# Non-absolute paths will be evaluated relative to the installation directory.
-#
-# The order of 'room_paths' in this list controls which completion
-# configuration is used for any conflict on completion ID:  completions
-# found earlier in the list "win" over later ones with the same ID.
-#
-# If the 'completions_paths' key is not found, load completion configurations
-# found under the path './completions'.
-#
-# To disable all completions, list a single, "null" path, e.g.:
-#
-# completion_paths:
-#   -
-#==========================================================================
-
 
 #==========================================================================
 # Quizes configuration
-#==========================================================================
-# Specify one or more filesystem paths to search for quiz question files.
-#
-# Each path should be a directory containing one or more '<quiz_id>.json'
-# files.
-#
-# Non-absolute paths will be evaluated relative to the installation directory.
-#
-# The order of 'quiz_paths' in this list controls which question file
-# configuration is used for any conflict on quiz name:  question files
-# found earlier in the list "win" over later ones with the same name.
-#
-# If the 'quizzes_paths' key is not found, search quiz for question files
-# found under the path './quizzes'.
-#
-# To disable all quizzes, list a single, "null" path, e.g.:
-#
-# quizzes_paths:
-#   -
 #==========================================================================
