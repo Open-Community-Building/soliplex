@@ -2,7 +2,7 @@
 # Soliplex installation configuration
 #==========================================================================
 
-id: "soliplex-conf-example"
+id: "soliplex-conf-no-auth"
 
 #==========================================================================
 # Meta-configuration
@@ -270,9 +270,4 @@ oidc_paths:
 #
 # quizzes_paths:
 #   -
-#
-# TODO:  update 'soliplex.config.RoomConfig._load_questions_file' to implement
-#        the non-default search of the configured path, rather than using
-#        the 'INSTALLATION_PATH' environment variable.
-#        See issue #13.
 #==========================================================================

@@ -1,8 +1,12 @@
 #==========================================================================
-# Soliplex installation configuration
+# Minimal Soliplex installation configuration
+#
+# NOTE This configuration does not wire up any external APIs / MCP client
+# tools, and therefore requires no secrets beyond the one defined below,
+# which gets auto-populated at startup if it is not found in the environment.
 #==========================================================================
 
-id: "soliplex-conf-default"
+id: "soliplex-conf-minimal"
 
 #==========================================================================
 # Meta-configuration
@@ -11,37 +15,6 @@ id: "soliplex-conf-default"
 # Register custom "kinds" of entities (tool configurations, MCP client
 # toolset configurations, etc.)
 #==========================================================================
-
-meta:
-
-  tool_configs:
-
-    - "soliplex.config.SearchDocumentsToolConfig"
-
-  mcp_toolset_configs:
-
-    - "soliplex.config.Stdio_MCP_ClientToolsetConfig"
-
-    - "soliplex.config.HTTP_MCP_ClientToolsetConfig"
-
-  mcp_server_tool_wrappers:
-
-    - config_klass: "soliplex.config.SearchDocumentsToolConfig"
-      wrapper_klass: "soliplex.config.WithQueryMCPWrapper"
-
-  secret_sources:
-
-    - config_klass: "soliplex.config.EnvVarSecretSource"
-      registered_func: "soliplex.secrets.get_env_var_secret"
-
-    - config_klass: "soliplex.config.FilePathSecretSource"
-      registered_func: "soliplex.secrets.get_file_path_secret"
-
-    - config_klass: "soliplex.config.SubprocessSecretSource"
-      registered_func: "soliplex.secrets.get_subprocess_secret"
-
-    - config_klass: "soliplex.config.RandomCharsSecretSource"
-      registered_func: "soliplex.secrets.get_random_chars_secret"
 
 #==========================================================================
 # Secrets
@@ -57,17 +30,6 @@ meta:
 #==========================================================================
 
 secrets:
-
-  # Pydantic AI logging / debugging
-  - "LOGFIRE_TOKEN"
-
-  # Public AI models
-  - "OPENAI_API_KEY"
-
-  # MCP tool registry (these are required in order to test the
-  # example/room/mcp_test tooling).
-  - "SMITHERY_AI_API_KEY"
-  - "SMITHERY_AI_PROFILE"
 
   # MCP room token generation / validation secret
   - secret_name: "URL_SAFE_TOKEN_SECRET"
@@ -141,16 +103,6 @@ environment:
   - name: "RAG_LANCE_DB_PATH"
     value: "file:../db/rag"
 
-  #------------------------------------------------------------------------
-  # Non-secret configuration for Logfire
-  #------------------------------------------------------------------------
-  #
-  - name: "LOGFIRE_ENVIRONMENT"
-    value: "container"
-
-  - name: "LOGFIRE_SERVICE_NAME"
-    value: "soliplex"
-
 #==========================================================================
 # Agent configurations
 #==========================================================================
@@ -216,6 +168,9 @@ agent_configs:
 # room_paths:
 #   -
 #==========================================================================
+room_paths:
+  - "./rooms/haiku"
+  - "./rooms/quiztest"
 
 
 #==========================================================================
