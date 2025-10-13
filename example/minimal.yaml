@@ -138,6 +138,8 @@ agent_configs:
 #
 # oidc_paths:
 #   -
+#
+# Or run 'soliplex-cli serve --no-auth-mode'
 #==========================================================================
 
 
