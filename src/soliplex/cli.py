@@ -105,6 +105,11 @@ log_level_option: LogLevelOption = typer.Option(
 def serve(
     ctx: typer.Context,
     installation_path: installation_path_type,
+    no_auth_mode: bool = typer.Option(
+        False,
+        "--no-auth-mode",
+        help="Disable OIDC authentication providers",
+    ),
     host: str = typer.Option(
         "127.0.0.1",
         "-h",
@@ -205,7 +210,7 @@ def serve(
             **uvicorn_kw,
         )
     else:
-        app = main.create_app(installation_path)
+        app = main.create_app(installation_path, no_auth_mode=no_auth_mode)
         uvicorn.run(app, **uvicorn_kw)
 
 

@@ -1,5 +1,6 @@
 import contextlib
 import dataclasses
+import pathlib
 
 import fastapi
 import pydantic_ai
@@ -115,8 +116,16 @@ async def get_the_installation(
 depend_the_installation = fastapi.Depends(get_the_installation)
 
 
-async def lifespan(app: fastapi.FastAPI, installation_path):
+async def lifespan(
+    app: fastapi.FastAPI,
+    installation_path: pathlib.Path,
+    no_auth_mode: bool = False,
+):
     i_config = config.load_installation(installation_path)
+
+    if no_auth_mode:
+        del i_config.oidc_paths[:]
+
     i_config.reload_configurations()
     the_installation = Installation(i_config)
     the_installation.resolve_secrets()
