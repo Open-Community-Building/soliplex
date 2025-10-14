@@ -402,5 +402,29 @@ def list_completions(
         the_console.line()
 
 
+@the_cli.command(
+    "config",
+)
+def config_as_yaml(
+    ctx: typer.Context,
+    installation_path: installation_path_type,
+):
+    """Export the installatin config as YAML"""
+    the_installation = get_installation(installation_path)
+
+    try:
+        the_installation.resolve_secrets()
+    except secrets.SecretsNotFound:
+        pass
+
+    try:
+        the_installation.resolve_environment()
+    except config.MissingEnvVars:
+        pass
+
+    exported_yaml = the_installation._config.as_yaml
+    the_console.print(exported_yaml)
+
+
 if __name__ == "__main__":
     the_cli()
