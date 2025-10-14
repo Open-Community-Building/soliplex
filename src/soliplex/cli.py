@@ -202,8 +202,13 @@ def serve(
 
     if reload or workers:
         os.environ["SOLIPLEX_INSTALLATION_PATH"] = str(installation_path)
+
+        if no_auth_mode:
+            os.environ["SOLIPLEX_NO_AUTH_MODE"] = "Y"
+
         uvicorn.run(
             "soliplex.main:create_app",
+            factory=True,
             reload=reload,
             reload_dirs=reload_dirs,
             reload_includes=reload_includes,
