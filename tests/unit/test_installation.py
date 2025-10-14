@@ -370,6 +370,14 @@ def mcp_apps():
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize(
+    "w_no_auth_mode, exp_oidc_paths",
+    [
+        (None, ["oidc"]),
+        (False, ["oidc"]),
+        (True, []),
+    ],
+)
 @mock.patch("soliplex.secrets.resolve_secrets")
 @mock.patch("soliplex.mcp_server.setup_mcp_for_rooms")
 @mock.patch("soliplex.config.load_installation")
@@ -378,6 +386,8 @@ async def test_lifespan(
     smfr,
     srs,
     mcp_apps,
+    w_no_auth_mode,
+    exp_oidc_paths,
 ):
     from haiku.rag import config as hr_config
 
@@ -390,10 +400,15 @@ async def test_lifespan(
     i_config = mock.create_autospec(
         config.InstallationConfig,
         secrets=(),
+        oidc_paths=["oidc"],
         environment={"OLLAMA_BASE_URL": OLLAMA_BASE_URL},
     )
     load_installation.return_value = i_config
     app = mock.create_autospec(fastapi.FastAPI)
+
+    kwargs = {}
+    if w_no_auth_mode is not None:
+        kwargs["no_auth_mode"] = w_no_auth_mode
 
     with mock.patch("haiku.rag.config.Config", copied):
         found = [
@@ -401,6 +416,7 @@ async def test_lifespan(
             async for item in installation.lifespan(
                 app,
                 INSTALLATION_PATH,
+                **kwargs,
             )
         ]
 
@@ -413,6 +429,8 @@ async def test_lifespan(
     the_installation = found[0]["the_installation"]
     assert isinstance(the_installation, installation.Installation)
     assert the_installation._config is i_config
+
+    assert i_config.oidc_paths == exp_oidc_paths
 
     i_config.reload_configurations.assert_called_once_with()
 
