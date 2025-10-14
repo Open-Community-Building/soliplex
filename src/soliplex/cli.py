@@ -6,6 +6,7 @@ from importlib.metadata import version
 
 import typer
 import uvicorn
+import yaml
 from rich import console
 
 import soliplex
@@ -422,7 +423,8 @@ def config_as_yaml(
     except config.MissingEnvVars:
         pass
 
-    exported_yaml = the_installation._config.as_yaml
+    exported_yaml = yaml.dump(the_installation._config.as_yaml)
+
     the_console.print(exported_yaml)
 
 
