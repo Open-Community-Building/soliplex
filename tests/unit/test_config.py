@@ -646,7 +646,7 @@ W_SECRET_SOURCE_ICMETA_KW = {
     "mcp_server_tool_wrappers": [],
     "secret_sources": [
         config.ConfigMeta(
-            config_klass=config.SearchDocumentsToolConfig,
+            config_klass=config.EnvVarSecretSource,
             registered_func=SECRET_SOURCE_FUNC,
         ),
     ],
@@ -654,8 +654,8 @@ W_SECRET_SOURCE_ICMETA_KW = {
 W_SECRET_SOURCE_ICMETA_YAML = """\
 meta:
   secret_sources:
-    - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
-      "registered_func": "soliplex.config.TestSecretSource"
+    - "config_klass": "soliplex.config.EnvVarSecretSource"
+      "registered_func": "soliplex.config.test_secret_func"
 """
 
 
@@ -673,7 +673,7 @@ FULL_ICMETA_KW = {
     ],
     "secret_sources": [
         config.ConfigMeta(
-            config_klass=config.SearchDocumentsToolConfig,
+            config_klass=config.EnvVarSecretSource,
             registered_func=SECRET_SOURCE_FUNC,
         ),
     ],
@@ -689,8 +689,8 @@ meta:
     - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
       "wrapper_klass": "soliplex.config.WithQueryMCPWrapper"
   secret_sources:
-    - "config_klass": "soliplex.config.SearchDocumentsToolConfig"
-      "registered_func": "soliplex.config.TestSecretSource"
+    - "config_klass": "soliplex.config.EnvVarSecretSource"
+      "registered_func": "soliplex.config.test_secret_func"
 """
 
 INSTALLATION_ID = "test-installation"
@@ -706,10 +706,7 @@ id: "{INSTALLATION_ID}"
 
 W_BARE_META_INSTALLATION_CONFIG_KW = {
     "id": INSTALLATION_ID,
-    "meta": config.InstallationConfigMeta(
-        tool_configs=[],
-        mcp_toolset_configs=[],
-    ),
+    "meta": BARE_ICMETA_KW,
 }
 W_BARE_META_INSTALLATION_CONFIG_YAML = f"""\
 id: "{INSTALLATION_ID}"
@@ -718,7 +715,7 @@ meta:
 
 W_FULL_META_INSTALLATION_CONFIG_KW = {
     "id": INSTALLATION_ID,
-    "meta": config.InstallationConfigMeta(**FULL_ICMETA_KW),
+    "meta": FULL_ICMETA_KW,
 }
 W_FULL_META_INSTALLATION_CONFIG_YAML = f"""\
 id: "{INSTALLATION_ID}"
@@ -2853,7 +2850,11 @@ def test_configmeta_dottedname():
 @pytest.fixture
 def patched_soliplex_config():
     with mock.patch.dict(config.__dict__) as patched:
-        patched["TestSecretSource"] = SECRET_SOURCE_FUNC
+        patched["test_secret_func"] = SECRET_SOURCE_FUNC
+        patched["TOOL_CONFIG_CLASSES_BY_TOOL_NAME"] = {}
+        patched["MCP_TOOLSET_CONFIG_CLASSES_BY_KIND"] = {}
+        patched["MCP_TOOL_CONFIG_WRAPPERS_BY_TOOL_NAME"] = {}
+        patched["SECRET_GETTERS_BY_KIND"] = {}
 
         yield patched
 
@@ -2888,11 +2889,13 @@ def test_installationconfigmeta_from_yaml(
     with yaml_file.open() as fp:
         config_dict = yaml.safe_load(fp)
 
+    config_meta = config_dict["meta"]
+
     if expected_kw is None:
         with pytest.raises(config.FromYamlException) as exc:
             config.InstallationConfigMeta.from_yaml(
                 yaml_file,
-                config_dict["meta"],
+                config_meta,
             )
         assert exc.value._config_path == yaml_file
 
@@ -2904,10 +2907,68 @@ def test_installationconfigmeta_from_yaml(
 
         ic_meta = config.InstallationConfigMeta.from_yaml(
             yaml_file,
-            config_dict["meta"],
+            config_meta.copy() if config_meta is not None else None,
         )
 
         assert ic_meta == expected
+
+        if config_meta and "tool_configs" in config_dict["meta"]:
+            tcs_by_tool_name = patched_soliplex_config[
+                "TOOL_CONFIG_CLASSES_BY_TOOL_NAME"
+            ]
+            tcs_by_class_name = {
+                f"{klass.__module__}.{klass.__name__}": klass
+                for klass in tcs_by_tool_name.values()
+            }
+            for klass_name in config_meta["tool_configs"]:
+                tool_name = tcs_by_class_name[klass_name].tool_name
+                assert tool_name in tcs_by_tool_name
+
+        if config_meta and "mcp_toolset_configs" in config_meta:
+            tcs_by_kind = patched_soliplex_config[
+                "MCP_TOOLSET_CONFIG_CLASSES_BY_KIND"
+            ]
+            tcs_by_class_name = {
+                f"{klass.__module__}.{klass.__name__}": klass
+                for klass in tcs_by_kind.values()
+            }
+            for klass_name in config_meta["mcp_toolset_configs"]:
+                assert tcs_by_class_name[klass_name].kind in tcs_by_kind
+
+        if config_meta and "mcp_toolset_configs" in config_meta:
+            tcs_by_kind = patched_soliplex_config[
+                "MCP_TOOLSET_CONFIG_CLASSES_BY_KIND"
+            ]
+            tcs_by_class_name = {
+                f"{klass.__module__}.{klass.__name__}": klass
+                for klass in tcs_by_kind.values()
+            }
+            for klass_name in config_meta["mcp_toolset_configs"]:
+                assert tcs_by_class_name[klass_name].kind in tcs_by_kind
+
+        if config_meta and "mcp_server_tool_wrappers" in config_meta:
+            mtcw_by_tool_name = patched_soliplex_config[
+                "MCP_TOOL_CONFIG_WRAPPERS_BY_TOOL_NAME"
+            ]
+            SDTC = config.SearchDocumentsToolConfig
+            assert SDTC.tool_name in mtcw_by_tool_name
+
+            wcs_by_class_name = {
+                f"{klass.__module__}.{klass.__name__}": klass
+                for klass in mtcw_by_tool_name.values()
+            }
+            for wrapper_cfg in config_meta["mcp_server_tool_wrappers"]:
+                wrapper_klass = wrapper_cfg["wrapper_klass"]
+                assert (
+                    mtcw_by_tool_name[SDTC.tool_name]
+                    is wcs_by_class_name[wrapper_klass]
+                )
+
+        if config_meta and "secret_sources" in config_meta:
+            sg_by_kind = patched_soliplex_config["SECRET_GETTERS_BY_KIND"]
+            assert sg_by_kind == {
+                config.EnvVarSecretSource.kind: SECRET_SOURCE_FUNC
+            }
 
 
 def test_installationconfig_secrets_map_wo_existing():
@@ -3252,17 +3313,21 @@ def test_installationconfig_from_yaml(
         assert exc.value._config_path == config_path
 
     else:
-        expected = config.InstallationConfig(**expected_kw)
-        expected = dataclasses.replace(
-            expected,
-            _config_path=config_path,
-        )
+        if "meta" in expected_kw:
+            icmeta_kw = expected_kw.pop("meta")
+            expected_kw["meta"] = config.InstallationConfigMeta(
+                **icmeta_kw,
+                _config_path=config_path,
+            )
+        else:
+            expected_kw["meta"] = config.InstallationConfigMeta(
+                _config_path=config_path,
+            )
 
-        replaced_meta = dataclasses.replace(
-            expected.meta,
+        expected = config.InstallationConfig(
+            **expected_kw,
             _config_path=config_path,
         )
-        expected = dataclasses.replace(expected, meta=replaced_meta)
 
         if "secrets" in expected_kw:
             replaced_secrets = []

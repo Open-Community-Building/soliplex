@@ -617,8 +617,8 @@ class WithQueryMCPWrapper:
         return self._func(query, tool_config=self._tool_config)
 
 
-MCP_TOOL_CONFIG_WRAPPERS_BY_KIND = {
-    SearchDocumentsToolConfig.kind: WithQueryMCPWrapper,
+MCP_TOOL_CONFIG_WRAPPERS_BY_TOOL_NAME = {
+    SearchDocumentsToolConfig.tool_name: WithQueryMCPWrapper,
 }
 
 
@@ -1477,11 +1477,12 @@ class InstallationConfigMeta:
         self.mcp_server_tool_wrappers = list(self.mcp_server_tool_wrappers)
         for mstw_meta in self.mcp_server_tool_wrappers:
             config_klass = mstw_meta.config_klass
+            tool_name = config_klass.tool_name
             wrapper_klass = mstw_meta.wrapper_klass
-            MCP_TOOL_CONFIG_WRAPPERS_BY_KIND[config_klass.kind] = wrapper_klass
+            MCP_TOOL_CONFIG_WRAPPERS_BY_TOOL_NAME[tool_name] = wrapper_klass
 
         self.secret_sources = list(self.secret_sources)
-        for ss_meta in self.mcp_server_tool_wrappers:
+        for ss_meta in self.secret_sources:
             config_klass = ss_meta.config_klass
             registered_func = ss_meta.registered_func
             SECRET_GETTERS_BY_KIND[config_klass.kind] = registered_func
