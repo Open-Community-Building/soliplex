@@ -139,6 +139,10 @@ class MissingEnvVars(ExceptionGroup, ValueError):
         )
 
 
+def _dotted_name(type_or_func) -> str:
+    return f"{type_or_func.__module__}.{type_or_func.__name__}"
+
+
 # ============================================================================
 #   OIDC Authentication system configuration types
 # ============================================================================
@@ -721,6 +725,29 @@ class AgentConfig:
 
         return provider_kw
 
+    @property
+    def as_yaml(self) -> dict:
+        prompt = (
+            self._system_prompt_path
+            if self._system_prompt_text is None
+            else self._system_prompt_text
+        )
+        if self.provider_base_url is None:
+            provider_base_url = self._installation_config.get_environment(
+                "OLLAMA_BASE_URL"
+            )
+        else:
+            provider_base_url = self.provider_base_url
+
+        return {
+            "id": self.id,
+            "model_name": self.model_name,
+            "system_prompt": prompt,
+            "provider_type": self.provider_type.value,
+            "provider_base_url": provider_base_url,
+            "provider_key": self.provider_key,  # 'secret:SECRET_NAME"
+        }
+
 
 # ============================================================================
 #   Quiz-related configuration types
@@ -1107,6 +1134,14 @@ class _BaseSecretSource:
         config["_config_path"] = config_path
         return cls(**config)
 
+    @property
+    def as_yaml(self) -> dict:
+        return {
+            "kind": self.kind,
+            "secret_name": self.secret_name,
+            **self.extra_arguments,
+        }
+
 
 @dataclasses.dataclass
 class EnvVarSecretSource(_BaseSecretSource):
@@ -1152,6 +1187,15 @@ class SubprocessSecretSource(_BaseSecretSource):
     @property
     def extra_arguments(self) -> dict[str, typing.Any]:
         return {"command_line": self.command_line}
+
+    @property
+    def as_yaml(self) -> dict:
+        return {
+            "kind": self.kind,
+            "secret_name": self.secret_name,
+            "command": self.command,
+            "args": list(self.args),
+        }
 
 
 @dataclasses.dataclass
@@ -1226,6 +1270,13 @@ class SecretConfig:
         config["sources"] = sources
 
         return cls(**config)
+
+    @property
+    def as_yaml(self) -> dict:
+        return {
+            "secret_name": self.secret_name,
+            "sources": [source.as_yaml for source in self.sources],
+        }
 
     @property
     def resolved(self) -> str | None:
@@ -1487,6 +1538,40 @@ class InstallationConfigMeta:
             registered_func = ss_meta.registered_func
             SECRET_GETTERS_BY_KIND[config_klass.kind] = registered_func
 
+    @property
+    def as_yaml(self) -> dict:
+        tool_config_entries = [
+            _dotted_name(klass)
+            for klass in TOOL_CONFIG_CLASSES_BY_TOOL_NAME.values()
+        ]
+        mcp_toolset_config_entries = [
+            _dotted_name(klass)
+            for klass in MCP_TOOLSET_CONFIG_CLASSES_BY_KIND.values()
+        ]
+        mcptcw_items = MCP_TOOL_CONFIG_WRAPPERS_BY_TOOL_NAME.items()
+        mcp_server_tool_wrapper_entries = [
+            {
+                "config_klass": _dotted_name(
+                    TOOL_CONFIG_CLASSES_BY_TOOL_NAME[tool_name],
+                ),
+                "wrapper_klass": _dotted_name(wrapper_klass),
+            }
+            for tool_name, wrapper_klass in mcptcw_items
+        ]
+        secret_source_entries = [
+            {
+                "config_klass": _dotted_name(SourceClassesByKind[kind]),
+                "registered_func": _dotted_name(r_func),
+            }
+            for kind, r_func in SECRET_GETTERS_BY_KIND.items()
+        ]
+        return {
+            "tool_configs": tool_config_entries,
+            "mcp_toolset_configs": mcp_toolset_config_entries,
+            "mcp_server_tool_wrappers": mcp_server_tool_wrapper_entries,
+            "secret_sources": secret_source_entries,
+        }
+
 
 @dataclasses.dataclass
 class InstallationConfig:
@@ -1741,6 +1826,20 @@ class InstallationConfig:
                 for quizzes_path in self.quizzes_paths
                 if quizzes_path is not None
             ]
+
+    @property
+    def as_yaml(self) -> dict:
+        return {
+            "id": self.id,
+            "meta": self.meta.as_yaml,
+            "secrets": [secret.as_yaml for secret in self.secrets],
+            "environment": self.environment,
+            "agent_configs": [ac.as_yaml for ac in self.agent_configs],
+            "oidc_paths": [str(path) for path in self.oidc_paths],
+            "room_paths": [str(path) for path in self.room_paths],
+            "completion_paths": [str(path) for path in self.completion_paths],
+            "quizzes_paths": [str(path) for path in self.quizzes_paths],
+        }
 
     def _load_oidc_auth_system_configs(self) -> list[OIDCAuthSystemConfig]:
         oas_configs = []

@@ -6,6 +6,7 @@ from importlib.metadata import version
 
 import typer
 import uvicorn
+import yaml
 from rich import console
 
 import soliplex
@@ -405,6 +406,31 @@ def list_completions(
     for compl_config in the_installation.get_completion_configs(None).values():
         the_console.print(f"- [ {compl_config.id} ] {compl_config.name}: ")
         the_console.line()
+
+
+@the_cli.command(
+    "config",
+)
+def config_as_yaml(
+    ctx: typer.Context,
+    installation_path: installation_path_type,
+):
+    """Export the installatin config as YAML"""
+    the_installation = get_installation(installation_path)
+
+    try:
+        the_installation.resolve_secrets()
+    except secrets.SecretsNotFound:
+        pass
+
+    try:
+        the_installation.resolve_environment()
+    except config.MissingEnvVars:
+        pass
+
+    exported_yaml = yaml.dump(the_installation._config.as_yaml)
+
+    the_console.print(exported_yaml)
 
 
 if __name__ == "__main__":
