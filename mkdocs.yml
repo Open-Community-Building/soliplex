@@ -63,6 +63,10 @@ nav:
   - Configuration:
       - Filesytem Layout: config/filesystem_layout.md
       - Installation: config/installation.md
+      - Meta: config/meta.md
+      - Environment: config/environment.md
+      - Secrets: config/secrets.md
+      - Agents: config/agents.md
       - Rooms: config/rooms.md
       - Completions: config/completions.md
       - Quizzes: config/quizzes.md
