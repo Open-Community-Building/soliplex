@@ -3,6 +3,7 @@ site_url: https://soliplex.github.io/soliplex/
 dev_addr: 127.0.0.1:8001
 theme:
   name: material
+  logo: img/logo.png
   palette:
     - media: "(prefers-color-scheme)"
       toggle:
@@ -58,7 +59,7 @@ nav:
   - Home: index.md
   - Overview: overview.md
   - Setup:
-      - Server: server.md  
+      - Server: server.md
       - Client: client.md
   - Configuration:
       - Filesytem Layout: config/filesystem_layout.md
