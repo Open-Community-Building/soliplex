@@ -45,9 +45,6 @@ def create_app(
     installation_path: pathlib.Path = None,
     no_auth_mode: bool = None,
 ):  # pragma: NO COVER
-    # 'if-token-present' means nothing will be sent (and the example will work)
-    # if you don't have logfire configured
-    logfire.configure(send_to_logfire="if-token-present")
 
     if no_auth_mode is None:
         no_auth_mode = os.environ.get("SOLIPLEX_NO_AUTH_MODE") == "Y"
@@ -86,6 +83,13 @@ def create_app(
     app.include_router(quizzes_views.router, prefix="/api")
     app.include_router(rooms_views.router, prefix="/api")
     app.include_router(views.router, prefix="/api")
+
+    # pragma: NO COVER
+    # 'if-token-present' means nothing will be sent (and the example will work)
+    # if you don't have logfire configured
+    logfire.configure(send_to_logfire="if-token-present")
+    logfire.instrument_pydantic_ai()
+    logfire.instrument_fastapi(app, capture_headers=True)
 
     return app
 
