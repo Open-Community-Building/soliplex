@@ -153,10 +153,10 @@ environment:
     value: "ollama"
 
   - name: "EMBEDDINGS_MODEL"
-    value: "mxbai-embed-large"
+    value: "qwen3-embedding"
 
   - name: "EMBEDDINGS_VECTOR_DIM"
-    value: "1024"
+    value: "4096"
 
   - name: "QA_PROVIDER"
     value: "ollama"
