@@ -15,28 +15,29 @@ This directory contains Docker configuration for building and running the Solipl
 Build and run the production web server:
 
 ```bash
-cd docker
+cd src/flutter
 docker-compose up --build
 ```
 
-The web application will be available at `http://localhost:8080`
+The web application will be available at `http://localhost:9000`
 
 ### Development with Hot Reload
 
 Run the development server with hot reload:
 
 ```bash
-cd docker
+cd src/flutter
 docker-compose --profile dev up dev
 ```
 
-The development server will be available at `http://localhost:8081`
+The development server will be available at `http://localhost:9001`
 
 ## Building the Docker Image Directly
 
 To build the Docker image without docker-compose:
 
 ```bash
-docker build -f docker/Dockerfile -t soliplex-web .
-docker run -p 8080:80 soliplex-web
+cd src/flutter
+docker build -f Dockerfile -t soliplex-web .
+docker run soliplex-web
 ```
