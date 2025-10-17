@@ -1,18 +1,17 @@
 services:
   soliplex_web:
     build:
-      context: ./src/flutter/
+      context: ./src/flutter
       dockerfile: Dockerfile
-    ports:
-      - "8080:80"
+    network_mode: "host"
 
   soliplex_backend:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
+    network_mode: "host"
     env_file:
       - .env
     volumes:
       - ./installation:/app/installation
+      - ./db:/app/db
