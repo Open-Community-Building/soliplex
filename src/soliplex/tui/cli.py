@@ -18,7 +18,7 @@ the_console = console.Console()
 
 def get_version():
     v = version("soliplex-tui")
-    the_console.print(f"soliple-tui version {v}")
+    the_console.print(f"soliplex-tui version {v}")
     raise typer.Exit()
 
 def version_callback(value: bool):

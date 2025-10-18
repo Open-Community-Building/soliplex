@@ -51,15 +51,15 @@ agent:
   ```
 
 - `provider_base_url`: a string, defaulting to the value configured in
-  the installation environment as `OLLAMA_BASE_URL` ) is base API URL for the agent's
-  LLM provider.  *without* the `/v1` suffix. E.g.:
+  the installation environment as `OLLAMA_BASE_URL` is the base API URL for the agent's
+  LLM provider. Must be specified *without* the `/v1` suffix. E.g.:
 
   ```yaml
   provider_base_url: "https://provider.example.com/api"
   ```
 
 - `provider_key` (a string, default's to None) should be the
-  *name* of the scret holding the LLM provider's API key
+  *name* of the secret holding the LLM provider's API key
   (*not* the value of the API key), prefixed with `secret:`
 
   ```yaml

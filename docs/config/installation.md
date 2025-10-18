@@ -11,7 +11,7 @@ id: "soliplex-example"
 ## Installation Metaconfiguration
 
 The `meta` section allows you to register custom "kinds" of entities (tool
-configurations, MCP client toolset configurations, etc., such that you
+configurations, MCP client toolset configurations, etc.), such that you
 can use them within your own configurations (e.g., to register a configuration
 class for use with a custom tool in a given room).
 
@@ -33,7 +33,7 @@ APIs.
 The may be kept in an external store, such as:
 
 - ASW secret store
-- Github secrets
+- GitHub secrets
 - Docker Compose secrets files
 - The user keyring
 
@@ -58,7 +58,7 @@ installation environment.
 
 An installation can declare agent configurations (which are normally bound
 to rooms / completions) at the top-level, such that they can be
-looked up by by ID from Python code using `the_installation.get_agent_by_id`.
+looked up by ID from Python code using `the_installation.get_agent_by_id`.
 
 ```yaml
 agent_configs:
@@ -70,7 +70,7 @@ agent_configs:
       ...
 
 ```
-Plese see [this page](agents.md) for details on configuring agents.
+Please see [this page](agents.md) for details on configuring agents.
 In addition to the values described there, note that the `id` element is
 required here.
 

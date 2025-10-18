@@ -36,7 +36,7 @@ the following required elements:
 
 - `agent` (a mapping)
 
-A minimal completion endpoing configuration must include the above
+A minimal completion endpoint configuration must include the above
 elements, e.g.:
 
   ```yaml

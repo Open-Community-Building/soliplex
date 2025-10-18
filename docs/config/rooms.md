@@ -10,7 +10,7 @@ Within that directory should be one or two files:
   which are initiated from the room.
 
 
-Example layout without extermal prompt file:
+Example layout without external prompt file:
 ```yaml
 simple/
     room_config.yaml
@@ -74,7 +74,7 @@ A minimal room configuration must include the above elements, e.g.:
   ```
 
 - `enable_attachments` (a boolean, default `False`), which, if true, 
-  tells the UI to allow the user to attach files to a prompt. E.g.,:
+  tells the UI to allow the user to attach files to a prompt. E.g.:
 
   ```yaml
   enable_attachments: true
@@ -206,5 +206,5 @@ agent:
 Rooms using the ``search_documents`` tool need to be able to find the
 LanceDB database containing the chunks and embeddings extracted by
 Haiku-RAG.  At present, there should be a single database per room,
-named by convension `<stem>.lancedb`, and stored in the `db/rag/`
+named by convention `<stem>.lancedb`, and stored in the `db/rag/`
 subdirectory of the project root.

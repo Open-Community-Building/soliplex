@@ -8,7 +8,7 @@ Quizzes use the evaluation dataset entries (see the
 ## Room Configuration
 
 - Room configurations get a new key, `quizzes`, with a value which
-  is a mapping defining quizes which can be run in the room
+  is a mapping defining quizzes which can be run in the room
   (see `rooms/README.md`).
 
 ## API
@@ -81,7 +81,7 @@ Fetch the quiz.  Returns a mapping for the quiz with a list of questions:
 
 ### `POST /api/v1/rooms/{room_id}/quiz/{quiz_id}/{question_uuid}`
 
-Check an anwer.  Client should send the answer entered / selected by the
+Check an answer.  Client should send the answer entered / selected by the
 user as a `text/plain` body.  For a correct answer, returns:
 
 ```
@@ -90,7 +90,7 @@ user as a `text/plain` body.  For a correct answer, returns:
 }
 ```
 
-For a incorrect answer, returns:
+For an incorrect answer, returns:
 ```
 {
     "correct": "false"

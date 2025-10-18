@@ -71,7 +71,7 @@ async def openai_chat_completion(
 ) -> responses.StreamingResponse:
     openai_payload = chat_request.model_dump(exclude_unset=True)
     user_question = openai_payload["messages"][-1]["content"]
-    # TODO: figure out how to convert mssage history to PydanticAI's
+    # TODO: figure out how to convert message history to PydanticAI's
     #       format.
     # message_history = munge(openai_payload["messages"][:-1])
     message_history = []

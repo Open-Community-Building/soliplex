@@ -245,7 +245,7 @@ def test_logfile_span_preserves_function_metadata(mock_span):
         ("foo..bar", "foo..bar"),
         ("foo.bar", "foo.bar"),
         ("foobar", "foobar"),
-        # Test 1 ellipses is not modified
+        # Test 1 ellipse is not modified
         ("foo…bar", "foo…bar"),
         # Test multiple replacements in same string
         ("foo....bar....baz", "foo...bar...baz"),
@@ -272,5 +272,5 @@ def test_logfile_span_preserves_function_metadata(mock_span):
         ("test……\t……test", "test…\t…test"),
     ],
 )
-def test_preprocesr_markdown(text, expected):
+def test_preprocess_markdown(text, expected):
     assert util.preprocess_markdown(text) == expected

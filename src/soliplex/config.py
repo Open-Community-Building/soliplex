@@ -333,7 +333,7 @@ class SearchDocumentsToolConfig(ToolConfig):
     # Set in '__post_init__' below
     _rag_lancedb_path: pathlib.Path = None
 
-    # One of these two options must be specfied
+    # One of these two options must be specified
     rag_lancedb_stem: str = None
     rag_lancedb_override_path: str = None
 
@@ -650,7 +650,7 @@ class AgentConfig:
 
     provider_type: LLMProviderType = LLMProviderType.OLLAMA
     provider_base_url: str = None  # installation config provides default
-    provider_key: str = None  # 'secret containing API key
+    provider_key: str = None  # secret containing API key
 
     # Set by `from_yaml` factory
     _installation_config: InstallationConfig = None
@@ -745,7 +745,7 @@ class AgentConfig:
             "system_prompt": prompt,
             "provider_type": self.provider_type.value,
             "provider_base_url": provider_base_url,
-            "provider_key": self.provider_key,  # 'secret:SECRET_NAME"
+            "provider_key": self.provider_key,  # "secret:SECRET_NAME"
         }
 
 
@@ -1324,7 +1324,7 @@ def _find_configs(
     If 'to_search' has its own copy of 'filename_yaml', just yield the one
     config parsed from it.
 
-    Otherwise, itterate over immediate subdirectories, yielding configs
+    Otherwise, iterate over immediate subdirectories, yielding configs
     parsed from any which have copies of 'filename_yaml'
     """
     config_file = to_search / filename_yaml
@@ -1401,7 +1401,7 @@ class ConfigMeta:
 
     'registered_func'
         a callable taking an instance of 'config_klass' (return type
-        unspecified, but it should be the same type for all 'config_klass'
+        unspecified), but it should be the same type for all 'config_klass'
         classes registered for a given set.
     """
 

@@ -5,13 +5,13 @@ as a directory tree.
 
 At the root of an installation directory is a file, `installation.yaml`, which
 is used to configure environment variables and secrets used by the
-installation.  There may be alternative configrations available, e.g. to
+installation.  There may be alternative configurations available, e.g. to
 configure how the installation runs inside a container.
 
 See [this page](installation.md) for
 documentation on the schema of one of these configurations.
 
-An installation directory typically containts subdirectories, each holding
+An installation directory typically contains subdirectories, each holding
 configurations for a given type of entity.
 
 Example layout:

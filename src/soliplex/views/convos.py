@@ -189,7 +189,7 @@ async def post_convo(
     the_convos: convos.Conversations = convos.depend_the_convos,
     token: security.HTTPAuthorizationCredentials = auth.oauth2_predicate,
 ) -> responses.StreamingResponse:
-    """Send another user message to an existing converation
+    """Send another user message to an existing conversation
 
     Return the final response message.
     """

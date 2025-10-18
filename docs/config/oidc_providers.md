@@ -1,4 +1,4 @@
-# OIDC Provider Configuraton
+# OIDC Provider Configuration
 
 The `config.yaml` file in an OIDC provider configuration directory specifies
 one or more authentication systems, sharing a common CA certificate

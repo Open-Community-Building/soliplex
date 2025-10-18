@@ -54,7 +54,7 @@ installation_path_type = typing.Annotated[
     pathlib.Path,
     typer.Argument(
         envvar="SOLIPLEX_INSTALLATION_PATH",
-        help="Soliplex instllation path",
+        help="Soliplex installation path",
     ),
 ]
 

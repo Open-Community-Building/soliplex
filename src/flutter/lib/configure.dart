@@ -121,7 +121,7 @@ Future<Widget> configure() async {
       }
     }
   } catch (e) {
-    debugPrint('Exception while fetching login systesm from backend.\n$e');
+    debugPrint('Exception while fetching login systems from backend.\n$e');
   }
 
   final secureStorage = SecureStorageGateway(FlutterSecureStorage());

@@ -19,7 +19,7 @@ depend_the_installation = installation.depend_the_installation
 async def get_login(
     the_installation: installation.Installation = depend_the_installation,
 ) -> models.ConfiguredOIDCAuthSystems:
-    """Describe configured OIDC Authentiaction providers"""
+    """Describe configured OIDC Authentication providers"""
     # Remove `_installation_config` to avoid infinite recursion
     auth_system_copies = [
         dataclasses.replace(auth_system, _installation_config=None)

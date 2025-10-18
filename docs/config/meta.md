@@ -44,7 +44,7 @@ meta:
 ```
 ## Registering MCP Server Tool Wrapper Types
 
-The `meta.mcp_server_tool_wrappers` section maps tool configuration classs to
+The `meta.mcp_server_tool_wrappers` section maps tool configuration classes to
 the equivalent wrapper class, used then offering the tool to external
 MCP clients.
 

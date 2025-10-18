@@ -24,7 +24,7 @@ secrets:
 
 ## Secret Source: Filesystem Path
 
-A secret source which uses a filesystme path can be configured so:
+A secret source which uses a file system path can be configured so:
 
 ```yaml
 secrets:
@@ -79,9 +79,9 @@ secrets:
 ```
 
 
-## Secrets wihout Sources
+## Secrets without Sources
 
-Secrets which list no sources are treated as though the were configured
+Secrets which list no sources are treated as though they were configured
 using an environment variable source with the same name.
 
 This configuration:

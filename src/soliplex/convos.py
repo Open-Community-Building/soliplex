@@ -1,4 +1,4 @@
-"""Track converstations by user and room.
+"""Track conversations by user and room.
 
 If / when we move to a "persistent" history store, this module should firewall
 that choice away from the rest of the system.
@@ -274,7 +274,7 @@ class Conversations:
         convo_uuid: str,
         new_messages: list[ai_messages.ModelMessage],
     ) -> None:
-        """Append messsages to history for a conversation"""
+        """Append messages to history for a conversation"""
         async with self._lock:
             convo = await self._find_conversation(user_name, convo_uuid)
 
