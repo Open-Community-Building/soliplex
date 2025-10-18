@@ -101,7 +101,7 @@ application is assembled.  It includes a number of rooms that
 5. Configure any missing secrets, e.g. by sourcing a `.env` file, or
    by exporting them directly.
 
-6. Configure any missing environment varibles, e.g. by editing
+6. Configure any missing environment variables, e.g. by editing
    the installation YAML file, adding them to a `.env` file in the
    installation path, or exporting them directly.
    ```bash
