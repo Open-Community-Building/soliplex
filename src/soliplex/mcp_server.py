@@ -57,9 +57,9 @@ def setup_mcp_for_rooms(the_installation: installation.Installation):
     """Setup MCP servers for all available rooms.
 
     Args:
-        fastapi_context: dict created via the fastapi app's lifespan:
-                         key 'the_rooms' holds the installation's
-                         RoomConfigs instance with loaded room configurations
+        the_installation: dict created via the fastapi app's lifespan:
+                          key 'the_rooms' holds the installation's
+                          RoomConfigs instance with loaded room configurations
 
     Returns:
         mcp_apps dict
