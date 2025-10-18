@@ -80,7 +80,7 @@ async def check_answer(
     quiz: config.QuizConfig,
     question_uuid: str,
     answer: str,
-) -> bool:
+) -> dict:
     try:
         question = quiz.get_question(question_uuid)
     except KeyError:
