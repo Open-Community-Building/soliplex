@@ -10,8 +10,6 @@ from pydantic_ai import messages as ai_messages
 
 from soliplex import convos
 
-SYSTEM_PROMPT = "You are a testcase"
-USER_PROMPT = "Which way is up?"
 TOOL_RETURN = "Nailed it"
 TOOL_CALL_ID = 1234
 RETRY_PROMPT = "Please try again"
