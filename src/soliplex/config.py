@@ -1763,8 +1763,6 @@ class InstallationConfig:
             ]
             config["agent_configs"] = agent_configs
 
-            environment = config.get("environment", {})
-
             return cls(**config)
 
         except FromYamlException:  # pragma: NO COVER
