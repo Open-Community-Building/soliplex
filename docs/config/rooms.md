@@ -1,6 +1,6 @@
 # Room Configuration Filesystem Layout
 
-A foom is configured via directory, whose name is the room ID.
+A room is configured via directory, whose name is the room ID.
 
 Within that directory should be one or two files:
 
